@@ -154,33 +154,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return () => unsub();
   }, []);
 
-  // Sync presence status to Realtime Database
-  useEffect(() => {
-    if (!currentUser) return;
-
-    matchService.updatePresence({
-      uid: currentUser.uid,
-      displayName: currentUser.displayName,
-      photoURL: currentUser.photoURL,
-      userTag: currentUser.userTag,
-      status: 'online',
-      lastActive: Date.now()
-    });
-
-    const interval = setInterval(() => {
-      matchService.updatePresence({
-        uid: currentUser.uid,
-        displayName: currentUser.displayName,
-        photoURL: currentUser.photoURL,
-        userTag: currentUser.userTag,
-        status: 'online',
-        lastActive: Date.now()
-      });
-    }, 20000);
-
-    return () => clearInterval(interval);
-  }, [currentUser]);
-
   const saveUser = (user: UserProfile) => {
     setCurrentUser(user);
     localStorage.setItem('duo_current_user', JSON.stringify(user));

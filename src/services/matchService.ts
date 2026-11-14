@@ -15,6 +15,8 @@ import type {
   UserProfile,
   UserPresence,
   BattleInvite,
+  FriendRequest,
+  FriendRecord,
   GameSettings
 } from '../types';
 
@@ -94,16 +96,22 @@ class MatchService {
     if (rtdb) {
       try {
         const presenceRef = ref(rtdb, `presence/${presence.uid}`);
-        set(presenceRef, {
+        const cleaned = this.cleanForRTDB({
           ...presence,
-          lastActive: rtdbServerTimestamp()
+          lastActive: Date.now()
         });
+        set(presenceRef, cleaned).catch(console.warn);
+
         const disconnectRef = onDisconnect(presenceRef);
-        disconnectRef.set({
+        disconnectRef.set(this.cleanForRTDB({
           ...presence,
           status: 'offline',
-          lastActive: rtdbServerTimestamp()
-        });
+          lastActive: Date.now(),
+          currentRoomId: null,
+          currentRoomCode: null,
+          currentGameId: null,
+          currentGameName: null
+        })).catch(console.warn);
       } catch (err) {
         console.warn('Presence sync error:', err);
       }
@@ -546,33 +554,221 @@ class MatchService {
     return room;
   }
 
-  // --- CONNECTION HEALTH (.info/connected) ---
+  // --- CONNECTION HEALTH (Accurate Browser & Network Health) ---
   public subscribeConnection(callback: (connected: boolean) => void): () => void {
     if (typeof window !== 'undefined') {
-      const handleOnline = () => callback(true);
-      const handleOffline = () => callback(false);
-      window.addEventListener('online', handleOnline);
-      window.addEventListener('offline', handleOffline);
+      const checkConnection = () => {
+        const isOnline = typeof navigator !== 'undefined' ? navigator.onLine : true;
+        callback(isOnline);
+      };
 
-      let unsubRtdb: (() => void) | null = null;
-      if (rtdb) {
-        try {
-          const connectedRef = ref(rtdb, '.info/connected');
-          const unsub = onValue(connectedRef, (snap) => {
-            const isConn = Boolean(snap.val());
-            callback(isConn);
-          });
-          unsubRtdb = () => unsub();
-        } catch {}
-      }
+      checkConnection();
+      window.addEventListener('online', checkConnection);
+      window.addEventListener('offline', checkConnection);
 
       return () => {
-        window.removeEventListener('online', handleOnline);
-        window.removeEventListener('offline', handleOffline);
-        if (unsubRtdb) unsubRtdb();
+        window.removeEventListener('online', checkConnection);
+        window.removeEventListener('offline', checkConnection);
       };
     }
     return () => {};
+  }
+
+  // --- MUTUAL FRIEND REQUEST SYSTEM (RTDB) ---
+  public async sendFriendRequest(
+    fromUser: UserProfile,
+    toUser: UserProfile
+  ): Promise<{ success: boolean; message: string }> {
+    if (fromUser.uid === toUser.uid) {
+      return { success: false, message: '不能加自己為好友！' };
+    }
+
+    if (rtdb) {
+      try {
+        // Check if already friends
+        const friendSnap = await get(child(ref(rtdb), `friends/${fromUser.uid}/${toUser.uid}`));
+        if (friendSnap.exists()) {
+          return { success: false, message: '該玩家已經是您的好友！' };
+        }
+
+        const requestId = `${fromUser.uid}_${toUser.uid}`;
+        const req: FriendRequest = {
+          id: requestId,
+          fromUid: fromUser.uid,
+          fromDisplayName: fromUser.displayName,
+          fromPhotoURL: fromUser.photoURL,
+          fromUserTag: fromUser.userTag,
+          toUid: toUser.uid,
+          createdAt: Date.now(),
+          status: 'pending'
+        };
+
+        await set(
+          ref(rtdb, `friend_requests/${toUser.uid}/${fromUser.uid}`),
+          this.cleanForRTDB(req)
+        );
+        return { success: true, message: `好友邀請已送出給 ${toUser.displayName}！等待對方同意。` };
+      } catch (e: any) {
+        console.warn('sendFriendRequest error:', e);
+        return { success: false, message: '發送好友邀請失敗，請稍後重試。' };
+      }
+    }
+    return { success: false, message: '資料庫尚未就緒。' };
+  }
+
+  public subscribeFriendRequests(
+    myUid: string,
+    callback: (requests: FriendRequest[]) => void
+  ): () => void {
+    if (!rtdb) return () => {};
+    try {
+      const requestsRef = ref(rtdb, `friend_requests/${myUid}`);
+      const unsub = onValue(requestsRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          const list: FriendRequest[] = Object.values(val);
+          callback(list.filter((r) => r.status === 'pending'));
+        } else {
+          callback([]);
+        }
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('subscribeFriendRequests err:', e);
+      return () => {};
+    }
+  }
+
+  public async acceptFriendRequest(
+    request: FriendRequest,
+    myProfile: UserProfile
+  ): Promise<void> {
+    if (!rtdb) return;
+    try {
+      const friendRecordForMe: FriendRecord = {
+        uid: request.fromUid,
+        displayName: request.fromDisplayName,
+        photoURL: request.fromPhotoURL,
+        userTag: request.fromUserTag,
+        addedAt: Date.now()
+      };
+
+      const friendRecordForOther: FriendRecord = {
+        uid: myProfile.uid,
+        displayName: myProfile.displayName,
+        photoURL: myProfile.photoURL,
+        userTag: myProfile.userTag,
+        addedAt: Date.now()
+      };
+
+      // 1. Add to my friends list
+      await set(
+        ref(rtdb, `friends/${myProfile.uid}/${request.fromUid}`),
+        this.cleanForRTDB(friendRecordForMe)
+      );
+      // 2. Add to sender's friends list
+      await set(
+        ref(rtdb, `friends/${request.fromUid}/${myProfile.uid}`),
+        this.cleanForRTDB(friendRecordForOther)
+      );
+      // 3. Delete from friend_requests
+      await set(ref(rtdb, `friend_requests/${myProfile.uid}/${request.fromUid}`), null);
+    } catch (e) {
+      console.warn('acceptFriendRequest err:', e);
+    }
+  }
+
+  public async declineFriendRequest(myUid: string, fromUid: string): Promise<void> {
+    if (!rtdb) return;
+    try {
+      await set(ref(rtdb, `friend_requests/${myUid}/${fromUid}`), null);
+    } catch (e) {
+      console.warn('declineFriendRequest err:', e);
+    }
+  }
+
+  public subscribeFriends(
+    myUid: string,
+    callback: (friends: FriendRecord[]) => void
+  ): () => void {
+    if (!rtdb) return () => {};
+    try {
+      const friendsRef = ref(rtdb, `friends/${myUid}`);
+      const unsub = onValue(friendsRef, (snap) => {
+        if (snap.exists()) {
+          const val = snap.val();
+          callback(Object.values(val));
+        } else {
+          callback([]);
+        }
+      });
+      return () => unsub();
+    } catch (e) {
+      console.warn('subscribeFriends err:', e);
+      return () => {};
+    }
+  }
+
+  public async removeFriend(myUid: string, friendUid: string): Promise<void> {
+    if (!rtdb) return;
+    try {
+      await set(ref(rtdb, `friends/${myUid}/${friendUid}`), null);
+      await set(ref(rtdb, `friends/${friendUid}/${myUid}`), null);
+    } catch (e) {
+      console.warn('removeFriend err:', e);
+    }
+  }
+
+  // --- CROSS-REFERENCE LIVE ROOMS FOR FRIENDS PRESENCE ---
+  public async getFriendsLiveStatus(friends: FriendRecord[]): Promise<UserPresence[]> {
+    const liveRooms = await this.fetchAllRoomsFromRTDB();
+    const activeRooms = liveRooms.filter(
+      (r) => r.status === 'waiting' || r.status === 'in_progress'
+    );
+
+    const gameNames: Record<string, string> = {
+      '1a2b': '1A2B',
+      'battleship': '海戰棋',
+      'bingo': '賓果',
+      'dots': '點線棋',
+      'ooxx': '無限三子棋'
+    };
+
+    return friends.map((f) => {
+      // 1. Direct cross-reference with active rooms in RTDB
+      const activeRoom = activeRooms.find(
+        (r) => r.player1.uid === f.uid || r.player2?.uid === f.uid
+      );
+      const presence = this.localPresence.get(f.uid);
+
+      if (activeRoom) {
+        return {
+          uid: f.uid,
+          displayName: f.displayName,
+          photoURL: f.photoURL,
+          userTag: f.userTag,
+          status: 'in_game',
+          lastActive: Date.now(),
+          currentRoomId: activeRoom.id,
+          currentRoomCode: activeRoom.code,
+          currentGameId: activeRoom.gameId,
+          currentGameName: gameNames[activeRoom.gameId] || activeRoom.gameId.toUpperCase()
+        };
+      }
+
+      return {
+        uid: f.uid,
+        displayName: f.displayName,
+        photoURL: f.photoURL,
+        userTag: f.userTag,
+        status: presence ? presence.status : 'offline',
+        lastActive: presence ? presence.lastActive : 0,
+        currentRoomId: presence?.currentRoomId,
+        currentRoomCode: presence?.currentRoomCode,
+        currentGameId: presence?.currentGameId,
+        currentGameName: presence?.currentGameName
+      };
+    });
   }
 
   // --- INITIALIZE SPECIFIC GAME STATES ---

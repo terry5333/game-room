@@ -14,6 +14,7 @@ import {
   Users2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
+import { matchService } from '../../services/matchService';
 import { sound } from '../../services/soundService';
 
 interface HeaderProps {
@@ -35,7 +36,16 @@ export const Header: React.FC<HeaderProps> = ({
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(sound.isEnabled());
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsub = matchService.subscribeFriendRequests(currentUser.uid, (reqs) => {
+      setPendingRequestsCount(reqs.length);
+    });
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -64,34 +74,39 @@ export const Header: React.FC<HeaderProps> = ({
   };
 
   return (
-    <header className="sticky top-0 z-40 w-full px-4 sm:px-8 py-3">
-      <div className="max-w-5xl mx-auto glass-panel rounded-2xl px-5 py-2.5 flex items-center justify-between shadow-xs border border-white/60">
+    <header className="sticky top-0 z-40 w-full px-2.5 sm:px-8 py-2 sm:py-3">
+      <div className="max-w-5xl mx-auto glass-panel rounded-2xl px-3 sm:px-5 py-2 sm:py-2.5 flex items-center justify-between shadow-xs border border-white/60">
         {/* Brand */}
-        <div className="flex items-center gap-2 select-none">
-          <div className="w-8 h-8 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs">
+        <div className="flex items-center gap-2 select-none shrink-0">
+          <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs">
             <Gamepad2 className="w-4 h-4 text-white" />
           </div>
-          <span className="font-extrabold text-base tracking-tight text-[#2E2925]">
+          <span className="font-extrabold text-sm sm:text-base tracking-tight text-[#2E2925]">
             遊戲室
           </span>
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-2 sm:gap-3">
-          {/* Friends Drawer Button */}
+        <div className="flex items-center gap-1.5 sm:gap-3">
+          {/* Friends Button with Badge */}
           <button
             onClick={() => {
               sound.playClick();
               onOpenFriends();
             }}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white text-xs font-bold text-[#628395] border border-[#628395]/30 shadow-2xs transition-colors cursor-pointer"
+            className="relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white text-xs font-bold text-[#628395] border border-[#628395]/30 shadow-2xs transition-colors cursor-pointer"
           >
             <Users2 className="w-3.5 h-3.5 text-[#628395]" />
-            <span>好友</span>
+            <span className="text-xs">好友</span>
+            {pendingRequestsCount > 0 && (
+              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white font-mono text-[9px] font-black flex items-center justify-center shadow-xs animate-bounce">
+                {pendingRequestsCount}
+              </span>
+            )}
           </button>
 
           {/* Minimal Coin Chip */}
-          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/60 border border-[#DBAD6A]/40 text-[#2E2925] font-mono font-bold text-xs">
+          <div className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/60 border border-[#DBAD6A]/40 text-[#2E2925] font-mono font-bold text-xs shrink-0">
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />
             <span>{currentUser.coins.toLocaleString()}</span>
           </div>
@@ -99,7 +114,7 @@ export const Header: React.FC<HeaderProps> = ({
           {/* Sound Toggle */}
           <button
             onClick={toggleSound}
-            className="p-1.5 rounded-xl text-[#96897B] hover:text-[#2E2925] hover:bg-white/60 transition-colors"
+            className="p-1.5 rounded-xl text-[#96897B] hover:text-[#2E2925] hover:bg-white/60 transition-colors cursor-pointer"
             title={soundEnabled ? '靜音' : '開啟音效'}
           >
             {soundEnabled ? (
@@ -115,9 +130,10 @@ export const Header: React.FC<HeaderProps> = ({
               sound.playClick();
               onOpenRules();
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#2E2925] hover:bg-white/60 transition-colors cursor-pointer"
+            className="flex items-center gap-1 p-1.5 sm:px-2.5 sm:py-1.5 rounded-xl text-xs font-semibold text-[#2E2925] hover:bg-white/60 transition-colors cursor-pointer"
+            title="規則說明"
           >
-            <BookOpen className="w-3.5 h-3.5 text-[#628395]" />
+            <BookOpen className="w-4 h-4 sm:w-3.5 sm:h-3.5 text-[#628395]" />
             <span className="hidden sm:inline">規則</span>
           </button>
 
@@ -125,17 +141,17 @@ export const Header: React.FC<HeaderProps> = ({
           <div className="relative" ref={menuRef}>
             <button
               onClick={() => setMenuOpen(!menuOpen)}
-              className="flex items-center gap-1.5 p-1 pr-2 rounded-xl hover:bg-white/60 transition-colors cursor-pointer"
+              className="flex items-center gap-1 sm:gap-1.5 p-1 pr-1.5 sm:pr-2 rounded-xl hover:bg-white/60 transition-colors cursor-pointer"
             >
               <img
-                src={currentUser.photoURL}
+                src={currentUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.uid}`}
                 alt={currentUser.displayName}
-                className="w-7 h-7 rounded-lg object-cover border border-white shadow-xs"
+                className="w-7 h-7 rounded-lg object-cover border border-white shadow-xs shrink-0"
               />
-              <span className="text-xs font-bold text-[#2E2925] max-w-[100px] truncate hidden sm:inline">
+              <span className="text-xs font-bold text-[#2E2925] max-w-[80px] sm:max-w-[100px] truncate hidden sm:inline">
                 {currentUser.displayName}
               </span>
-              <span className="font-mono text-[10px] text-[#628395] font-bold hidden sm:inline">
+              <span className="font-mono text-[10px] text-[#628395] font-bold hidden md:inline">
                 #{currentUser.userTag}
               </span>
               <ChevronDown className="w-3 h-3 text-[#96897B]" />

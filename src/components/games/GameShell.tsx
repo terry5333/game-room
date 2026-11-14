@@ -81,7 +81,7 @@ export const GameShell: React.FC<GameShellProps> = ({
   const winnerPlayer = currentRoom.winnerUid === p1.uid ? p1 : p2;
 
   return (
-    <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-3 flex flex-col justify-between">
+    <div className="flex-1 max-w-4xl mx-auto w-full px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between min-w-0">
       {/* Reconnection & Offline Alerts */}
       <AnimatePresence>
         {!isConnected && (

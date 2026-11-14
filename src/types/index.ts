@@ -53,6 +53,25 @@ export interface BattleInvite {
   status: 'pending' | 'accepted' | 'declined' | 'expired';
 }
 
+export interface FriendRequest {
+  id: string; // `${fromUid}_${toUid}`
+  fromUid: string;
+  fromDisplayName: string;
+  fromPhotoURL: string;
+  fromUserTag: string;
+  toUid: string;
+  createdAt: number;
+  status: 'pending' | 'accepted' | 'declined';
+}
+
+export interface FriendRecord {
+  uid: string;
+  displayName: string;
+  photoURL: string;
+  userTag: string;
+  addedAt: number;
+}
+
 export interface PlayerSlot {
   uid: string;
   displayName: string;

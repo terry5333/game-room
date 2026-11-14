@@ -112,17 +112,23 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   // Update presence status based on whether user is in a room or in lobby
   useEffect(() => {
     if (!currentUser) return;
-    matchService.updatePresence({
-      uid: currentUser.uid,
-      displayName: currentUser.displayName,
-      photoURL: currentUser.photoURL,
-      userTag: currentUser.userTag,
-      status: currentRoom ? 'in_game' : 'lobby',
-      lastActive: Date.now(),
-      currentRoomId: currentRoom?.id,
-      currentRoomCode: currentRoom?.code,
-      currentGameId: currentRoom?.gameId
-    });
+    const sendPresence = () => {
+      matchService.updatePresence({
+        uid: currentUser.uid,
+        displayName: currentUser.displayName,
+        photoURL: currentUser.photoURL,
+        userTag: currentUser.userTag,
+        status: currentRoom ? 'in_game' : 'lobby',
+        lastActive: Date.now(),
+        currentRoomId: currentRoom?.id,
+        currentRoomCode: currentRoom?.code,
+        currentGameId: currentRoom?.gameId
+      });
+    };
+
+    sendPresence();
+    const interval = setInterval(sendPresence, 15000);
+    return () => clearInterval(interval);
   }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code]);
 
   const isHost = Boolean(currentUser && currentRoom && currentRoom.hostUid === currentUser.uid);

@@ -93,7 +93,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   ];
 
   return (
-    <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+    <div className="flex-1 max-w-4xl mx-auto w-full px-3 sm:px-6 py-4 sm:py-6 space-y-4 sm:space-y-5">
       {/* Active Ongoing Match Reconnection Banner */}
       <AnimatePresence>
         {activeOngoingRoom && activeOngoingRoom.status !== 'closed' && (
