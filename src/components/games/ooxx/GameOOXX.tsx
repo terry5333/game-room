@@ -86,6 +86,15 @@ export const GameOOXX: React.FC = () => {
     infiniteMode: true
   };
 
+  const grid = Array.isArray(state.grid)
+    ? state.grid.map((row) => (Array.isArray(row) ? row : [null, null, null]))
+    : [
+        [null, null, null],
+        [null, null, null],
+        [null, null, null]
+      ];
+  const movesHistory = Array.isArray(state.movesHistory) ? state.movesHistory : [];
+
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
@@ -95,7 +104,7 @@ export const GameOOXX: React.FC = () => {
   const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
 
   // Track pieces per player
-  const myPieces = state.movesHistory.filter((m) => m.uid === myUid);
+  const myPieces = movesHistory.filter((m) => m.uid === myUid);
   const oldestPieceForMe = myPieces.length >= 3 ? myPieces[0] : null;
 
   // Toggle infinite mode
@@ -109,11 +118,11 @@ export const GameOOXX: React.FC = () => {
 
   // Place a piece at (r, c)
   const handleCellClick = async (r: number, c: number) => {
-    if (!isMyTurn || state.grid[r][c]) return;
+    if (!isMyTurn || grid[r]?.[c]) return;
     sound.playClick();
 
-    const newGrid = state.grid.map((row) => [...row]);
-    let newHistory = [...state.movesHistory];
+    const newGrid = grid.map((row) => [...row]);
+    let newHistory = [...movesHistory];
 
     // In Infinite 3-Piece Mode:
     // If placing a 4th piece, remove the player's oldest piece!
@@ -207,7 +216,7 @@ export const GameOOXX: React.FC = () => {
       {/* 3x3 Board */}
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-white/80 shadow-lg max-w-xs sm:max-w-sm w-full aspect-square flex items-center justify-center">
         <div className="grid grid-cols-3 gap-3 w-full h-full">
-          {state.grid.map((row, r) =>
+          {grid.map((row, r) =>
             row.map((cellUid, c) => {
               const isP1 = cellUid === p1?.uid;
               const isP2 = cellUid === p2?.uid;

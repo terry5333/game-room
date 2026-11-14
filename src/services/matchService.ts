@@ -227,22 +227,23 @@ class MatchService {
     };
 
     this.initGameState(newRoom);
+    const normalized = this.normalizeRoom(newRoom);
 
     // 1. Immediately store in local memory for instant zero-latency UI transition
-    this.localRooms.set(roomId, newRoom);
+    this.localRooms.set(roomId, normalized);
     this.saveLocalRooms();
-    this.broadcastRoom(newRoom);
+    this.broadcastRoom(normalized);
 
     // 2. Write to Firebase RTDB in parallel
     if (rtdb) {
       try {
-        set(ref(rtdb, `rooms/${roomId}`), newRoom).catch(console.warn);
+        set(ref(rtdb, `rooms/${roomId}`), this.cleanForRTDB(normalized)).catch(console.warn);
       } catch (err) {
         console.warn('RTDB createRoom error:', err);
       }
     }
 
-    return newRoom;
+    return normalized;
   }
 
   public async joinRoomByCode(code: string, user: UserProfile): Promise<GameRoom | null> {
@@ -263,7 +264,8 @@ class MatchService {
           const all = snap.val();
           for (const [id, r] of Object.entries<any>(all)) {
             if (r.code === cleanCode && r.status !== 'closed') {
-              this.localRooms.set(id, r);
+              const norm = this.normalizeRoom(r);
+              this.localRooms.set(id, norm);
               return this.joinRoom(id, user);
             }
           }
@@ -283,7 +285,7 @@ class MatchService {
       try {
         const snap = await get(child(ref(rtdb), `rooms/${roomId}`));
         if (snap.exists()) {
-          room = snap.val() as GameRoom;
+          room = this.normalizeRoom(snap.val() as GameRoom);
           this.localRooms.set(roomId, room);
         }
       } catch (e) {
@@ -294,7 +296,7 @@ class MatchService {
     if (!room) return null;
 
     if (room.player1.uid === user.uid) {
-      return room;
+      return this.normalizeRoom(room);
     }
 
     // Join as player 2
@@ -307,19 +309,40 @@ class MatchService {
     room.status = 'in_progress';
     room.updatedAt = Date.now();
 
-    await this.updateRoom(room);
-    return room;
+    const normalized = this.normalizeRoom(room);
+    await this.updateRoom(normalized);
+    return normalized;
+  }
+
+  public async getRoom(roomId: string): Promise<GameRoom | null> {
+    if (this.localRooms.has(roomId)) {
+      return this.normalizeRoom(this.localRooms.get(roomId)!);
+    }
+    if (rtdb) {
+      try {
+        const snap = await get(child(ref(rtdb), `rooms/${roomId}`));
+        if (snap.exists()) {
+          const norm = this.normalizeRoom(snap.val());
+          this.localRooms.set(roomId, norm);
+          return norm;
+        }
+      } catch (e) {
+        console.warn(e);
+      }
+    }
+    return null;
   }
 
   public async updateRoom(room: GameRoom) {
-    room.updatedAt = Date.now();
-    this.localRooms.set(room.id, room);
+    const normalized = this.normalizeRoom(room);
+    normalized.updatedAt = Date.now();
+    this.localRooms.set(normalized.id, normalized);
     this.saveLocalRooms();
-    this.broadcastRoom(room);
+    this.broadcastRoom(normalized);
 
     if (rtdb) {
       try {
-        set(ref(rtdb, `rooms/${room.id}`), room).catch(console.warn);
+        set(ref(rtdb, `rooms/${normalized.id}`), this.cleanForRTDB(normalized)).catch(console.warn);
       } catch (err) {
         console.warn('RTDB update room error:', err);
       }
@@ -333,7 +356,7 @@ class MatchService {
     this.roomListeners.get(roomId)!.add(callback);
 
     const existing = this.localRooms.get(roomId);
-    if (existing) callback(existing);
+    if (existing) callback(this.normalizeRoom(existing));
 
     let unsubRtdb: (() => void) | null = null;
     if (rtdb) {
@@ -342,8 +365,9 @@ class MatchService {
         const unsub = onValue(roomRef, (snapshot) => {
           const val = snapshot.val();
           if (val) {
-            this.localRooms.set(roomId, val);
-            callback(val);
+            const norm = this.normalizeRoom(val);
+            this.localRooms.set(roomId, norm);
+            callback(norm);
           }
         });
         unsubRtdb = () => unsub();
@@ -396,6 +420,159 @@ class MatchService {
     if (listeners) {
       listeners.forEach(cb => cb(room));
     }
+  }
+
+  // --- CLEAN DATA FOR RTDB (strips undefined to prevent Firebase crashes) ---
+  private cleanForRTDB(data: any): any {
+    if (data === undefined) return null;
+    if (data === null || typeof data !== 'object') return data;
+    if (Array.isArray(data)) {
+      return data.map((item) => this.cleanForRTDB(item));
+    }
+    const clean: Record<string, any> = {};
+    for (const [key, val] of Object.entries(data)) {
+      if (val !== undefined) {
+        clean[key] = this.cleanForRTDB(val);
+      }
+    }
+    return clean;
+  }
+
+  // --- NORMALIZE ROOM STATE (Guarantees no missing arrays or objects after RTDB) ---
+  public normalizeRoom(raw: any): GameRoom {
+    if (!raw) return raw;
+    const room: GameRoom = { ...raw };
+
+    if (!room.player1) {
+      room.player1 = {
+        uid: room.hostUid || '',
+        displayName: '玩家1',
+        photoURL: '',
+        ready: false
+      };
+    }
+
+    if (room.gameId === '1a2b') {
+      const rawGuesses = room.state1a2b?.guesses;
+      room.state1a2b = {
+        secrets: room.state1a2b?.secrets || {},
+        lockedIn: room.state1a2b?.lockedIn || {},
+        guesses: Array.isArray(rawGuesses)
+          ? rawGuesses
+          : rawGuesses
+          ? Object.values(rawGuesses)
+          : [],
+        currentTurnUid: room.state1a2b?.currentTurnUid || room.hostUid,
+        turnDeadline: room.state1a2b?.turnDeadline || Date.now() + 30000
+      };
+    } else if (room.gameId === 'battleship') {
+      const rawBoards = room.stateBattleship?.boards || {};
+      const normalizedBoards: Record<string, any> = {};
+      Object.keys(rawBoards).forEach((uid) => {
+        const b = rawBoards[uid];
+        normalizedBoards[uid] = {
+          ships: Array.isArray(b?.ships) ? b.ships : b?.ships ? Object.values(b.ships) : [],
+          placed: Boolean(b?.placed),
+          attacksReceived: Array.isArray(b?.attacksReceived)
+            ? b.attacksReceived
+            : b?.attacksReceived
+            ? Object.values(b.attacksReceived)
+            : []
+        };
+      });
+      room.stateBattleship = {
+        boards: normalizedBoards,
+        currentTurnUid: room.stateBattleship?.currentTurnUid || room.hostUid,
+        lastAttack: room.stateBattleship?.lastAttack
+      };
+    } else if (room.gameId === 'bingo') {
+      const rawBoards = room.stateBingo?.boards || {};
+      const normalizedBoards: Record<string, number[][]> = {};
+      Object.keys(rawBoards).forEach((uid) => {
+        const b = rawBoards[uid];
+        normalizedBoards[uid] = Array.isArray(b)
+          ? b.map((row: any) => (Array.isArray(row) ? row : Object.values(row)))
+          : [];
+      });
+      const rawCalled = room.stateBingo?.calledNumbers;
+      room.stateBingo = {
+        boards: normalizedBoards,
+        ready: room.stateBingo?.ready || {},
+        calledNumbers: Array.isArray(rawCalled)
+          ? rawCalled
+          : rawCalled
+          ? Object.values(rawCalled)
+          : [],
+        currentTurnUid: room.stateBingo?.currentTurnUid || room.hostUid,
+        linesCompleted: room.stateBingo?.linesCompleted || {}
+      };
+    } else if (room.gameId === 'dots') {
+      room.stateDots = {
+        lines: room.stateDots?.lines || {},
+        boxes: room.stateDots?.boxes || {},
+        currentTurnUid: room.stateDots?.currentTurnUid || room.hostUid,
+        scores: room.stateDots?.scores || { [room.hostUid]: 0 },
+        lastBonusTurn: Boolean(room.stateDots?.lastBonusTurn)
+      };
+    } else if (room.gameId === 'ooxx') {
+      let grid = room.stateOOXX?.grid;
+      if (!Array.isArray(grid)) {
+        grid = [
+          [null, null, null],
+          [null, null, null],
+          [null, null, null]
+        ];
+      } else {
+        grid = grid.map((row: any) =>
+          Array.isArray(row) ? row.map((c: any) => c ?? null) : [null, null, null]
+        );
+      }
+      const rawHistory = room.stateOOXX?.movesHistory;
+      const movesHistory = Array.isArray(rawHistory)
+        ? rawHistory
+        : rawHistory
+        ? Object.values(rawHistory)
+        : [];
+
+      room.stateOOXX = {
+        grid,
+        movesHistory,
+        currentTurnUid: room.stateOOXX?.currentTurnUid || room.hostUid,
+        infiniteMode: room.stateOOXX?.infiniteMode ?? true,
+        winningLine: room.stateOOXX?.winningLine
+      };
+    }
+
+    return room;
+  }
+
+  // --- CONNECTION HEALTH (.info/connected) ---
+  public subscribeConnection(callback: (connected: boolean) => void): () => void {
+    if (typeof window !== 'undefined') {
+      const handleOnline = () => callback(true);
+      const handleOffline = () => callback(false);
+      window.addEventListener('online', handleOnline);
+      window.addEventListener('offline', handleOffline);
+
+      let unsubRtdb: (() => void) | null = null;
+      if (rtdb) {
+        try {
+          const connectedRef = ref(rtdb, '.info/connected');
+          const unsub = onValue(connectedRef, (snap) => {
+            const isConn = Boolean(snap.val());
+            callback(isConn);
+          });
+          unsubRtdb = () => unsub();
+        } catch {}
+      }
+
+      return () => {
+        window.removeEventListener('online', handleOnline);
+        window.removeEventListener('offline', handleOffline);
+        if (unsubRtdb) unsubRtdb();
+      };
+    }
+    return () => {};
   }
 
   // --- INITIALIZE SPECIFIC GAME STATES ---

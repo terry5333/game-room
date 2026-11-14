@@ -92,13 +92,18 @@ export const GameBingo: React.FC = () => {
     linesCompleted: {}
   };
 
+  const boards = state.boards || {};
+  const ready = state.ready || {};
+  const calledNumbers = Array.isArray(state.calledNumbers) ? state.calledNumbers : [];
+  const linesCompleted = state.linesCompleted || {};
+
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
 
-  const myReady = Boolean(state.ready[myUid]);
-  const opponentReady = Boolean(state.ready[opponentUid]);
+  const myReady = Boolean(ready[myUid]);
+  const opponentReady = Boolean(ready[opponentUid]);
   const bothReady = myReady && opponentReady;
 
   const isMyTurn = bothReady && state.currentTurnUid === myUid;
@@ -106,8 +111,8 @@ export const GameBingo: React.FC = () => {
 
   // Initialize or load board
   useEffect(() => {
-    if (state.boards[myUid]) {
-      setMyBoard(state.boards[myUid]);
+    if (boards[myUid]) {
+      setMyBoard(boards[myUid]);
     } else if (myBoard.length === 0) {
       // Initialize empty 5x5 board with zeros
       const empty: number[][] = Array(5)
@@ -115,7 +120,7 @@ export const GameBingo: React.FC = () => {
         .map(() => Array(5).fill(0));
       setMyBoard(empty);
     }
-  }, [state.boards[myUid]]);
+  }, [boards[myUid]]);
 
   // Random shuffle numbers 1-25
   const handleRandomShuffle = () => {
@@ -163,15 +168,15 @@ export const GameBingo: React.FC = () => {
 
   // Call number during turn
   const handleCallNumber = async (num: number) => {
-    if (!isMyTurn || state.calledNumbers.includes(num)) return;
+    if (!isMyTurn || calledNumbers.includes(num)) return;
     sound.playClick();
 
-    const nextCalled = [...state.calledNumbers, num];
+    const nextCalled = [...calledNumbers, num];
 
     // Calculate lines for me
     const myLineResult = calculateLines(myBoard, nextCalled);
     // Calculate lines for opponent
-    const oppBoard = state.boards[opponentUid];
+    const oppBoard = boards[opponentUid] || [];
     const oppLineResult = calculateLines(oppBoard, nextCalled);
 
     if (myLineResult.count >= 5 || oppLineResult.count >= 5) {
@@ -203,9 +208,9 @@ export const GameBingo: React.FC = () => {
   };
 
   // Check lines calculation for UI rendering
-  const myLines = calculateLines(myBoard, state.calledNumbers);
+  const myLines = calculateLines(myBoard, calledNumbers);
   const myCompletedLines = myLines.count;
-  const oppCompletedLines = state.linesCompleted[opponentUid] || 0;
+  const oppCompletedLines = linesCompleted[opponentUid] || 0;
 
   const isBoardFilled = myBoard.flat().every((n) => n >= 1 && n <= 25) && new Set(myBoard.flat()).size === 25;
 
@@ -337,7 +342,7 @@ export const GameBingo: React.FC = () => {
         <div className="grid grid-cols-5 gap-2 w-full h-full">
           {myBoard.map((row, r) =>
             row.map((val, c) => {
-              const isCalled = state.calledNumbers.includes(val);
+              const isCalled = calledNumbers.includes(val);
 
               return (
                 <motion.button

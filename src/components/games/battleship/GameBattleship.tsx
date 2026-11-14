@@ -46,13 +46,14 @@ export const GameBattleship: React.FC = () => {
     currentTurnUid: currentRoom?.player1.uid || ''
   };
 
+  const boards = state.boards || {};
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
 
-  const myBoard = state.boards[myUid];
-  const opponentBoard = state.boards[opponentUid];
+  const myBoard = boards[myUid];
+  const opponentBoard = boards[opponentUid];
 
   const myPlaced = Boolean(myBoard?.placed);
   const opponentPlaced = Boolean(opponentBoard?.placed);
@@ -63,7 +64,7 @@ export const GameBattleship: React.FC = () => {
 
   // Sync my local placed ships when room loads
   useEffect(() => {
-    if (myBoard?.ships) {
+    if (myBoard?.ships && Array.isArray(myBoard.ships)) {
       setMyShips(myBoard.ships);
     }
   }, [myBoard?.ships]);
@@ -189,16 +190,19 @@ export const GameBattleship: React.FC = () => {
   const handleAttackOpponent = async (r: number, c: number) => {
     if (!isMyTurn || !opponentBoard) return;
 
+    const oppAttacks = Array.isArray(opponentBoard.attacksReceived) ? opponentBoard.attacksReceived : [];
+    const oppShips = Array.isArray(opponentBoard.ships) ? opponentBoard.ships : [];
+
     // Check if already attacked this cell
-    const alreadyAttacked = opponentBoard.attacksReceived.some((a) => a.r === r && a.c === c);
+    const alreadyAttacked = oppAttacks.some((a) => a.r === r && a.c === c);
     if (alreadyAttacked) return;
 
     // Check hit
     let hit = false;
     let hitShip: Ship | null = null;
 
-    for (const ship of opponentBoard.ships) {
-      if (ship.coords.some((pt) => pt.r === r && pt.c === c)) {
+    for (const ship of oppShips) {
+      if (ship.coords && ship.coords.some((pt) => pt.r === r && pt.c === c)) {
         hit = true;
         hitShip = ship;
         break;

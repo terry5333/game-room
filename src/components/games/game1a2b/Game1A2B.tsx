@@ -33,14 +33,18 @@ export const Game1A2B: React.FC = () => {
     turnDeadline: Date.now() + 30000
   };
 
+  const secrets = state.secrets || {};
+  const lockedIn = state.lockedIn || {};
+  const allGuesses = Array.isArray(state.guesses) ? state.guesses : [];
+
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
 
-  const mySecret = state.secrets[myUid] || '';
-  const myLocked = Boolean(state.lockedIn[myUid]);
-  const opponentLocked = Boolean(state.lockedIn[opponentUid]);
+  const mySecret = secrets[myUid] || '';
+  const myLocked = Boolean(lockedIn[myUid]);
+  const opponentLocked = Boolean(lockedIn[opponentUid]);
   const bothLocked = myLocked && opponentLocked;
 
   const isMyTurn = bothLocked && state.currentTurnUid === myUid;
@@ -113,7 +117,7 @@ export const Game1A2B: React.FC = () => {
     if (inputDigits.length !== 4 || !isMyTurn) return;
     sound.playClick();
 
-    const targetSecret = state.secrets[opponentUid];
+    const targetSecret = secrets[opponentUid];
     if (!targetSecret) return;
 
     let bulls = 0; // A
@@ -337,7 +341,7 @@ export const Game1A2B: React.FC = () => {
           <div className="glass-panel rounded-3xl p-5 border-2 border-white/80 shadow-md">
             <div className="flex items-center justify-between pb-3 border-b border-[#96897B]/20 mb-3">
               <span className="font-extrabold text-sm text-[#2E2925]">
-                歷次猜題攻防紀錄 ({state.guesses.length} 次)
+                歷次猜題攻防紀錄 ({allGuesses.length} 次)
               </span>
 
               <div className="flex items-center gap-2 text-xs">
@@ -352,12 +356,12 @@ export const Game1A2B: React.FC = () => {
 
             {/* Guesses list */}
             <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
-              {state.guesses.length === 0 ? (
+              {allGuesses.length === 0 ? (
                 <div className="text-center py-16 text-xs text-[#96897B] font-medium">
                   雙方密碼鎖定後，每一次猜測的 A/B 結果將在此即時對壘！
                 </div>
               ) : (
-                state.guesses.map((g, idx) => {
+                allGuesses.map((g, idx) => {
                   const isMine = g.guesserUid === myUid;
                   const is4A0B = g.bulls === 4;
 
@@ -376,7 +380,7 @@ export const Game1A2B: React.FC = () => {
                     >
                       <div className="flex items-center gap-2.5">
                         <span className="font-mono text-xs font-bold text-[#96897B] w-6">
-                          #{state.guesses.length - idx}
+                          #{allGuesses.length - idx}
                         </span>
                         <span
                           className={`text-[10px] font-bold px-2 py-0.5 rounded-md text-white ${

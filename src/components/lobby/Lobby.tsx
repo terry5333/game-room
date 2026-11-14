@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
   Hash,
@@ -10,7 +10,9 @@ import {
   ArrowRight,
   LogIn,
   Users2,
-  BookOpen
+  BookOpen,
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import type { GameId } from '../../types';
@@ -25,7 +27,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   onOpenRulesForGame,
   onOpenFriends
 }) => {
-  const { createRoom, joinRoomByCode } = useRoom();
+  const { createRoom, joinRoomByCode, activeOngoingRoom, rejoinActiveRoom } = useRoom();
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [creatingGame, setCreatingGame] = useState<GameId | null>(null);
 
@@ -92,6 +94,51 @@ export const Lobby: React.FC<LobbyProps> = ({
 
   return (
     <div className="flex-1 max-w-4xl mx-auto w-full px-4 sm:px-6 py-6 space-y-6">
+      {/* Active Ongoing Match Reconnection Banner */}
+      <AnimatePresence>
+        {activeOngoingRoom && activeOngoingRoom.status !== 'closed' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="glass-panel rounded-2xl px-5 py-3.5 border-2 border-[#628395] bg-[#628395]/10 shadow-md flex flex-col sm:flex-row items-center justify-between gap-3"
+          >
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs shrink-0">
+                <RotateCcw className="w-5 h-5 text-white animate-spin-reverse" />
+              </div>
+              <div>
+                <div className="text-xs font-bold text-[#628395]">
+                  發現未完成的對戰房間！
+                </div>
+                <div className="text-sm font-extrabold text-[#2E2925]">
+                  {activeOngoingRoom.gameId === '1a2b'
+                    ? '1A2B'
+                    : activeOngoingRoom.gameId === 'battleship'
+                    ? '海戰棋'
+                    : activeOngoingRoom.gameId === 'bingo'
+                    ? '賓果'
+                    : activeOngoingRoom.gameId === 'dots'
+                    ? '點線棋'
+                    : '無限三子棋'}{' '}
+                  · 房號 #{activeOngoingRoom.code}
+                </div>
+              </div>
+            </div>
+
+            <div className="flex items-center gap-2 w-full sm:w-auto">
+              <button
+                onClick={rejoinActiveRoom}
+                className="flex-1 sm:flex-initial px-4 py-2 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5"
+              >
+                <ArrowRight className="w-4 h-4" />
+                <span>立即重連返回對戰</span>
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sleek Top Join & Friends Bar */}
       <div className="glass-panel rounded-2xl px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs border border-white/70">
         <div className="flex items-center gap-3">

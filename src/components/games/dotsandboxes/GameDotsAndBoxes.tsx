@@ -22,6 +22,9 @@ export const GameDotsAndBoxes: React.FC = () => {
     lastBonusTurn: false
   };
 
+  const lines = state.lines || {};
+  const boxes = state.boxes || {};
+
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
@@ -31,18 +34,18 @@ export const GameDotsAndBoxes: React.FC = () => {
   const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
 
   // Scores
-  const p1Score = Object.values(state.boxes).filter((u) => u === p1?.uid).length;
-  const p2Score = Object.values(state.boxes).filter((u) => u === p2?.uid).length;
+  const p1Score = Object.values(boxes).filter((u) => u === p1?.uid).length;
+  const p2Score = Object.values(boxes).filter((u) => u === p2?.uid).length;
   const myScore = myRole === 'player1' ? p1Score : p2Score;
   const oppScore = myRole === 'player1' ? p2Score : p1Score;
 
   // Handle line click
   const handleLineClick = async (lineKey: string) => {
-    if (!isMyTurn || state.lines[lineKey]) return;
+    if (!isMyTurn || lines[lineKey]) return;
     sound.playClick();
 
-    const newLines = { ...state.lines, [lineKey]: myUid };
-    const newBoxes = { ...state.boxes };
+    const newLines = { ...lines, [lineKey]: myUid };
+    const newBoxes = { ...boxes };
     let newlyCompletedBoxes = 0;
 
     // Check all 16 boxes
@@ -135,7 +138,7 @@ export const GameDotsAndBoxes: React.FC = () => {
           {/* Render 4x4 Boxes */}
           {Array.from({ length: BOXES_COUNT }).map((_, r) =>
             Array.from({ length: BOXES_COUNT }).map((_, c) => {
-              const boxOwner = state.boxes[`${r}_${c}`];
+              const boxOwner = boxes[`${r}_${c}`];
               const isP1 = boxOwner === p1?.uid;
 
               return (
@@ -173,7 +176,7 @@ export const GameDotsAndBoxes: React.FC = () => {
           {Array.from({ length: GRID_DOTS }).map((_, r) =>
             Array.from({ length: GRID_DOTS - 1 }).map((_, c) => {
               const key = `h_${r}_${c}`;
-              const lineOwner = state.lines[key];
+              const lineOwner = lines[key];
               const isP1 = lineOwner === p1?.uid;
 
               return (
@@ -204,7 +207,7 @@ export const GameDotsAndBoxes: React.FC = () => {
           {Array.from({ length: GRID_DOTS - 1 }).map((_, r) =>
             Array.from({ length: GRID_DOTS }).map((_, c) => {
               const key = `v_${r}_${c}`;
-              const lineOwner = state.lines[key];
+              const lineOwner = lines[key];
               const isP1 = lineOwner === p1?.uid;
 
               return (

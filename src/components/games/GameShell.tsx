@@ -1,16 +1,21 @@
 import React, { useState } from 'react';
-import { motion } from 'framer-motion';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   ArrowLeft,
   BookOpen,
   Copy,
   Check,
   Flag,
-  Users2
+  Users2,
+  WifiOff,
+  Wifi,
+  AlertTriangle,
+  RotateCcw
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
 import { VictoryCelebration } from '../common/VictoryCelebration';
+import { ErrorBoundary } from '../common/ErrorBoundary';
 import { sound } from '../../services/soundService';
 
 interface GameShellProps {
@@ -26,7 +31,16 @@ export const GameShell: React.FC<GameShellProps> = ({
   onOpenRules,
   children
 }) => {
-  const { currentRoom, leaveRoom, surrender, restartGame, myRole } = useRoom();
+  const {
+    currentRoom,
+    leaveRoom,
+    surrender,
+    restartGame,
+    myRole,
+    isConnected,
+    isOpponentConnected,
+    reconnecting
+  } = useRoom();
   const { currentUser, recordGameResult } = useAuth();
   const [copied, setCopied] = useState(false);
   const [recorded, setRecorded] = useState(false);
@@ -47,7 +61,12 @@ export const GameShell: React.FC<GameShellProps> = ({
     }
   };
 
-  const p1 = currentRoom.player1;
+  const p1 = currentRoom.player1 || {
+    uid: currentRoom.hostUid,
+    displayName: '玩家1',
+    photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${currentRoom.hostUid}`,
+    ready: false
+  };
   const p2 = currentRoom.player2;
 
   const isSettled = currentRoom.status === 'settled';
@@ -63,6 +82,48 @@ export const GameShell: React.FC<GameShellProps> = ({
 
   return (
     <div className="flex-1 max-w-4xl mx-auto w-full px-4 py-3 flex flex-col justify-between">
+      {/* Reconnection & Offline Alerts */}
+      <AnimatePresence>
+        {!isConnected && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-3 px-4 py-2 rounded-xl bg-amber-500/20 border border-amber-500/40 text-amber-900 text-xs font-bold flex items-center justify-between shadow-xs"
+          >
+            <div className="flex items-center gap-2">
+              <WifiOff className="w-4 h-4 text-amber-700 animate-pulse" />
+              <span>網路連線中斷，系統正在自動嘗試重新連線中...</span>
+            </div>
+            <span className="text-[10px] text-amber-800 font-mono">自動重試中</span>
+          </motion.div>
+        )}
+
+        {isConnected && !isOpponentConnected && p2 && currentRoom.status === 'in_progress' && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-3 px-4 py-2 rounded-xl bg-[#CF995F]/20 border border-[#CF995F]/40 text-[#2E2925] text-xs font-bold flex items-center gap-2 shadow-xs"
+          >
+            <AlertTriangle className="w-4 h-4 text-[#CF995F] shrink-0" />
+            <span>對手暫時離線中，保留戰局中，等待對手重新連線...</span>
+          </motion.div>
+        )}
+
+        {reconnecting && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -10 }}
+            className="mb-3 px-4 py-2 rounded-xl bg-[#628395]/20 border border-[#628395]/40 text-[#628395] text-xs font-bold flex items-center gap-2 shadow-xs"
+          >
+            <RotateCcw className="w-4 h-4 text-[#628395] animate-spin shrink-0" />
+            <span>已偵測到先前對戰，正在為您重連對戰房間...</span>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Sleek Top Room Bar */}
       <div className="glass-panel rounded-2xl px-4 py-2 flex items-center justify-between gap-3 shadow-xs border border-white/70 mb-3">
         {/* Left: Back & Room info */}
@@ -84,7 +145,7 @@ export const GameShell: React.FC<GameShellProps> = ({
 
           <button
             onClick={copyRoomCode}
-            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/70 hover:bg-white text-[#628395] font-mono font-bold text-xs border border-[#96897B]/20 transition-colors"
+            className="flex items-center gap-1 px-2 py-0.5 rounded-lg bg-white/70 hover:bg-white text-[#628395] font-mono font-bold text-xs border border-[#96897B]/20 transition-colors cursor-pointer"
             title="複製房號"
           >
             <span>#{currentRoom.code}</span>
@@ -99,7 +160,7 @@ export const GameShell: React.FC<GameShellProps> = ({
               sound.playClick();
               onOpenRules();
             }}
-            className="p-1.5 rounded-xl text-[#96897B] hover:text-[#2E2925] hover:bg-white/60 transition-colors"
+            className="p-1.5 rounded-xl text-[#96897B] hover:text-[#2E2925] hover:bg-white/60 transition-colors cursor-pointer"
             title="規則說明"
           >
             <BookOpen className="w-4 h-4" />
@@ -128,7 +189,7 @@ export const GameShell: React.FC<GameShellProps> = ({
           }`}
         >
           <img
-            src={p1.photoURL}
+            src={p1.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p1.uid}`}
             alt={p1.displayName}
             className="w-7 h-7 rounded-lg object-cover"
           />
@@ -153,7 +214,7 @@ export const GameShell: React.FC<GameShellProps> = ({
           {p2 ? (
             <>
               <img
-                src={p2.photoURL}
+                src={p2.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p2.uid}`}
                 alt={p2.displayName}
                 className="w-7 h-7 rounded-lg object-cover"
               />
@@ -175,7 +236,7 @@ export const GameShell: React.FC<GameShellProps> = ({
         </div>
       </div>
 
-      {/* Main Game Stage or Waiting Screen */}
+      {/* Main Game Stage or Waiting Screen wrapped in ErrorBoundary */}
       <div className="flex-1 flex flex-col justify-center">
         {!p2 ? (
           /* Sleek Waiting Screen */
@@ -209,7 +270,9 @@ export const GameShell: React.FC<GameShellProps> = ({
             </div>
           </motion.div>
         ) : (
-          children
+          <ErrorBoundary fallbackTitle="遊戲棋盤渲染異常">
+            {children}
+          </ErrorBoundary>
         )}
       </div>
 

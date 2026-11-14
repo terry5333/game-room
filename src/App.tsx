@@ -10,6 +10,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
 import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
+import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
 import { Game1A2B } from './components/games/game1a2b/Game1A2B';
 import { GameBattleship } from './components/games/battleship/GameBattleship';
@@ -62,36 +63,38 @@ export const AppContent: React.FC = () => {
 
       {/* Main Content */}
       <main className="flex-1 flex w-full">
-        {currentRoom ? (
-          <GameShell
-            title={
-              currentRoom.gameId === '1a2b'
-                ? '1A2B'
-                : currentRoom.gameId === 'battleship'
-                ? '海戰棋'
-                : currentRoom.gameId === 'bingo'
-                ? '賓果'
-                : currentRoom.gameId === 'dots'
-                ? '點線棋'
-                : '無限三子棋'
-            }
-            gameId={currentRoom.gameId}
-            onOpenRules={() => handleOpenRules(currentRoom.gameId)}
-          >
-            {currentRoom.gameId === '1a2b' && <Game1A2B />}
-            {currentRoom.gameId === 'battleship' && <GameBattleship />}
-            {currentRoom.gameId === 'bingo' && <GameBingo />}
-            {currentRoom.gameId === 'dots' && <GameDotsAndBoxes />}
-            {currentRoom.gameId === 'ooxx' && <GameOOXX />}
-          </GameShell>
-        ) : (
-          <div className="flex-1 flex max-w-5xl mx-auto w-full">
-            <Lobby
-              onOpenRulesForGame={(gid) => handleOpenRules(gid)}
-              onOpenFriends={() => setFriendsOpen(true)}
-            />
-          </div>
-        )}
+        <ErrorBoundary fallbackTitle="遊戲畫面載入異常">
+          {currentRoom ? (
+            <GameShell
+              title={
+                currentRoom.gameId === '1a2b'
+                  ? '1A2B'
+                  : currentRoom.gameId === 'battleship'
+                  ? '海戰棋'
+                  : currentRoom.gameId === 'bingo'
+                  ? '賓果'
+                  : currentRoom.gameId === 'dots'
+                  ? '點線棋'
+                  : '無限三子棋'
+              }
+              gameId={currentRoom.gameId}
+              onOpenRules={() => handleOpenRules(currentRoom.gameId)}
+            >
+              {currentRoom.gameId === '1a2b' && <Game1A2B />}
+              {currentRoom.gameId === 'battleship' && <GameBattleship />}
+              {currentRoom.gameId === 'bingo' && <GameBingo />}
+              {currentRoom.gameId === 'dots' && <GameDotsAndBoxes />}
+              {currentRoom.gameId === 'ooxx' && <GameOOXX />}
+            </GameShell>
+          ) : (
+            <div className="flex-1 flex max-w-5xl mx-auto w-full">
+              <Lobby
+                onOpenRulesForGame={(gid) => handleOpenRules(gid)}
+                onOpenFriends={() => setFriendsOpen(true)}
+              />
+            </div>
+          )}
+        </ErrorBoundary>
       </main>
 
       {/* Footer */}
