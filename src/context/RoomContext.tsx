@@ -82,10 +82,9 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsub = matchService.subscribePresence((presences) => {
       const opp = presences.find((p) => p.uid === opponentUid);
       if (opp) {
-        const isRecent = Date.now() - (opp.lastActive || 0) < 30000;
-        setIsOpponentConnected(opp.status !== 'offline' && isRecent);
+        setIsOpponentConnected(opp.status !== 'offline');
       } else {
-        setIsOpponentConnected(false);
+        setIsOpponentConnected(true);
       }
     });
 
@@ -99,9 +98,11 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     localStorage.setItem('duo_active_room_id', currentRoom.id);
 
     const unsub = matchService.subscribeRoom(currentRoom.id, (updatedRoom) => {
-      if (updatedRoom.status === 'closed') {
+      if (!updatedRoom || updatedRoom.status === 'closed') {
         localStorage.removeItem('duo_active_room_id');
         setActiveOngoingRoom(null);
+        setCurrentRoom(null);
+        return;
       }
       setCurrentRoom(updatedRoom);
     });
@@ -191,8 +192,22 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setActiveOngoingRoom(null);
     if (currentRoom) {
       const roomId = currentRoom.id;
-      // 房間結束之後除非再戰一局不然就刪除房間
-      await matchService.deleteRoom(roomId);
+      // 5 返回大廳就算退出 6 退出就結束遊戲默認對方勝利
+      if (currentRoom.status === 'in_progress' && currentUser) {
+        const opponentUid =
+          currentRoom.player1.uid === currentUser.uid
+            ? currentRoom.player2?.uid
+            : currentRoom.player1.uid;
+
+        const copy: GameRoom = JSON.parse(JSON.stringify(currentRoom));
+        copy.status = 'settled';
+        copy.winnerUid = opponentUid || 'draw';
+        copy.updatedAt = Date.now();
+        await matchService.updateRoom(copy);
+      } else {
+        // If waiting or settled, delete room
+        await matchService.deleteRoom(roomId);
+      }
     }
     setCurrentRoom(null);
     sound.playClick();
@@ -229,12 +244,15 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           lockedIn: {},
           guesses: [],
           currentTurnUid: draft.hostUid,
-          turnDeadline: Date.now() + 30000
+          turnDeadline: Date.now() + 30000,
+          hintsUsed: {}
         };
       } else if (draft.gameId === 'battleship') {
+        const preservedGridSize = draft.stateBattleship?.gridSize || 8;
         draft.stateBattleship = {
           boards: {},
-          currentTurnUid: draft.hostUid
+          currentTurnUid: draft.hostUid,
+          gridSize: preservedGridSize
         };
       } else if (draft.gameId === 'bingo') {
         const preservedTarget = draft.stateBingo?.targetLines || 5;

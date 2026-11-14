@@ -24,6 +24,7 @@ export const Game1A2B: React.FC = () => {
 
   const [inputDigits, setInputDigits] = useState<string>('');
   const [timeLeft, setTimeLeft] = useState<number>(30);
+  const [hintRevealed, setHintRevealed] = useState<boolean>(false);
 
   const state: State1A2B = currentRoom?.state1a2b || {
     secrets: {},
@@ -41,6 +42,7 @@ export const Game1A2B: React.FC = () => {
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
+  const opponentUser = myRole === 'player1' ? p2 : p1;
 
   const mySecret = secrets[myUid] || '';
   const myLocked = Boolean(lockedIn[myUid]);
@@ -177,6 +179,33 @@ export const Game1A2B: React.FC = () => {
             <Lock className="w-4 h-4 text-[#DBAD6A]" />
             <span>出題階段：請各自為對手設定 4 位不重複數字秘密密碼</span>
           </div>
+        </div>
+      )}
+
+      {/* Opponent Live Status (Req 1) */}
+      {!bothLocked && (
+        <div
+          className={`w-full max-w-lg flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
+            opponentLocked
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              : 'bg-amber-50 text-amber-800 border-amber-300'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {opponentLocked ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+            )}
+            <span>
+              {opponentLocked
+                ? `對手（${opponentUser?.displayName || '挑戰者'}）已完成出題，密碼已鎖定！`
+                : `對手（${opponentUser?.displayName || '挑戰者'}）正在思考出題密碼中（未就緒）...`}
+            </span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/70">
+            {opponentLocked ? '已出題' : '思考中'}
+          </span>
         </div>
       )}
 
@@ -332,6 +361,58 @@ export const Game1A2B: React.FC = () => {
                 <Send className="w-4 h-4" />
                 <span>送出猜題結果</span>
               </motion.button>
+            )}
+
+            {/* 5-Round Hint Feature (Req 8) */}
+            {bothLocked && (
+              <div className="mt-4 pt-3.5 border-t border-[#96897B]/20">
+                <div className="flex items-center justify-between">
+                  <div className="flex items-center gap-1.5 text-xs font-bold text-[#2E2925]">
+                    <Sparkles className="w-4 h-4 text-[#DBAD6A]" />
+                    <span>5 回合提示功能</span>
+                  </div>
+
+                  {myGuesses.length >= 5 ? (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setHintRevealed((prev) => !prev);
+                      }}
+                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-xs shadow-xs transition-all cursor-pointer"
+                    >
+                      <span>{hintRevealed ? '隱藏提示' : '💡 查看密碼線索'}</span>
+                    </button>
+                  ) : (
+                    <span className="text-[11px] font-bold text-[#96897B] bg-white/70 px-2.5 py-1 rounded-lg border border-[#96897B]/20">
+                      再猜 {5 - myGuesses.length} 次解鎖提示
+                    </span>
+                  )}
+                </div>
+
+                <AnimatePresence>
+                  {hintRevealed && myGuesses.length >= 5 && secrets[opponentUid] && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      exit={{ opacity: 0, height: 0 }}
+                      className="mt-3 p-3 rounded-2xl bg-[#DBAD6A]/15 border border-[#DBAD6A]/40 text-xs font-bold text-[#2E2925] flex items-center justify-between"
+                    >
+                      <div className="flex items-center gap-2">
+                        <span className="px-2 py-0.5 rounded-md bg-[#DBAD6A] text-white font-mono text-[10px] font-black">
+                          情報線索
+                        </span>
+                        <span>
+                          對手 4 位密碼中包含數字【
+                          <strong className="text-sm font-black text-[#628395] underline">
+                            {secrets[opponentUid][1] || secrets[opponentUid][0]}
+                          </strong>
+                          】！
+                        </span>
+                      </div>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
             )}
           </div>
         </div>

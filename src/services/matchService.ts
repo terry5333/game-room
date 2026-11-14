@@ -250,7 +250,8 @@ class MatchService {
     // 2. Write to Firebase RTDB in parallel
     if (rtdb) {
       try {
-        set(ref(rtdb, `rooms/${roomId}`), this.cleanForRTDB(normalized)).catch(console.warn);
+        await set(ref(rtdb, `rooms/${roomId}`), this.cleanForRTDB(normalized));
+        await set(ref(rtdb, `room_codes/${newRoom.code}`), roomId);
       } catch (err) {
         console.warn('RTDB createRoom error:', err);
       }
@@ -262,14 +263,28 @@ class MatchService {
   public async joinRoomByCode(code: string, user: UserProfile): Promise<GameRoom | null> {
     const cleanCode = code.trim();
 
-    // 1. Prioritize querying Firebase Realtime Database for authoritative room state
+    // 1. Direct fast index lookup in RTDB
     if (rtdb) {
+      try {
+        const codeSnap = await get(child(ref(rtdb), `room_codes/${cleanCode}`));
+        if (codeSnap.exists()) {
+          const targetRoomId = codeSnap.val();
+          if (targetRoomId) {
+            const joined = await this.joinRoom(targetRoomId, user);
+            if (joined) return joined;
+          }
+        }
+      } catch (err) {
+        console.warn('RTDB direct code lookup error:', err);
+      }
+
+      // Fallback: search all rooms in RTDB
       try {
         const snap = await get(child(ref(rtdb), 'rooms'));
         if (snap.exists()) {
           const all = snap.val();
           for (const [id, r] of Object.entries<any>(all)) {
-            if (r.code === cleanCode && r.status !== 'closed') {
+            if (String(r.code).trim() === cleanCode && r.status !== 'closed') {
               const norm = this.normalizeRoom(r);
               this.localRooms.set(id, norm);
               return this.joinRoom(id, user);
@@ -283,7 +298,7 @@ class MatchService {
 
     // 2. Fallback to local memory
     for (const room of this.localRooms.values()) {
-      if (room.code === cleanCode && room.status !== 'closed') {
+      if (String(room.code).trim() === cleanCode && room.status !== 'closed') {
         return this.joinRoom(room.id, user);
       }
     }
@@ -395,6 +410,10 @@ class MatchService {
             const norm = this.normalizeRoom(val);
             this.localRooms.set(roomId, norm);
             callback(norm);
+          } else {
+            // Room was removed or closed in RTDB!
+            this.localRooms.delete(roomId);
+            callback({ id: roomId, status: 'closed' } as any);
           }
         });
         unsubRtdb = () => unsub();
@@ -417,6 +436,7 @@ class MatchService {
           const val = snap.val();
           return Object.values(val);
         }
+        return [];
       } catch (e) {
         console.warn('fetchAllRoomsFromRTDB err:', e);
       }
@@ -425,10 +445,14 @@ class MatchService {
   }
 
   public async deleteRoom(roomId: string): Promise<void> {
+    const r = this.localRooms.get(roomId);
     this.localRooms.delete(roomId);
     this.saveLocalRooms();
     if (rtdb) {
       try {
+        if (r?.code) {
+          await remove(ref(rtdb, `room_codes/${r.code}`));
+        }
         await remove(ref(rtdb, `rooms/${roomId}`));
       } catch (err) {
         console.warn('RTDB delete room error:', err);
@@ -441,10 +465,23 @@ class MatchService {
     if (r) {
       r.status = 'closed';
       r.updatedAt = Date.now();
-      await this.updateRoom(r);
+      this.localRooms.set(roomId, r);
+      this.broadcastRoom(r);
     }
-    // Delete/close in RTDB
-    await this.deleteRoom(roomId);
+    if (rtdb) {
+      try {
+        await set(ref(rtdb, `rooms/${roomId}/status`), 'closed');
+        if (r?.code) {
+          await remove(ref(rtdb, `room_codes/${r.code}`));
+        }
+        // Give subscribers time to receive 'closed' status and kick players back to lobby
+        setTimeout(() => {
+          remove(ref(rtdb, `rooms/${roomId}`)).catch(console.warn);
+        }, 1200);
+      } catch (e) {
+        console.warn('forceCloseRoom error:', e);
+      }
+    }
   }
 
   private broadcastRoom(room: GameRoom) {
@@ -502,7 +539,8 @@ class MatchService {
           ? Object.values(rawGuesses)
           : [],
         currentTurnUid: room.state1a2b?.currentTurnUid || room.hostUid,
-        turnDeadline: room.state1a2b?.turnDeadline || Date.now() + 30000
+        turnDeadline: room.state1a2b?.turnDeadline || Date.now() + 30000,
+        hintsUsed: room.state1a2b?.hintsUsed || {}
       };
     } else if (room.gameId === 'battleship') {
       const rawBoards = room.stateBattleship?.boards || {};
@@ -522,6 +560,7 @@ class MatchService {
       room.stateBattleship = {
         boards: normalizedBoards,
         currentTurnUid: room.stateBattleship?.currentTurnUid || room.hostUid,
+        gridSize: room.stateBattleship?.gridSize || 8,
         lastAttack: room.stateBattleship?.lastAttack
       };
     } else if (room.gameId === 'bingo') {
@@ -811,12 +850,14 @@ class MatchService {
         lockedIn: {},
         guesses: [],
         currentTurnUid: room.hostUid,
-        turnDeadline: Date.now() + 30000
+        turnDeadline: Date.now() + 30000,
+        hintsUsed: {}
       };
     } else if (room.gameId === 'battleship') {
       room.stateBattleship = {
         boards: {},
-        currentTurnUid: room.hostUid
+        currentTurnUid: room.hostUid,
+        gridSize: 8
       };
     } else if (room.gameId === 'bingo') {
       room.stateBingo = {

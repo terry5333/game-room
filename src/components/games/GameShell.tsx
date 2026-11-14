@@ -61,6 +61,17 @@ export const GameShell: React.FC<GameShellProps> = ({
     }
   };
 
+  const handleBackToLobby = () => {
+    sound.playClick();
+    if (currentRoom.status === 'in_progress') {
+      if (confirm('確定要退出房間返回大廳嗎？對戰進行中退出將判定為認輸，由對手獲勝！')) {
+        leaveRoom();
+      }
+    } else {
+      leaveRoom();
+    }
+  };
+
   const p1 = currentRoom.player1 || {
     uid: currentRoom.hostUid,
     displayName: '玩家1',
@@ -129,12 +140,9 @@ export const GameShell: React.FC<GameShellProps> = ({
         {/* Left: Back & Room info */}
         <div className="flex items-center gap-2.5">
           <button
-            onClick={() => {
-              sound.playClick();
-              leaveRoom();
-            }}
+            onClick={handleBackToLobby}
             className="p-1.5 rounded-xl hover:bg-white/60 text-[#2E2925] transition-colors cursor-pointer"
-            title="離開房間"
+            title="退出房間返回大廳"
           >
             <ArrowLeft className="w-4 h-4" />
           </button>

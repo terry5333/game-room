@@ -10,6 +10,7 @@ import {
   Droplets,
   AlertOctagon,
   CheckCircle2,
+  Clock,
   Sparkles
 } from 'lucide-react';
 import { useRoom } from '../../../context/RoomContext';
@@ -23,34 +24,45 @@ import type {
   StateBattleship
 } from '../../../types';
 
-const GRID_SIZE = 8;
-
-const INITIAL_SHIPS: { id: string; name: string; length: number }[] = [
-  { id: 's4', name: '旗艦', length: 4 },
-  { id: 's3a', name: '巡洋艦', length: 3 },
-  { id: 's3b', name: '驅逐艦', length: 3 },
-  { id: 's2', name: '潛艇', length: 2 }
-];
-
 export const GameBattleship: React.FC = () => {
-  const { currentRoom, updateRoomState, myRole } = useRoom();
+  const { currentRoom, updateRoomState, myRole, isHost } = useRoom();
   const { currentUser } = useAuth();
-
-  const [selectedShipId, setSelectedShipId] = useState<string>('s4');
-  const [orientation, setOrientation] = useState<ShipOrientation>('horizontal');
-  const [myShips, setMyShips] = useState<Ship[]>([]);
-  const [sunkNotice, setSunkNotice] = useState<string | null>(null);
 
   const state: StateBattleship = currentRoom?.stateBattleship || {
     boards: {},
-    currentTurnUid: currentRoom?.player1.uid || ''
+    currentTurnUid: currentRoom?.player1.uid || '',
+    gridSize: 8
   };
+
+  const gridSize = state.gridSize || 8;
+
+  // Initial fleet config based on grid size
+  const initialShips =
+    gridSize === 6
+      ? [
+          { id: 's3', name: '巡洋艦', length: 3 },
+          { id: 's2a', name: '驅逐艦', length: 2 },
+          { id: 's2b', name: '護衛艦', length: 2 },
+          { id: 's2c', name: '潛艇', length: 2 }
+        ]
+      : [
+          { id: 's4', name: '旗艦', length: 4 },
+          { id: 's3a', name: '巡洋艦', length: 3 },
+          { id: 's3b', name: '驅逐艦', length: 3 },
+          { id: 's2', name: '潛艇', length: 2 }
+        ];
+
+  const [selectedShipId, setSelectedShipId] = useState<string>(initialShips[0].id);
+  const [orientation, setOrientation] = useState<ShipOrientation>('horizontal');
+  const [myShips, setMyShips] = useState<Ship[]>([]);
+  const [sunkNotice, setSunkNotice] = useState<string | null>(null);
 
   const boards = state.boards || {};
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
+  const opponentUser = myRole === 'player1' ? p2 : p1;
 
   const myBoard = boards[myUid];
   const opponentBoard = boards[opponentUid];
@@ -59,20 +71,35 @@ export const GameBattleship: React.FC = () => {
   const opponentPlaced = Boolean(opponentBoard?.placed);
   const bothPlaced = myPlaced && opponentPlaced;
 
-  const isMyTurn = bothPlaced && state.currentTurnUid === myUid;
+  const isMyTurn = bothPlaced && state.currentTurnUid === myUid && currentRoom?.status !== 'settled';
   const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
 
-  // Sync my local placed ships when room loads
+  // Sync my local placed ships when room loads or resets
   useEffect(() => {
     if (myBoard?.ships && Array.isArray(myBoard.ships)) {
       setMyShips(myBoard.ships);
+    } else {
+      setMyShips([]);
+      setSelectedShipId(initialShips[0].id);
     }
-  }, [myBoard?.ships]);
+  }, [myBoard?.ships, gridSize, currentRoom?.status]);
+
+  // Host sets grid size (6, 8, 10)
+  const handleSetGridSize = async (size: number) => {
+    if (!isHost || myPlaced || bothPlaced) return;
+    sound.playClick();
+    setMyShips([]);
+    await updateRoomState((draft) => {
+      if (!draft.stateBattleship) return;
+      draft.stateBattleship.gridSize = size;
+      draft.stateBattleship.boards = {};
+    });
+  };
 
   // Handle ship placement validation
   const canPlaceShip = (r: number, c: number, len: number, ori: ShipOrientation, existingShips: Ship[]): boolean => {
     if (ori === 'horizontal') {
-      if (c + len > GRID_SIZE) return false;
+      if (c + len > gridSize) return false;
       for (let i = 0; i < len; i++) {
         const col = c + i;
         for (const ship of existingShips) {
@@ -82,7 +109,7 @@ export const GameBattleship: React.FC = () => {
         }
       }
     } else {
-      if (r + len > GRID_SIZE) return false;
+      if (r + len > gridSize) return false;
       for (let i = 0; i < len; i++) {
         const row = r + i;
         for (const ship of existingShips) {
@@ -98,7 +125,7 @@ export const GameBattleship: React.FC = () => {
   // Click grid to place selected ship
   const handleCellClickForPlacement = (r: number, c: number) => {
     if (myPlaced) return;
-    const meta = INITIAL_SHIPS.find((s) => s.id === selectedShipId);
+    const meta = initialShips.find((s) => s.id === selectedShipId);
     if (!meta) return;
 
     const filtered = myShips.filter((s) => s.id !== selectedShipId);
@@ -128,7 +155,7 @@ export const GameBattleship: React.FC = () => {
     setMyShips(nextShips);
 
     // Auto select next unplaced ship
-    const remaining = INITIAL_SHIPS.find((s) => !nextShips.some((ns) => ns.id === s.id));
+    const remaining = initialShips.find((s) => !nextShips.some((ns) => ns.id === s.id));
     if (remaining) {
       setSelectedShipId(remaining.id);
     }
@@ -139,14 +166,14 @@ export const GameBattleship: React.FC = () => {
     sound.playClick();
     const placed: Ship[] = [];
 
-    for (const meta of INITIAL_SHIPS) {
+    for (const meta of initialShips) {
       let success = false;
       let tries = 0;
       while (!success && tries < 300) {
         tries++;
         const ori: ShipOrientation = Math.random() > 0.5 ? 'horizontal' : 'vertical';
-        const r = Math.floor(Math.random() * GRID_SIZE);
-        const c = Math.floor(Math.random() * GRID_SIZE);
+        const r = Math.floor(Math.random() * gridSize);
+        const c = Math.floor(Math.random() * gridSize);
 
         if (canPlaceShip(r, c, meta.length, ori, placed)) {
           const coords: { r: number; c: number }[] = [];
@@ -171,38 +198,33 @@ export const GameBattleship: React.FC = () => {
     setMyShips(placed);
   };
 
-  // Lock in fleet
+  // Confirm fleet deployment and lock in
   const handleConfirmFleet = async () => {
-    if (myShips.length !== 4) return;
+    if (myShips.length !== initialShips.length) return;
     sound.playClick();
 
     await updateRoomState((draft) => {
       if (!draft.stateBattleship) return;
+      if (!draft.stateBattleship.boards) draft.stateBattleship.boards = {};
       draft.stateBattleship.boards[myUid] = {
         ships: myShips,
         placed: true,
-        attacksReceived: draft.stateBattleship.boards[myUid]?.attacksReceived || []
+        attacksReceived: []
       };
     });
   };
 
-  // Battle: Attack opponent coordinate
+  // Attack opponent's coordinate (r, c)
   const handleAttackOpponent = async (r: number, c: number) => {
     if (!isMyTurn || !opponentBoard) return;
-
-    const oppAttacks = Array.isArray(opponentBoard.attacksReceived) ? opponentBoard.attacksReceived : [];
-    const oppShips = Array.isArray(opponentBoard.ships) ? opponentBoard.ships : [];
-
-    // Check if already attacked this cell
-    const alreadyAttacked = oppAttacks.some((a) => a.r === r && a.c === c);
-    if (alreadyAttacked) return;
+    const existingAttack = opponentBoard.attacksReceived?.find((a) => a.r === r && a.c === c);
+    if (existingAttack) return;
 
     // Check hit
     let hit = false;
     let hitShip: Ship | null = null;
-
-    for (const ship of oppShips) {
-      if (ship.coords && ship.coords.some((pt) => pt.r === r && pt.c === c)) {
+    for (const ship of opponentBoard.ships) {
+      if (ship.coords.some((pt) => pt.r === r && pt.c === c)) {
         hit = true;
         hitShip = ship;
         break;
@@ -222,10 +244,10 @@ export const GameBattleship: React.FC = () => {
       const targetBoard = draft.stateBattleship.boards[opponentUid];
       if (!targetBoard) return;
 
+      if (!targetBoard.attacksReceived) targetBoard.attacksReceived = [];
       targetBoard.attacksReceived.push({ r, c, hit });
 
       if (hit && hitShip) {
-        // Check if this ship is completely sunk now
         const allAttacks = targetBoard.attacksReceived;
         const liveShip = targetBoard.ships.find((s) => s.id === hitShip!.id);
         if (liveShip) {
@@ -239,7 +261,7 @@ export const GameBattleship: React.FC = () => {
         }
       }
 
-      // Check if all 4 ships are sunk
+      // Check if all ships are sunk
       const allOpponentShipsSunk = targetBoard.ships.every((s) => s.sunk);
 
       if (allOpponentShipsSunk) {
@@ -275,13 +297,66 @@ export const GameBattleship: React.FC = () => {
         <TurnBanner
           isMyTurn={isMyTurn}
           currentTurnPlayerName={currentTurnPlayer?.displayName || ''}
-          phaseLabel="戰鬥交火"
+          phaseLabel={`海戰交火 (${gridSize}x${gridSize})`}
         />
       ) : (
         <div className="w-full flex justify-center py-2 px-4">
           <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#628395]/15 border border-[#628395] text-[#2E2925] font-extrabold text-sm shadow-sm backdrop-blur-md">
             <Anchor className="w-4 h-4 text-[#628395]" />
-            <span>佈署階段：請在 8x8 海域佈署 4 艘戰艦並確認就緒</span>
+            <span>佈署階段：請在 {gridSize}x{gridSize} 海域佈署 4 艘戰艦並確認就緒</span>
+          </div>
+        </div>
+      )}
+
+      {/* Opponent Status & Grid Size Selector Bar during Placement Phase */}
+      {!bothPlaced && (
+        <div className="w-full max-w-2xl flex flex-col sm:flex-row items-center justify-between gap-3">
+          {/* Host Grid Size Selector */}
+          {isHost && !myPlaced ? (
+            <div className="flex items-center gap-2 glass-panel rounded-2xl px-4 py-2 border border-white/70 shadow-xs">
+              <span className="text-xs font-bold text-[#2E2925]">房主海域規格：</span>
+              <div className="flex items-center gap-1.5">
+                {[6, 8, 10].map((size) => (
+                  <button
+                    key={size}
+                    onClick={() => handleSetGridSize(size)}
+                    className={`px-2.5 py-1 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      gridSize === size
+                        ? 'bg-[#628395] text-white shadow-xs font-black'
+                        : 'bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20'
+                    }`}
+                  >
+                    {size}x{size}
+                  </button>
+                ))}
+              </div>
+            </div>
+          ) : (
+            <div className="flex items-center gap-2 px-4 py-2 rounded-2xl bg-white/70 border border-white/80 shadow-xs text-xs font-bold text-[#2E2925]">
+              <Anchor className="w-4 h-4 text-[#628395]" />
+              <span>海域規格：{gridSize}x{gridSize} (4 艘戰艦)</span>
+            </div>
+          )}
+
+          {/* Opponent Live Status Chip (Req 1) */}
+          <div
+            className={`flex items-center gap-2 px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
+              opponentPlaced
+                ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+                : 'bg-amber-50 text-amber-800 border-amber-300'
+            }`}
+          >
+            {opponentPlaced ? (
+              <>
+                <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+                <span>對手（{opponentUser?.displayName || '挑戰者'}）艦隊已就緒！</span>
+              </>
+            ) : (
+              <>
+                <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+                <span>對手（{opponentUser?.displayName || '挑戰者'}）正在佈署艦隊中...</span>
+              </>
+            )}
           </div>
         </div>
       )}
@@ -308,7 +383,7 @@ export const GameBattleship: React.FC = () => {
             <div className="text-xs font-bold text-[#2E2925]">
               已佈署艦艇：
               <span className="text-[#628395] font-extrabold ml-1 font-mono">
-                {myShips.length} / 4
+                {myShips.length} / {initialShips.length}
               </span>
             </div>
 
@@ -318,15 +393,15 @@ export const GameBattleship: React.FC = () => {
                   sound.playClick();
                   setOrientation(orientation === 'horizontal' ? 'vertical' : 'horizontal');
                 }}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white text-xs font-bold text-[#2E2925] border border-[#96897B]/30 shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/80 hover:bg-white text-xs font-bold text-[#628395] border border-[#628395]/30 shadow-xs cursor-pointer transition-all"
               >
-                <RotateCw className="w-3.5 h-3.5 text-[#628395]" />
+                <RotateCw className="w-3.5 h-3.5" />
                 <span>方向：{orientation === 'horizontal' ? '水平 ➔' : '垂直 ⬇'}</span>
               </button>
 
               <button
                 onClick={handleRandomPlacement}
-                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#CF995F]/15 hover:bg-[#CF995F]/25 text-xs font-bold text-[#CF995F] border border-[#CF995F]/30 shadow-xs cursor-pointer"
+                className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-[#CF995F]/15 hover:bg-[#CF995F]/25 text-xs font-bold text-[#CF995F] border border-[#CF995F]/30 shadow-xs cursor-pointer transition-all"
               >
                 <Shuffle className="w-3.5 h-3.5" />
                 <span>隨機擺放</span>
@@ -334,11 +409,11 @@ export const GameBattleship: React.FC = () => {
             </div>
           </div>
 
-          {/* Ship Selector Chips */}
+          {/* Ships Selector Bar */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-4">
-            {INITIAL_SHIPS.map((ship) => {
-              const isPlaced = myShips.some((s) => s.id === ship.id);
+            {initialShips.map((ship) => {
               const isSelected = selectedShipId === ship.id;
+              const isPlaced = myShips.some((s) => s.id === ship.id);
 
               return (
                 <button
@@ -366,10 +441,10 @@ export const GameBattleship: React.FC = () => {
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.98 }}
-            disabled={myShips.length !== 4}
+            disabled={myShips.length !== initialShips.length}
             onClick={handleConfirmFleet}
             className={`w-full py-3 rounded-2xl font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all cursor-pointer ${
-              myShips.length === 4
+              myShips.length === initialShips.length
                 ? 'bg-[#628395] hover:bg-[#526f7f] text-white shadow-[#628395]/20'
                 : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
             }`}
@@ -403,10 +478,17 @@ export const GameBattleship: React.FC = () => {
               </span>
             </div>
 
-            {/* 8x8 Ocean Grid */}
-            <div className="grid grid-cols-8 gap-1 aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30">
-              {Array.from({ length: GRID_SIZE }).map((_, r) =>
-                Array.from({ length: GRID_SIZE }).map((_, c) => {
+            {/* Ocean Grid (Dynamic gridSize) */}
+            <div
+              className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30"
+              style={{
+                display: 'grid',
+                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+                gap: '4px'
+              }}
+            >
+              {Array.from({ length: gridSize }).map((_, r) =>
+                Array.from({ length: gridSize }).map((_, c) => {
                   const attack = attacksSentToOpponent.find((a) => a.r === r && a.c === c);
                   const isHit = Boolean(attack?.hit);
                   const isMiss = attack && !attack.hit;
@@ -453,17 +535,24 @@ export const GameBattleship: React.FC = () => {
           <div className="flex items-center justify-between mb-3 pb-2 border-b border-[#96897B]/20">
             <div className="flex items-center gap-2 font-extrabold text-sm text-[#2E2925]">
               <Anchor className="w-4 h-4 text-[#628395]" />
-              <span>我方艦隊陣列</span>
+              <span>我方艦隊陣列 ({gridSize}x{gridSize})</span>
             </div>
             <span className="text-xs font-bold text-[#628395]">
               存活艦艇：{myShips.filter((s) => !s.sunk).length} 艘
             </span>
           </div>
 
-          {/* 8x8 Grid */}
-          <div className="grid grid-cols-8 gap-1 aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30">
-            {Array.from({ length: GRID_SIZE }).map((_, r) =>
-              Array.from({ length: GRID_SIZE }).map((_, c) => {
+          {/* Grid (Dynamic gridSize) */}
+          <div
+            className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30"
+            style={{
+              display: 'grid',
+              gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
+              gap: '4px'
+            }}
+          >
+            {Array.from({ length: gridSize }).map((_, r) =>
+              Array.from({ length: gridSize }).map((_, c) => {
                 const hasMyShip = myShips.some((s) =>
                   s.coords.some((pt) => pt.r === r && pt.c === c)
                 );

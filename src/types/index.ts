@@ -95,6 +95,7 @@ export interface State1A2B {
   guesses: GuessRecord[];
   currentTurnUid: string;
   turnDeadline: number;
+  hintsUsed?: Record<string, string>; // uid -> hint text
 }
 
 // Battleship Types
@@ -116,6 +117,7 @@ export interface BattleshipPlayerBoard {
 export interface StateBattleship {
   boards: Record<string, BattleshipPlayerBoard>;
   currentTurnUid: string;
+  gridSize?: number; // 6, 8 (default), 10
   lastAttack?: {
     attackerUid: string;
     r: number;

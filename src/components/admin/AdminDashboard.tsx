@@ -74,12 +74,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
 
   const handleForceClose = async (roomId: string) => {
     sound.playClick();
-    if (confirm(`確定要強制關閉房間 [${roomId}] 嗎？`)) {
-      await matchService.forceCloseRoom(roomId);
-      setRooms((prev) => prev.map((r) => (r.id === roomId ? { ...r, status: 'closed' } : r)));
+    if (confirm(`確定要強制關閉房間 [${roomId}] 嗎？房間將立即終止並移出系統。`)) {
+      setRooms((prev) => prev.filter((r) => r.id !== roomId));
       if (inspectedRoom?.id === roomId) {
         setInspectedRoom(null);
       }
+      await matchService.forceCloseRoom(roomId);
     }
   };
 

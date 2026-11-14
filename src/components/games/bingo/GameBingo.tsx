@@ -8,7 +8,8 @@ import {
   Sparkles,
   Zap,
   Check,
-  Disc3
+  Disc3,
+  Clock
 } from 'lucide-react';
 import { useRoom } from '../../../context/RoomContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -115,6 +116,7 @@ export const GameBingo: React.FC = () => {
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
   const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
+  const opponentUser = myRole === 'player1' ? p2 : p1;
 
   const myReady = Boolean(ready[myUid]);
   const opponentReady = Boolean(ready[opponentUid]);
@@ -295,6 +297,33 @@ export const GameBingo: React.FC = () => {
               <span>條線即勝</span>
             </div>
           )}
+        </div>
+      )}
+
+      {/* Opponent Status Indicator (Req 1) */}
+      {!bothReady && (
+        <div
+          className={`w-full max-w-md flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
+            opponentReady
+              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
+              : 'bg-amber-50 text-amber-800 border-amber-300'
+          }`}
+        >
+          <div className="flex items-center gap-2">
+            {opponentReady ? (
+              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
+            ) : (
+              <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
+            )}
+            <span>
+              {opponentReady
+                ? `對手（${opponentUser?.displayName || '挑戰者'}）已排好數字，準備就緒！`
+                : `對手（${opponentUser?.displayName || '挑戰者'}）正在填寫數字中（未就緒）...`}
+            </span>
+          </div>
+          <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/70">
+            {opponentReady ? '已就緒' : '佈局中'}
+          </span>
         </div>
       )}
 
