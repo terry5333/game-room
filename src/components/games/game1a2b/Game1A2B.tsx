@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock,
@@ -10,12 +10,14 @@ import {
   Zap,
   Target,
   Trophy,
-  AlertCircle
+  AlertCircle,
+  Keyboard,
+  ArrowRight
 } from 'lucide-react';
 import { useRoom } from '../../../context/RoomContext';
 import { useAuth } from '../../../context/AuthContext';
 import { sound } from '../../../services/soundService';
-import type { GuessRecord, State1A2B } from '../../../types';
+import type { GuessRecord, State1A2B, PlayerSlot } from '../../../types';
 
 export const Game1A2B: React.FC = () => {
   const { currentRoom, updateRoomState, myRole, players } = useRoom();
@@ -23,6 +25,7 @@ export const Game1A2B: React.FC = () => {
 
   const [inputDigits, setInputDigits] = useState<string>('');
   const [hintRevealed, setHintRevealed] = useState<boolean>(false);
+  const [historyTab, setHistoryTab] = useState<'all' | 'mine' | 'opponent'>('all');
 
   const state: State1A2B = currentRoom?.state1a2b || {
     secrets: {},
@@ -39,18 +42,28 @@ export const Game1A2B: React.FC = () => {
   const lockedIn = state.lockedIn || {};
   const allGuesses = Array.isArray(state.guesses) ? state.guesses : [];
 
-  const allPlayers =
-    players && players.length > 0
-      ? players
-      : ([currentRoom?.player1, currentRoom?.player2].filter(Boolean) as any[]);
+  // Guarantee all players (P1, P2) are properly recognized even if room.players was singular
+  const allPlayers: PlayerSlot[] = (() => {
+    const list = [...(players || [])];
+    if (currentRoom?.player1 && !list.some((p) => p.uid === currentRoom.player1.uid)) {
+      list.unshift(currentRoom.player1);
+    }
+    if (currentRoom?.player2 && !list.some((p) => p.uid === currentRoom.player2.uid)) {
+      list.push(currentRoom.player2);
+    }
+    return list;
+  })();
 
   const isMultiplayer = (currentRoom?.maxPlayers || 2) > 2 || Boolean(state.targetSecret);
 
-  const p1 = currentRoom?.player1;
-  const p2 = currentRoom?.player2;
+  const p1 = currentRoom?.player1 || allPlayers[0];
+  const p2 = currentRoom?.player2 || allPlayers[1];
   const myUid = currentUser?.uid || '';
-  const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
-  const opponentUser = myRole === 'player1' ? p2 : p1;
+
+  const opponentUser =
+    allPlayers.find((p) => p.uid !== myUid) ||
+    (myRole === 'player1' ? p2 : p1);
+  const opponentUid = opponentUser?.uid || (myRole === 'player1' ? p2?.uid || '' : p1?.uid || '');
 
   const mySecret = secrets[myUid] || '';
   const myLocked = Boolean(lockedIn[myUid]);
@@ -75,6 +88,11 @@ export const Game1A2B: React.FC = () => {
 
   // Filter guesses by player
   const myGuesses = allGuesses.filter((g) => g.guesserUid === myUid);
+  const opponentGuesses = allGuesses.filter((g) => g.guesserUid === opponentUid);
+
+  // Best A calculation
+  const myBestA = myGuesses.length > 0 ? Math.max(...myGuesses.map((g) => g.bulls)) : 0;
+  const oppBestA = opponentGuesses.length > 0 ? Math.max(...opponentGuesses.map((g) => g.bulls)) : 0;
 
   const hasReachedMaxRounds = maxRounds > 0 && myGuesses.length >= maxRounds;
   const canGuess = bothLocked && !hasReachedMaxRounds && currentRoom?.status === 'in_progress';
@@ -168,9 +186,10 @@ export const Game1A2B: React.FC = () => {
           let bestA = -1;
           let bestPlayerUid = 'draw';
           allPlayers.forEach((p) => {
-            const pGuesses = p.uid === myUid
-              ? [bulls, ...myGuesses.map((g) => g.bulls)]
-              : allGuesses.filter((g) => g.guesserUid === p.uid).map((g) => g.bulls);
+            const pGuesses =
+              p.uid === myUid
+                ? [bulls, ...myGuesses.map((g) => g.bulls)]
+                : allGuesses.filter((g) => g.guesserUid === p.uid).map((g) => g.bulls);
             const pMax = pGuesses.length > 0 ? Math.max(...pGuesses) : 0;
             if (pMax > bestA) {
               bestA = pMax;
@@ -187,57 +206,144 @@ export const Game1A2B: React.FC = () => {
     setInputDigits('');
   };
 
+  // Keyboard controls for desktop: 0-9, Backspace, Enter, Delete/Escape
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Don't intercept when user is typing in regular text inputs or textareas
+      if (['INPUT', 'TEXTAREA'].includes((e.target as HTMLElement)?.tagName)) {
+        return;
+      }
+
+      if (e.key >= '0' && e.key <= '9') {
+        e.preventDefault();
+        handleDigitPress(parseInt(e.key, 10));
+      } else if (e.key === 'Backspace') {
+        e.preventDefault();
+        handleBackspace();
+      } else if (e.key === 'Escape' || e.key === 'Delete') {
+        e.preventDefault();
+        handleClear();
+      } else if (e.key === 'Enter') {
+        e.preventDefault();
+        if (!bothLocked) {
+          if (inputDigits.length === 4 && !myLocked) {
+            handleLockSecret();
+          }
+        } else {
+          if (canGuess && inputDigits.length === 4) {
+            handleSubmitGuess();
+          }
+        }
+      }
+    };
+
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [inputDigits, bothLocked, myLocked, canGuess]);
+
+  // Filtered guesses to display in history panel
+  const displayedGuesses = allGuesses.filter((g) => {
+    if (historyTab === 'mine') return g.guesserUid === myUid;
+    if (historyTab === 'opponent') return g.guesserUid === opponentUid;
+    return true;
+  });
+
   return (
     <div className="w-full flex flex-col items-center gap-4">
-      {/* Dynamic Simultaneous Guessing Banner */}
+      {/* Dynamic Simultaneous Guessing Banner & Opponent Live Progress */}
       {bothLocked ? (
-        <div className="w-full glass-panel rounded-2xl p-4 border border-white/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
-          <div className="flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs">
-              <Zap className="w-5 h-5 text-amber-200 animate-pulse" />
-            </div>
-            <div>
-              <div className="flex items-center gap-2">
-                <span className="font-extrabold text-sm text-[#2E2925]">即時競速搶答中</span>
-                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#628395]/15 text-[#628395] border border-[#628395]/20">
-                  同時猜題
-                </span>
+        <div className="w-full glass-panel rounded-3xl p-4 sm:p-5 border-2 border-white/80 shadow-md flex flex-col gap-3">
+          <div className="flex flex-col sm:flex-row items-center justify-between gap-3 pb-3 border-b border-[#96897B]/20">
+            <div className="flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs">
+                <Zap className="w-5 h-5 text-amber-200 animate-pulse" />
               </div>
-              <p className="text-xs text-[#96897B] font-medium">
-                不需等待對手！各自加速推理解密，搶先猜出 4A0B 者獲勝
-              </p>
+              <div>
+                <div className="flex items-center gap-2">
+                  <span className="font-extrabold text-sm text-[#2E2925]">即時競速搶答中</span>
+                  <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#628395]/15 text-[#628395] border border-[#628395]/20">
+                    雙方同時猜題
+                  </span>
+                </div>
+                <p className="text-xs text-[#96897B] font-medium">
+                  不需等待對手！各自加速推理解密，搶先猜出 4A0B 者獲勝
+                </p>
+              </div>
+            </div>
+
+            {/* Turn speed comparison pill */}
+            <div className="flex items-center gap-2">
+              <span className="text-xs font-bold text-[#96897B]">對壘戰況：</span>
+              <span className="text-xs font-black px-3 py-1 rounded-xl bg-white/80 border border-[#96897B]/20 text-[#2E2925] shadow-2xs">
+                {myGuesses.length > opponentGuesses.length
+                  ? `我方領先 ${myGuesses.length - opponentGuesses.length} 回合`
+                  : opponentGuesses.length > myGuesses.length
+                  ? `對手領先 ${opponentGuesses.length - myGuesses.length} 回合`
+                  : '雙方回合進度一致'}
+              </span>
             </div>
           </div>
 
-          <div className="flex flex-wrap items-center gap-2">
-            {allPlayers.map((player, pIdx) => {
-              const theme = PLAYER_THEMES[pIdx % PLAYER_THEMES.length];
-              const pGuesses = allGuesses.filter((g) => g.guesserUid === player.uid);
-              const isMe = player.uid === myUid;
-              return (
-                <div
-                  key={player.uid || pIdx}
-                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs ${
-                    isMe
-                      ? 'bg-[#628395]/15 border-[#628395]/40 text-[#2E2925] font-black'
-                      : 'bg-white/80 border-[#96897B]/20 text-[#2E2925]'
-                  }`}
-                >
-                  <span
-                    className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded text-white ${theme.bg}`}
-                  >
-                    {theme.name}
-                  </span>
-                  <span className="font-bold truncate max-w-[80px]">
-                    {isMe ? '我' : player.displayName || `玩家${pIdx + 1}`}
-                  </span>
-                  <span className="font-mono font-black text-[#628395]">
-                    {pGuesses.length}
-                    {maxRounds > 0 ? `/${maxRounds}` : ''} 次
+          {/* Live Opponent vs My Progress Cards */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            {/* My progress card */}
+            <div className="p-3.5 rounded-2xl bg-[#628395]/10 border border-[#628395]/30 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#628395] text-white font-mono font-black text-xs flex items-center justify-center shadow-2xs">
+                  P1
+                </div>
+                <div>
+                  <div className="text-xs font-extrabold text-[#2E2925] flex items-center gap-1.5">
+                    <span>我方（{currentUser?.displayName || '玩家'}）</span>
+                  </div>
+                  <div className="text-[11px] font-bold text-[#628395]">
+                    目前最佳：<span className="font-mono font-black">{myBestA}A</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono font-black text-base text-[#628395]">
+                  {myGuesses.length}{' '}
+                  <span className="text-xs font-bold text-[#96897B]">
+                    {maxRounds > 0 ? `/ ${maxRounds} 次` : '次'}
                   </span>
                 </div>
-              );
-            })}
+                <div className="text-[10px] text-[#96897B] font-semibold">
+                  {canGuess ? '已就緒可猜題' : '已達上限'}
+                </div>
+              </div>
+            </div>
+
+            {/* Opponent progress card */}
+            <div className="p-3.5 rounded-2xl bg-[#CF995F]/10 border border-[#CF995F]/30 flex items-center justify-between">
+              <div className="flex items-center gap-2.5">
+                <div className="w-8 h-8 rounded-xl bg-[#CF995F] text-white font-mono font-black text-xs flex items-center justify-center shadow-2xs">
+                  P2
+                </div>
+                <div>
+                  <div className="text-xs font-extrabold text-[#2E2925] flex items-center gap-1.5">
+                    <span>對手（{opponentUser?.displayName || '對手'}）</span>
+                    <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-white/70 text-[#CF995F]">
+                      {opponentGuesses.length === 0 ? '尚未出手' : `已猜 ${opponentGuesses.length} 回合`}
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-bold text-[#CF995F]">
+                    目前最佳：<span className="font-mono font-black">{oppBestA}A</span>
+                  </div>
+                </div>
+              </div>
+              <div className="text-right">
+                <div className="font-mono font-black text-base text-[#CF995F]">
+                  {opponentGuesses.length}{' '}
+                  <span className="text-xs font-bold text-[#96897B]">
+                    {maxRounds > 0 ? `/ ${maxRounds} 次` : '次'}
+                  </span>
+                </div>
+                <div className="text-[10px] text-[#CF995F] font-bold animate-pulse">
+                  {opponentGuesses.length > 0 ? '對手同步解密中' : '思考中...'}
+                </div>
+              </div>
+            </div>
           </div>
         </div>
       ) : (
@@ -252,7 +358,7 @@ export const Game1A2B: React.FC = () => {
       {/* Opponent Live Status during setup */}
       {!bothLocked && (
         <div
-          className={`w-full max-w-lg flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
+          className={`w-full max-w-lg flex items-center justify-between px-4 py-2.5 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
             opponentLocked
               ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
               : 'bg-amber-50 text-amber-800 border-amber-300'
@@ -266,8 +372,8 @@ export const Game1A2B: React.FC = () => {
             )}
             <span>
               {opponentLocked
-                ? `對手（${opponentUser?.displayName || '挑戰者'}）已完成出題，密碼已鎖定！`
-                : `對手（${opponentUser?.displayName || '挑戰者'}）正在思考出題密碼中（未就緒）...`}
+                ? `對手（${opponentUser?.displayName || '對手'}）已完成出題，密碼已鎖定！`
+                : `對手（${opponentUser?.displayName || '對手'}）正在思考出題密碼中...`}
             </span>
           </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/70">
@@ -293,7 +399,7 @@ export const Game1A2B: React.FC = () => {
 
               <div className="flex items-center gap-2">
                 <span className="text-xs font-bold text-[#96897B]">
-                  {isMultiplayer ? '目標密碼：' : '我方密碼：'}
+                  {isMultiplayer ? '目標密碼：' : '我方出題密碼：'}
                 </span>
                 <span className="font-mono font-black text-sm bg-white/80 px-2.5 py-0.5 rounded-lg text-[#628395] border border-[#96897B]/20 tracking-wider">
                   {isMultiplayer ? '4 位神秘數字' : mySecret ? mySecret : '尚未鎖定'}
@@ -322,7 +428,7 @@ export const Game1A2B: React.FC = () => {
             </div>
 
             {/* Numeric Keypad (0-9, Backspace, Submit) */}
-            <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto mb-5">
+            <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto mb-3">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => {
                 const isSelected = inputDigits.includes(digit.toString());
                 const disabled =
@@ -357,7 +463,7 @@ export const Game1A2B: React.FC = () => {
                 disabled={inputDigits.length === 0}
                 onClick={handleBackspace}
                 className="h-12 sm:h-14 rounded-2xl bg-white/70 hover:bg-white text-[#96897B] hover:text-[#2E2925] border border-[#96897B]/20 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
-                title="刪除上一位"
+                title="刪除上一位 (Backspace)"
               >
                 <Delete className="w-5 h-5" />
               </motion.button>
@@ -388,9 +494,28 @@ export const Game1A2B: React.FC = () => {
                 disabled={inputDigits.length === 0}
                 onClick={handleClear}
                 className="h-12 sm:h-14 rounded-2xl bg-white/70 hover:bg-white text-xs font-bold text-[#96897B] hover:text-rose-600 border border-[#96897B]/20 flex items-center justify-center transition-all disabled:opacity-40 disabled:cursor-not-allowed cursor-pointer"
+                title="全部清除 (Esc)"
               >
                 清除
               </motion.button>
+            </div>
+
+            {/* Desktop Keyboard Quick Tip Bar */}
+            <div className="flex items-center justify-center gap-2 text-[11px] font-bold text-[#96897B] mb-4 select-none">
+              <span className="px-1.5 py-0.5 rounded bg-white/80 font-mono text-[10px] text-[#2E2925] border border-[#96897B]/20 shadow-2xs">
+                0-9
+              </span>
+              <span>鍵盤輸入</span>
+              <span className="text-[#96897B]/40">•</span>
+              <span className="px-1.5 py-0.5 rounded bg-white/80 font-mono text-[10px] text-[#2E2925] border border-[#96897B]/20 shadow-2xs">
+                Backspace
+              </span>
+              <span>退格</span>
+              <span className="text-[#96897B]/40">•</span>
+              <span className="px-1.5 py-0.5 rounded bg-white/80 font-mono text-[10px] text-[#2E2925] border border-[#96897B]/20 shadow-2xs">
+                Enter
+              </span>
+              <span>確認送出</span>
             </div>
 
             {/* Action Lock or Submit Button */}
@@ -418,7 +543,7 @@ export const Game1A2B: React.FC = () => {
                 ) : (
                   <>
                     <Lock className="w-4 h-4" />
-                    <span>鎖定 4 位出題密碼</span>
+                    <span>鎖定 4 位出題密碼 (Enter)</span>
                   </>
                 )}
               </motion.button>
@@ -438,7 +563,7 @@ export const Game1A2B: React.FC = () => {
                 <span>
                   {hasReachedMaxRounds
                     ? '已達回合上限'
-                    : `送出第 ${myGuesses.length + 1} 回合猜測`}
+                    : `送出第 ${myGuesses.length + 1} 回合猜測 (Enter)`}
                 </span>
               </motion.button>
             )}
@@ -503,7 +628,7 @@ export const Game1A2B: React.FC = () => {
           </div>
         </div>
 
-        {/* Right Column: History Panel */}
+        {/* Right Column: History Panel with Tab Switcher & Inline A/B next to guess number */}
         <div className="lg:col-span-6 space-y-4">
           <div className="glass-panel rounded-3xl p-5 border-2 border-white/80 shadow-md">
             <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#96897B]/20 gap-2 mb-3">
@@ -511,52 +636,77 @@ export const Game1A2B: React.FC = () => {
                 歷次猜題攻防紀錄 ({allGuesses.length} 次)
               </span>
 
-              <div className="flex flex-wrap items-center gap-2 text-xs">
-                {allPlayers.map((player, pIdx) => {
-                  const theme = PLAYER_THEMES[pIdx % PLAYER_THEMES.length];
-                  const pGuesses = allGuesses.filter((g) => g.guesserUid === player.uid);
-                  const isMe = player.uid === myUid;
-                  return (
-                    <span
-                      key={player.uid || pIdx}
-                      className="flex items-center gap-1 font-bold text-xs"
-                    >
-                      <span className={`w-2 h-2 rounded-full ${theme.bg}`} />
-                      <span className="text-[#96897B]">
-                        {isMe ? '我方' : player.displayName || `P${pIdx + 1}`}:
-                      </span>
-                      <span className="font-mono font-black text-[#2E2925]">
-                        {pGuesses.length}
-                      </span>
-                    </span>
-                  );
-                })}
+              {/* History Filter Tabs */}
+              <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#96897B]/20 text-xs">
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playPop();
+                    setHistoryTab('all');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    historyTab === 'all'
+                      ? 'bg-[#628395] text-white shadow-xs'
+                      : 'text-[#96897B] hover:text-[#2E2925]'
+                  }`}
+                >
+                  全部 ({allGuesses.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playPop();
+                    setHistoryTab('mine');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    historyTab === 'mine'
+                      ? 'bg-[#628395] text-white shadow-xs'
+                      : 'text-[#96897B] hover:text-[#2E2925]'
+                  }`}
+                >
+                  我方 ({myGuesses.length})
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    sound.playPop();
+                    setHistoryTab('opponent');
+                  }}
+                  className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                    historyTab === 'opponent'
+                      ? 'bg-[#CF995F] text-white shadow-xs'
+                      : 'text-[#96897B] hover:text-[#2E2925]'
+                  }`}
+                >
+                  對手 ({opponentGuesses.length})
+                </button>
               </div>
             </div>
 
             {/* Guesses list */}
             <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
-              {allGuesses.length === 0 ? (
+              {displayedGuesses.length === 0 ? (
                 <div className="text-center py-16 text-xs text-[#96897B] font-medium">
-                  {bothLocked
+                  {historyTab === 'opponent'
+                    ? '對手尚未送出任何猜題'
+                    : historyTab === 'mine'
+                    ? '我方尚未送出任何猜題'
+                    : bothLocked
                     ? '已進入猜題競速！每一次猜測的 A/B 結果將在此即時對壘！'
                     : '雙方密碼鎖定後，每一次猜測的 A/B 結果將在此即時對壘！'}
                 </div>
               ) : (
-                allGuesses.map((g, idx) => {
+                displayedGuesses.map((g, idx) => {
                   const isMine = g.guesserUid === myUid;
                   const is4A0B = g.bulls === 4;
                   const guesserIndex = allPlayers.findIndex((p) => p.uid === g.guesserUid);
                   const theme =
                     PLAYER_THEMES[
-                      guesserIndex >= 0 ? guesserIndex % PLAYER_THEMES.length : 0
+                      guesserIndex >= 0 ? guesserIndex % PLAYER_THEMES.length : isMine ? 0 : 1
                     ];
-                  const guesserName =
-                    guesserIndex >= 0
-                      ? isMine
-                        ? '我方'
-                        : allPlayers[guesserIndex]?.displayName || `玩家${guesserIndex + 1}`
-                      : '玩家';
+                  const guesserName = isMine
+                    ? '我方'
+                    : opponentUser?.displayName || `對手`;
 
                   return (
                     <motion.div
@@ -568,34 +718,47 @@ export const Game1A2B: React.FC = () => {
                           ? 'bg-[#DBAD6A]/25 border-[#DBAD6A] shadow-md'
                           : isMine
                           ? 'bg-[#628395]/10 border-[#628395]/30'
-                          : 'bg-white/80 border-[#96897B]/20'
+                          : 'bg-[#CF995F]/10 border-[#CF995F]/30'
                       }`}
                     >
-                      <div className="flex items-center gap-2.5">
-                        <span className="font-mono text-xs font-bold text-[#96897B] w-6">
-                          #{allGuesses.length - idx}
+                      {/* Left: Tag + 猜測數字 + 緊鄰在其右側的 幾A幾B */}
+                      <div className="flex items-center gap-2.5 sm:gap-3 flex-wrap">
+                        <span className="font-mono text-xs font-bold text-[#96897B] w-6 shrink-0">
+                          #{displayedGuesses.length - idx}
                         </span>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md text-white ${theme.bg}`}
+                          className={`text-[10px] font-black px-2 py-0.5 rounded-md text-white shrink-0 ${theme.bg}`}
                         >
                           {guesserName}
                         </span>
-                        <span className="font-mono font-black text-lg tracking-widest text-[#2E2925]">
-                          {g.guess}
-                        </span>
+
+                        {/* 4 位數字 + 幾A幾B 緊密並列顯示在數字旁邊！ */}
+                        <div className="flex items-center gap-2">
+                          <span className="font-mono font-black text-lg sm:text-xl tracking-wider text-[#2E2925]">
+                            {g.guess}
+                          </span>
+                          <div className="flex items-center gap-1 font-mono font-black text-xs">
+                            <span className="px-2 py-0.5 rounded-lg bg-[#628395] text-white shadow-2xs">
+                              {g.bulls}A
+                            </span>
+                            <span className="px-2 py-0.5 rounded-lg bg-[#CF995F] text-white shadow-2xs">
+                              {g.cows}B
+                            </span>
+                          </div>
+                        </div>
                       </div>
 
-                      {/* Badges for A and B */}
-                      <div className="flex items-center gap-1.5">
-                        <span className="font-mono font-extrabold text-xs px-2.5 py-1 rounded-xl bg-[#628395] text-white shadow-xs">
-                          {g.bulls}A
-                        </span>
-                        <span className="font-mono font-extrabold text-xs px-2.5 py-1 rounded-xl bg-[#CF995F] text-white shadow-xs">
-                          {g.cows}B
-                        </span>
-                        {is4A0B && (
-                          <span className="text-xs font-black text-[#DBAD6A] ml-1 flex items-center gap-0.5">
-                            <Sparkles className="w-3.5 h-3.5" /> 破解！
+                      {/* Right: 破譯標籤或回合序號 */}
+                      <div className="shrink-0">
+                        {is4A0B ? (
+                          <span className="text-xs font-black text-[#DBAD6A] flex items-center gap-0.5 animate-bounce">
+                            <Sparkles className="w-3.5 h-3.5" /> 破譯成功！
+                          </span>
+                        ) : (
+                          <span className="text-[10px] font-mono font-bold text-[#96897B]">
+                            {isMine
+                              ? `我方第 ${myGuesses.length - myGuesses.indexOf(g)} 次`
+                              : `對手第 ${opponentGuesses.length - opponentGuesses.indexOf(g)} 次`}
                           </span>
                         )}
                       </div>

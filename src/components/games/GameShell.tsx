@@ -92,6 +92,17 @@ export const GameShell: React.FC<GameShellProps> = ({
   };
   const p2 = currentRoom.player2;
 
+  const displayPlayers: PlayerSlot[] = (() => {
+    const list: PlayerSlot[] = [...players];
+    if (currentRoom.player1 && !list.some((p) => p.uid === currentRoom.player1.uid)) {
+      list.unshift(currentRoom.player1);
+    }
+    if (currentRoom.player2 && !list.some((p) => p.uid === currentRoom.player2.uid)) {
+      list.push(currentRoom.player2);
+    }
+    return list;
+  })();
+
   const isSettled = currentRoom.status === 'settled';
   const isWinner = Boolean(currentRoom.winnerUid && currentRoom.winnerUid === currentUser.uid);
   const isDraw = currentRoom.winnerUid === 'draw';
@@ -101,7 +112,7 @@ export const GameShell: React.FC<GameShellProps> = ({
     recordGameResult(isWinner, currentRoom.multiplier, currentRoom.gameId);
   }
 
-  const winnerPlayer = (players || []).find((p) => p.uid === currentRoom.winnerUid) || p1;
+  const winnerPlayer = (displayPlayers || []).find((p) => p.uid === currentRoom.winnerUid) || p1;
 
   return (
     <div className="flex-1 max-w-4xl mx-auto w-full px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between min-w-0">
@@ -201,16 +212,16 @@ export const GameShell: React.FC<GameShellProps> = ({
       {/* Sleek Dynamic Players Bar (Supports 2-5 Players) */}
       <div
         className={`grid gap-2 mb-3 ${
-          players.length <= 2
+          displayPlayers.length <= 2
             ? 'grid-cols-2'
-            : players.length === 3
+            : displayPlayers.length === 3
             ? 'grid-cols-3'
-            : players.length === 4
+            : displayPlayers.length === 4
             ? 'grid-cols-2 sm:grid-cols-4'
             : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5'
         }`}
       >
-        {players.map((p, idx) => {
+        {displayPlayers.map((p, idx) => {
           const theme = PLAYER_THEMES[idx] || PLAYER_THEMES[0];
           const isMe = p.uid === currentUser.uid;
 
@@ -218,25 +229,34 @@ export const GameShell: React.FC<GameShellProps> = ({
             <div
               key={p.uid}
               className={`rounded-xl px-2.5 py-1.5 flex items-center gap-2 border transition-all ${
-                isMe ? `${theme.bg} ${theme.border} shadow-xs` : 'bg-white/40 border-white/50'
+                isMe
+                  ? `${theme.bg} ${theme.border} shadow-xs`
+                  : 'bg-white/60 border-white/70 shadow-2xs'
               }`}
             >
               <img
                 src={p.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid}`}
                 alt={p.displayName}
-                className="w-6 h-6 rounded-lg object-cover"
+                className="w-7 h-7 rounded-lg object-cover border border-[#96897B]/20 shrink-0"
               />
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-extrabold text-[#2E2925] truncate">
                   {p.displayName}
                 </div>
                 <div className={`text-[10px] font-bold ${theme.text}`}>
-                  {isMe ? `我方 (${theme.name})` : theme.name}
+                  {isMe ? `我方 (${theme.name})` : `對手 (${theme.name})`}
                 </div>
               </div>
             </div>
           );
         })}
+
+        {/* If 2-player duel and opponent has not yet connected */}
+        {displayPlayers.length === 1 && (currentRoom.maxPlayers || 2) === 2 && (
+          <div className="rounded-xl px-2.5 py-1.5 flex items-center justify-center gap-2 border-2 border-dashed border-[#96897B]/30 bg-white/30 text-xs text-[#96897B] font-bold">
+            <span className="animate-pulse">等待對手加入房間...</span>
+          </div>
+        )}
       </div>
 
       {/* Main Game Stage or Waiting Screen wrapped in ErrorBoundary */}

@@ -546,15 +546,29 @@ class MatchService {
     const room: GameRoom = { ...raw };
 
     let rawPlayers = room.players;
-    let players = Array.isArray(rawPlayers)
-      ? rawPlayers
+    let players: any[] = Array.isArray(rawPlayers)
+      ? [...rawPlayers]
       : rawPlayers
       ? Object.values(rawPlayers)
       : [];
-    if (players.length === 0) {
-      if (room.player1) players.push(room.player1);
-      if (room.player2) players.push(room.player2);
+
+    // Guarantee that both player1 and player2 are always in players array
+    if (room.player1 && !players.some((p: any) => p.uid === room.player1.uid)) {
+      players.unshift(room.player1);
     }
+    if (room.player2 && !players.some((p: any) => p.uid === room.player2.uid)) {
+      players.push(room.player2);
+    }
+
+    if (players.length === 0 && room.hostUid) {
+      players.push({
+        uid: room.hostUid,
+        displayName: '玩家1',
+        photoURL: '',
+        ready: false
+      });
+    }
+
     room.players = players;
     if (players[0]) room.player1 = players[0];
     if (players[1]) room.player2 = players[1];

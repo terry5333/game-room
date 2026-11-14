@@ -141,9 +141,20 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const isHost = Boolean(currentUser && currentRoom && currentRoom.hostUid === currentUser.uid);
 
   const players: PlayerSlot[] = currentRoom
-    ? currentRoom.players && currentRoom.players.length > 0
-      ? currentRoom.players
-      : ([currentRoom.player1, currentRoom.player2].filter(Boolean) as PlayerSlot[])
+    ? (() => {
+        let list: PlayerSlot[] = Array.isArray(currentRoom.players)
+          ? [...currentRoom.players]
+          : currentRoom.players
+          ? Object.values(currentRoom.players)
+          : [];
+        if (currentRoom.player1 && !list.some((p) => p.uid === currentRoom.player1.uid)) {
+          list.unshift(currentRoom.player1);
+        }
+        if (currentRoom.player2 && !list.some((p) => p.uid === currentRoom.player2.uid)) {
+          list.push(currentRoom.player2);
+        }
+        return list;
+      })()
     : [];
 
   const playerIndex =
