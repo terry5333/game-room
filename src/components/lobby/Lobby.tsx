@@ -15,8 +15,9 @@ import {
   Sparkles
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
-import type { GameId } from '../../types';
+import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
+import { RoomConfigModal } from './RoomConfigModal';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
@@ -30,6 +31,7 @@ export const Lobby: React.FC<LobbyProps> = ({
   const { createRoom, joinRoomByCode, activeOngoingRoom, rejoinActiveRoom } = useRoom();
   const [roomCodeInput, setRoomCodeInput] = useState('');
   const [creatingGame, setCreatingGame] = useState<GameId | null>(null);
+  const [configGameId, setConfigGameId] = useState<GameId | null>(null);
 
   const handleJoinByCode = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -42,15 +44,26 @@ export const Lobby: React.FC<LobbyProps> = ({
     }
   };
 
-  const handleCreateGame = async (gameId: GameId) => {
+  const handleCreateGame = (gameId: GameId) => {
     sound.playClick();
+    if (gameId === 'ooxx') {
+      // OOXX 什麼都不用問，直接建立房間
+      executeCreateRoom('ooxx');
+    } else {
+      // 1A2B, Bingo, Battleship, Dots 彈出設定視窗詢問對應參數
+      setConfigGameId(gameId);
+    }
+  };
+
+  const executeCreateRoom = async (gameId: GameId, options?: RoomCreationOptions) => {
     setCreatingGame(gameId);
     try {
-      await createRoom(gameId);
+      await createRoom(gameId, options);
     } catch (e) {
       console.error(e);
     } finally {
       setCreatingGame(null);
+      setConfigGameId(null);
     }
   };
 
@@ -236,6 +249,17 @@ export const Lobby: React.FC<LobbyProps> = ({
           );
         })}
       </div>
+
+      {/* Room Configuration Dialog (1A2B, Bingo, Battleship, Dots) */}
+      <AnimatePresence>
+        {configGameId && (
+          <RoomConfigModal
+            gameId={configGameId}
+            onClose={() => setConfigGameId(null)}
+            onConfirm={(opts) => executeCreateRoom(configGameId, opts)}
+          />
+        )}
+      </AnimatePresence>
     </div>
   );
 };

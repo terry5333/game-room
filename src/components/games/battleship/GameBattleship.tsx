@@ -478,54 +478,80 @@ export const GameBattleship: React.FC = () => {
               </span>
             </div>
 
-            {/* Ocean Grid (Dynamic gridSize) */}
+            {/* Ocean Grid (Dynamic gridSize with 1-N columns and A-Z rows) */}
             <div
-              className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30"
+              className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30 select-none"
               style={{
                 display: 'grid',
-                gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-                gap: '4px'
+                gridTemplateColumns: `22px repeat(${gridSize}, minmax(0, 1fr))`,
+                gridTemplateRows: `22px repeat(${gridSize}, minmax(0, 1fr))`,
+                gap: '3px'
               }}
             >
-              {Array.from({ length: gridSize }).map((_, r) =>
-                Array.from({ length: gridSize }).map((_, c) => {
-                  const attack = attacksSentToOpponent.find((a) => a.r === r && a.c === c);
-                  const isHit = Boolean(attack?.hit);
-                  const isMiss = attack && !attack.hit;
+              {/* Top-left origin */}
+              <div className="flex items-center justify-center font-mono font-bold text-[10px] text-[#96897B]">
+                #
+              </div>
 
-                  return (
-                    <motion.button
-                      key={`${r}-${c}`}
-                      whileHover={isMyTurn && !attack ? { scale: 1.1 } : {}}
-                      whileTap={isMyTurn && !attack ? { scale: 0.92 } : {}}
-                      disabled={!isMyTurn || Boolean(attack)}
-                      onClick={() => handleAttackOpponent(r, c)}
-                      className={`relative rounded-lg flex items-center justify-center font-mono font-bold text-xs transition-all ${
-                        isHit
-                          ? 'bg-rose-500 text-white shadow-sm'
-                          : isMiss
-                          ? 'bg-sky-200/60 text-sky-800'
-                          : isMyTurn
-                          ? 'bg-white/80 hover:bg-white border border-white cursor-pointer shadow-xs'
-                          : 'bg-white/40 border border-white/40 cursor-default'
-                      }`}
-                    >
-                      {isHit && (
-                        <motion.div
-                          initial={{ scale: 0 }}
-                          animate={{ scale: 1 }}
-                          className="flex items-center justify-center"
-                        >
-                          <Flame className="w-4 h-4 text-amber-200 animate-pulse" />
-                        </motion.div>
-                      )}
-                      {isMiss && (
-                        <div className="w-2.5 h-2.5 rounded-full bg-sky-500/70 animate-ripple" />
-                      )}
-                    </motion.button>
-                  );
-                })
-              )}
+              {/* 橫排標示 1 2 3 4... */}
+              {Array.from({ length: gridSize }).map((_, c) => (
+                <div
+                  key={`col-hdr-radar-${c}`}
+                  className="flex items-center justify-center font-mono font-black text-[11px] text-[#628395]"
+                >
+                  {c + 1}
+                </div>
+              ))}
+
+              {/* 直排標示 A B C D... 與各列格子 */}
+              {Array.from({ length: gridSize }).map((_, r) => (
+                <React.Fragment key={`row-frag-radar-${r}`}>
+                  {/* 直排座標字母 */}
+                  <div className="flex items-center justify-center font-mono font-black text-[11px] text-[#628395]">
+                    {String.fromCharCode(65 + r)}
+                  </div>
+
+                  {/* 該列的各欄格子 */}
+                  {Array.from({ length: gridSize }).map((_, c) => {
+                    const attack = attacksSentToOpponent.find((a) => a.r === r && a.c === c);
+                    const isHit = Boolean(attack?.hit);
+                    const isMiss = attack && !attack.hit;
+
+                    return (
+                      <motion.button
+                        key={`${r}-${c}`}
+                        whileHover={isMyTurn && !attack ? { scale: 1.1 } : {}}
+                        whileTap={isMyTurn && !attack ? { scale: 0.92 } : {}}
+                        disabled={!isMyTurn || Boolean(attack)}
+                        onClick={() => handleAttackOpponent(r, c)}
+                        title={`${String.fromCharCode(65 + r)}${c + 1}`}
+                        className={`relative rounded-lg flex items-center justify-center font-mono font-bold text-xs transition-all ${
+                          isHit
+                            ? 'bg-rose-500 text-white shadow-sm'
+                            : isMiss
+                            ? 'bg-sky-200/60 text-sky-800'
+                            : isMyTurn
+                            ? 'bg-white/80 hover:bg-white border border-white cursor-pointer shadow-xs'
+                            : 'bg-white/40 border border-white/40 cursor-default'
+                        }`}
+                      >
+                        {isHit && (
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: 1 }}
+                            className="flex items-center justify-center"
+                          >
+                            <Flame className="w-4 h-4 text-amber-200 animate-pulse" />
+                          </motion.div>
+                        )}
+                        {isMiss && (
+                          <div className="w-2.5 h-2.5 rounded-full bg-sky-500/70 animate-ripple" />
+                        )}
+                      </motion.button>
+                    );
+                  })}
+                </React.Fragment>
+              ))}
             </div>
           </div>
         )}
@@ -542,50 +568,76 @@ export const GameBattleship: React.FC = () => {
             </span>
           </div>
 
-          {/* Grid (Dynamic gridSize) */}
+          {/* Grid (Dynamic gridSize with 1-N columns and A-Z rows) */}
           <div
-            className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30"
+            className="aspect-square max-w-sm mx-auto bg-[#628395]/15 p-2 rounded-2xl border border-[#628395]/30 select-none"
             style={{
               display: 'grid',
-              gridTemplateColumns: `repeat(${gridSize}, minmax(0, 1fr))`,
-              gap: '4px'
+              gridTemplateColumns: `22px repeat(${gridSize}, minmax(0, 1fr))`,
+              gridTemplateRows: `22px repeat(${gridSize}, minmax(0, 1fr))`,
+              gap: '3px'
             }}
           >
-            {Array.from({ length: gridSize }).map((_, r) =>
-              Array.from({ length: gridSize }).map((_, c) => {
-                const hasMyShip = myShips.some((s) =>
-                  s.coords.some((pt) => pt.r === r && pt.c === c)
-                );
-                const receivedAttack = myAttacksReceived.find((a) => a.r === r && a.c === c);
-                const isHit = Boolean(receivedAttack?.hit);
-                const isMiss = receivedAttack && !receivedAttack.hit;
+            {/* Top-left origin */}
+            <div className="flex items-center justify-center font-mono font-bold text-[10px] text-[#96897B]">
+              #
+            </div>
 
-                return (
-                  <button
-                    key={`${r}-${c}`}
-                    disabled={myPlaced}
-                    onClick={() => handleCellClickForPlacement(r, c)}
-                    className={`relative rounded-lg flex items-center justify-center transition-all ${
-                      isHit
-                        ? 'bg-rose-500 text-white font-bold'
-                        : isMiss
-                        ? 'bg-sky-200/70'
-                        : hasMyShip
-                        ? 'bg-[#628395] text-white shadow-xs'
-                        : !myPlaced
-                        ? 'bg-white/75 hover:bg-white border border-white cursor-pointer'
-                        : 'bg-white/40 border border-white/30'
-                    }`}
-                  >
-                    {isHit && <Flame className="w-3.5 h-3.5 text-amber-200" />}
-                    {isMiss && <Droplets className="w-3.5 h-3.5 text-sky-700" />}
-                    {hasMyShip && !receivedAttack && (
-                      <div className="w-2 h-2 rounded-full bg-white/70" />
-                    )}
-                  </button>
-                );
-              })
-            )}
+            {/* 橫排標示 1 2 3 4... */}
+            {Array.from({ length: gridSize }).map((_, c) => (
+              <div
+                key={`col-hdr-my-${c}`}
+                className="flex items-center justify-center font-mono font-black text-[11px] text-[#628395]"
+              >
+                {c + 1}
+              </div>
+            ))}
+
+            {/* 直排標示 A B C D... 與各列格子 */}
+            {Array.from({ length: gridSize }).map((_, r) => (
+              <React.Fragment key={`row-frag-my-${r}`}>
+                {/* 直排座標字母 */}
+                <div className="flex items-center justify-center font-mono font-black text-[11px] text-[#628395]">
+                  {String.fromCharCode(65 + r)}
+                </div>
+
+                {/* 該列的各欄格子 */}
+                {Array.from({ length: gridSize }).map((_, c) => {
+                  const hasMyShip = myShips.some((s) =>
+                    s.coords.some((pt) => pt.r === r && pt.c === c)
+                  );
+                  const receivedAttack = myAttacksReceived.find((a) => a.r === r && a.c === c);
+                  const isHit = Boolean(receivedAttack?.hit);
+                  const isMiss = receivedAttack && !receivedAttack.hit;
+
+                  return (
+                    <button
+                      key={`${r}-${c}`}
+                      disabled={myPlaced}
+                      onClick={() => handleCellClickForPlacement(r, c)}
+                      title={`${String.fromCharCode(65 + r)}${c + 1}`}
+                      className={`relative rounded-lg flex items-center justify-center transition-all ${
+                        isHit
+                          ? 'bg-rose-500 text-white font-bold'
+                          : isMiss
+                          ? 'bg-sky-200/70'
+                          : hasMyShip
+                          ? 'bg-[#628395] text-white shadow-xs'
+                          : !myPlaced
+                          ? 'bg-white/75 hover:bg-white border border-white cursor-pointer'
+                          : 'bg-white/40 border border-white/30'
+                      }`}
+                    >
+                      {isHit && <Flame className="w-3.5 h-3.5 text-amber-200" />}
+                      {isMiss && <Droplets className="w-3.5 h-3.5 text-sky-700" />}
+                      {hasMyShip && !receivedAttack && (
+                        <div className="w-2 h-2 rounded-full bg-white/70" />
+                      )}
+                    </button>
+                  );
+                })}
+              </React.Fragment>
+            ))}
           </div>
         </div>
       </div>

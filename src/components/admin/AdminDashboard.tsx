@@ -464,7 +464,12 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   {inspectedRoom.gameId === 'dots' && inspectedRoom.stateDots && (
                     <div className="bg-white/70 p-3 rounded-xl border border-white/70 space-y-1">
                       <div className="font-bold text-[#CF995F]">點線棋佔領分數：</div>
-                      <div>已佔領方格數：{Object.keys(inspectedRoom.stateDots.boxes).length} / 16</div>
+                      <div>
+                        已佔領方格數：{Object.keys(inspectedRoom.stateDots.boxes).length} /{' '}
+                        {(inspectedRoom.stateDots.gridSize || 4) ** 2}（
+                        {inspectedRoom.stateDots.gridSize || 4}x
+                        {inspectedRoom.stateDots.gridSize || 4} 規格）
+                      </div>
                     </div>
                   )}
 

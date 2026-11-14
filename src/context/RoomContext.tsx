@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { GameRoom, GameId, UserProfile } from '../types';
+import type { GameRoom, GameId, UserProfile, RoomCreationOptions } from '../types';
 import { matchService, DEFAULT_SETTINGS } from '../services/matchService';
 import { useAuth } from './AuthContext';
 import { sound } from '../services/soundService';
@@ -12,7 +12,7 @@ interface RoomContextType {
   isOpponentConnected: boolean;
   reconnecting: boolean;
   activeOngoingRoom: GameRoom | null;
-  createRoom: (gameId: GameId) => Promise<GameRoom>;
+  createRoom: (gameId: GameId, options?: RoomCreationOptions) => Promise<GameRoom>;
   joinRoomByCode: (code: string) => Promise<boolean>;
   joinRoomById: (roomId: string) => Promise<boolean>;
   leaveRoom: () => Promise<void>;
@@ -143,10 +143,10 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }
 
-  const createRoom = async (gameId: GameId): Promise<GameRoom> => {
+  const createRoom = async (gameId: GameId, options?: RoomCreationOptions): Promise<GameRoom> => {
     if (!currentUser) throw new Error('Must be logged in to create room');
     const multiplier = DEFAULT_SETTINGS.multipliers[gameId] || 1;
-    const room = await matchService.createRoom(currentUser, gameId, multiplier);
+    const room = await matchService.createRoom(currentUser, gameId, multiplier, options);
     localStorage.setItem('duo_active_room_id', room.id);
     setActiveOngoingRoom(room);
     setCurrentRoom(room);
@@ -239,13 +239,19 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
       // Re-initialize specific game state
       if (draft.gameId === '1a2b') {
+        const preservedHintEnabled = draft.state1a2b?.hintEnabled !== undefined ? draft.state1a2b.hintEnabled : true;
+        const preservedHintRound = draft.state1a2b?.hintRound || 5;
+        const preservedMaxRounds = draft.state1a2b?.maxRounds || 0;
         draft.state1a2b = {
           secrets: {},
           lockedIn: {},
           guesses: [],
           currentTurnUid: draft.hostUid,
           turnDeadline: Date.now() + 30000,
-          hintsUsed: {}
+          hintsUsed: {},
+          hintEnabled: preservedHintEnabled,
+          hintRound: preservedHintRound,
+          maxRounds: preservedMaxRounds
         };
       } else if (draft.gameId === 'battleship') {
         const preservedGridSize = draft.stateBattleship?.gridSize || 8;
@@ -265,12 +271,14 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           targetLines: preservedTarget
         };
       } else if (draft.gameId === 'dots') {
+        const preservedGridSize = draft.stateDots?.gridSize || 4;
         draft.stateDots = {
           lines: {},
           boxes: {},
           currentTurnUid: draft.hostUid,
           scores: { [draft.player1.uid]: 0, ...(draft.player2 ? { [draft.player2.uid]: 0 } : {}) },
-          lastBonusTurn: false
+          lastBonusTurn: false,
+          gridSize: preservedGridSize
         };
       } else if (draft.gameId === 'ooxx') {
         draft.stateOOXX = {

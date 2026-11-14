@@ -96,6 +96,9 @@ export interface State1A2B {
   currentTurnUid: string;
   turnDeadline: number;
   hintsUsed?: Record<string, string>; // uid -> hint text
+  hintEnabled?: boolean;
+  hintRound?: number; // 第幾回合開啟提示 (預設 5)
+  maxRounds?: number; // 回合上限 (0 或 undefined 表示無上限)
 }
 
 // Battleship Types
@@ -144,6 +147,7 @@ export interface StateDots {
   currentTurnUid: string;
   scores: Record<string, number>; // uid -> boxes count
   lastBonusTurn: boolean;
+  gridSize?: number; // 3, 4 (default), 5, 6
 }
 
 // OOXX Types
@@ -171,6 +175,7 @@ export interface GameRoom {
   status: 'waiting' | 'in_progress' | 'settled' | 'closed';
   player1: PlayerSlot;
   player2?: PlayerSlot;
+  maxPlayers?: number;
   winnerUid?: string | 'draw';
   createdAt: number;
   updatedAt: number;
@@ -181,6 +186,20 @@ export interface GameRoom {
   stateBingo?: StateBingo;
   stateDots?: StateDots;
   stateOOXX?: StateOOXX;
+}
+
+export interface RoomCreationOptions {
+  maxPlayers?: number;
+  // 1A2B options
+  hintEnabled?: boolean;
+  hintRound?: number;
+  maxRounds?: number;
+  // Bingo options
+  targetLines?: number;
+  // Battleship options
+  gridSize?: number;
+  // Dots options
+  dotsGridSize?: number;
 }
 
 export interface GameSettings {

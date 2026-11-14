@@ -18,7 +18,8 @@ import type {
   BattleInvite,
   FriendRequest,
   FriendRecord,
-  GameSettings
+  GameSettings,
+  RoomCreationOptions
 } from '../types';
 
 export const DEFAULT_SETTINGS: GameSettings = {
@@ -217,7 +218,8 @@ class MatchService {
   public async createRoom(
     hostUser: UserProfile,
     gameId: GameId,
-    multiplier: number = 1
+    multiplier: number = 1,
+    options?: RoomCreationOptions
   ): Promise<GameRoom> {
     const roomId = 'room_' + Math.random().toString(36).substring(2, 9);
     const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -236,10 +238,11 @@ class MatchService {
       },
       createdAt: Date.now(),
       updatedAt: Date.now(),
-      multiplier
+      multiplier,
+      maxPlayers: options?.maxPlayers || 2
     };
 
-    this.initGameState(newRoom);
+    this.initGameState(newRoom, options);
     const normalized = this.normalizeRoom(newRoom);
 
     // 1. Immediately store in local memory for instant zero-latency UI transition
@@ -527,6 +530,7 @@ class MatchService {
         ready: false
       };
     }
+    room.maxPlayers = room.maxPlayers || 2;
 
     if (room.gameId === '1a2b') {
       const rawGuesses = room.state1a2b?.guesses;
@@ -540,7 +544,10 @@ class MatchService {
           : [],
         currentTurnUid: room.state1a2b?.currentTurnUid || room.hostUid,
         turnDeadline: room.state1a2b?.turnDeadline || Date.now() + 30000,
-        hintsUsed: room.state1a2b?.hintsUsed || {}
+        hintsUsed: room.state1a2b?.hintsUsed || {},
+        hintEnabled: room.state1a2b?.hintEnabled !== undefined ? Boolean(room.state1a2b?.hintEnabled) : true,
+        hintRound: room.state1a2b?.hintRound || 5,
+        maxRounds: room.state1a2b?.maxRounds || 0
       };
     } else if (room.gameId === 'battleship') {
       const rawBoards = room.stateBattleship?.boards || {};
@@ -591,7 +598,8 @@ class MatchService {
         boxes: room.stateDots?.boxes || {},
         currentTurnUid: room.stateDots?.currentTurnUid || room.hostUid,
         scores: room.stateDots?.scores || { [room.hostUid]: 0 },
-        lastBonusTurn: Boolean(room.stateDots?.lastBonusTurn)
+        lastBonusTurn: Boolean(room.stateDots?.lastBonusTurn),
+        gridSize: room.stateDots?.gridSize || 4
       };
     } else if (room.gameId === 'ooxx') {
       let grid = room.stateOOXX?.grid;
@@ -843,7 +851,7 @@ class MatchService {
   }
 
   // --- INITIALIZE SPECIFIC GAME STATES ---
-  private initGameState(room: GameRoom) {
+  private initGameState(room: GameRoom, options?: RoomCreationOptions) {
     if (room.gameId === '1a2b') {
       room.state1a2b = {
         secrets: {},
@@ -851,13 +859,16 @@ class MatchService {
         guesses: [],
         currentTurnUid: room.hostUid,
         turnDeadline: Date.now() + 30000,
-        hintsUsed: {}
+        hintsUsed: {},
+        hintEnabled: options?.hintEnabled !== undefined ? options.hintEnabled : true,
+        hintRound: options?.hintRound || 5,
+        maxRounds: options?.maxRounds || 0
       };
     } else if (room.gameId === 'battleship') {
       room.stateBattleship = {
         boards: {},
         currentTurnUid: room.hostUid,
-        gridSize: 8
+        gridSize: options?.gridSize || 8
       };
     } else if (room.gameId === 'bingo') {
       room.stateBingo = {
@@ -866,7 +877,7 @@ class MatchService {
         calledNumbers: [],
         currentTurnUid: room.hostUid,
         linesCompleted: {},
-        targetLines: 5
+        targetLines: options?.targetLines || 5
       };
     } else if (room.gameId === 'dots') {
       room.stateDots = {
@@ -874,7 +885,8 @@ class MatchService {
         boxes: {},
         currentTurnUid: room.hostUid,
         scores: { [room.hostUid]: 0 },
-        lastBonusTurn: false
+        lastBonusTurn: false,
+        gridSize: options?.dotsGridSize || 4
       };
     } else if (room.gameId === 'ooxx') {
       room.stateOOXX = {

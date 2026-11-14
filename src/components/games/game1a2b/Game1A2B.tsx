@@ -1,20 +1,19 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Lock,
-  Unlock,
   Delete,
   Send,
   CheckCircle2,
   Clock,
   Sparkles,
-  ArrowRight,
-  ShieldCheck,
+  Zap,
+  Target,
+  Trophy,
   AlertCircle
 } from 'lucide-react';
 import { useRoom } from '../../../context/RoomContext';
 import { useAuth } from '../../../context/AuthContext';
-import { TurnBanner } from '../../common/TurnBanner';
 import { sound } from '../../../services/soundService';
 import type { GuessRecord, State1A2B } from '../../../types';
 
@@ -23,7 +22,6 @@ export const Game1A2B: React.FC = () => {
   const { currentUser } = useAuth();
 
   const [inputDigits, setInputDigits] = useState<string>('');
-  const [timeLeft, setTimeLeft] = useState<number>(30);
   const [hintRevealed, setHintRevealed] = useState<boolean>(false);
 
   const state: State1A2B = currentRoom?.state1a2b || {
@@ -31,7 +29,10 @@ export const Game1A2B: React.FC = () => {
     lockedIn: {},
     guesses: [],
     currentTurnUid: currentRoom?.player1.uid || '',
-    turnDeadline: Date.now() + 30000
+    turnDeadline: Date.now() + 30000,
+    hintEnabled: true,
+    hintRound: 5,
+    maxRounds: 0
   };
 
   const secrets = state.secrets || {};
@@ -49,32 +50,18 @@ export const Game1A2B: React.FC = () => {
   const opponentLocked = Boolean(lockedIn[opponentUid]);
   const bothLocked = myLocked && opponentLocked;
 
-  const isMyTurn = bothLocked && state.currentTurnUid === myUid;
-  const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
+  // Configuration options
+  const hintEnabled = state.hintEnabled !== false;
+  const hintRound = state.hintRound || 5;
+  const maxRounds = state.maxRounds || 0; // 0 = unlimited
 
-  // 30s Countdown timer during guessing phase
-  useEffect(() => {
-    if (!bothLocked || currentRoom?.status !== 'in_progress') return;
+  // Filter guesses by player
+  const myGuesses = allGuesses.filter((g) => g.guesserUid === myUid);
+  const opponentGuesses = allGuesses.filter((g) => g.guesserUid === opponentUid);
 
-    const interval = setInterval(() => {
-      const remaining = Math.max(0, Math.ceil((state.turnDeadline - Date.now()) / 1000));
-      setTimeLeft(remaining);
-
-      // Timeout turn switch
-      if (remaining === 0 && isMyTurn) {
-        // Auto pass turn on timeout
-        sound.playSplash();
-        updateRoomState((draft) => {
-          if (draft.state1a2b) {
-            draft.state1a2b.currentTurnUid = opponentUid;
-            draft.state1a2b.turnDeadline = Date.now() + 30000;
-          }
-        });
-      }
-    }, 1000);
-
-    return () => clearInterval(interval);
-  }, [bothLocked, state.turnDeadline, isMyTurn, currentRoom?.status, opponentUid]);
+  const hasReachedMaxRounds = maxRounds > 0 && myGuesses.length >= maxRounds;
+  const canGuess = bothLocked && !hasReachedMaxRounds && currentRoom?.status === 'in_progress';
+  const isSettled = currentRoom?.status === 'settled';
 
   // Keypad inputs
   const handleDigitPress = (d: number) => {
@@ -105,18 +92,14 @@ export const Game1A2B: React.FC = () => {
       if (!draft.state1a2b) return;
       draft.state1a2b.secrets[myUid] = inputDigits;
       draft.state1a2b.lockedIn[myUid] = true;
-      // If opponent already locked in, start 30s timer
-      if (draft.state1a2b.lockedIn[opponentUid]) {
-        draft.state1a2b.turnDeadline = Date.now() + 30000;
-      }
     });
 
     setInputDigits('');
   };
 
-  // Submit guess in battle phase
+  // Submit guess in battle phase (Simultaneous real-time guessing)
   const handleSubmitGuess = async () => {
-    if (inputDigits.length !== 4 || !isMyTurn) return;
+    if (inputDigits.length !== 4 || !canGuess) return;
     sound.playClick();
 
     const targetSecret = secrets[opponentUid];
@@ -145,34 +128,74 @@ export const Game1A2B: React.FC = () => {
 
     await updateRoomState((draft) => {
       if (!draft.state1a2b) return;
-      draft.state1a2b.guesses = [newRecord, ...draft.state1a2b.guesses];
+      draft.state1a2b.guesses = [newRecord, ...(draft.state1a2b.guesses || [])];
 
       if (isWin) {
+        sound.playWin();
         draft.status = 'settled';
         draft.winnerUid = myUid;
-      } else {
-        draft.state1a2b.currentTurnUid = opponentUid;
-        draft.state1a2b.turnDeadline = Date.now() + 30000;
+      } else if (maxRounds > 0) {
+        // If max rounds enabled, check if both players have exhausted guesses
+        const updatedMyCount = myGuesses.length + 1;
+        const oppCount = opponentGuesses.length;
+        if (updatedMyCount >= maxRounds && oppCount >= maxRounds) {
+          draft.status = 'settled';
+          // Find best A (bulls)
+          const allMyBulls = [bulls, ...myGuesses.map((g) => g.bulls)];
+          const myBestA = Math.max(...allMyBulls);
+          const oppBestA = Math.max(0, ...opponentGuesses.map((g) => g.bulls));
+
+          if (myBestA > oppBestA) {
+            draft.winnerUid = myUid;
+          } else if (oppBestA > myBestA) {
+            draft.winnerUid = opponentUid;
+          } else {
+            draft.winnerUid = 'draw';
+          }
+        }
       }
     });
 
     setInputDigits('');
   };
 
-  // Filter guesses by player
-  const myGuesses = state.guesses.filter((g) => g.guesserUid === myUid);
-  const opponentGuesses = state.guesses.filter((g) => g.guesserUid === opponentUid);
-
   return (
     <div className="w-full flex flex-col items-center gap-4">
-      {/* Turn indicator banner */}
+      {/* Dynamic Simultaneous Guessing Banner */}
       {bothLocked ? (
-        <TurnBanner
-          isMyTurn={isMyTurn}
-          currentTurnPlayerName={currentTurnPlayer?.displayName || ''}
-          timeLeft={timeLeft}
-          phaseLabel="猜題階段"
-        />
+        <div className="w-full glass-panel rounded-2xl p-4 border border-white/80 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-3">
+          <div className="flex items-center gap-3">
+            <div className="w-9 h-9 rounded-xl bg-[#628395] text-white flex items-center justify-center shadow-xs">
+              <Zap className="w-5 h-5 text-amber-200 animate-pulse" />
+            </div>
+            <div>
+              <div className="flex items-center gap-2">
+                <span className="font-extrabold text-sm text-[#2E2925]">即時競速搶答中</span>
+                <span className="text-[10px] font-bold px-2 py-0.5 rounded-full bg-[#628395]/15 text-[#628395] border border-[#628395]/20">
+                  同時猜題
+                </span>
+              </div>
+              <p className="text-xs text-[#96897B] font-medium">
+                不需等待對手！各自加速推理解密，搶先猜出 4A0B 者獲勝
+              </p>
+            </div>
+          </div>
+
+          <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#628395]/10 border border-[#628395]/20 text-xs">
+              <span className="font-bold text-[#628395]">我方：</span>
+              <span className="font-mono font-black text-[#2E2925]">
+                {myGuesses.length} {maxRounds > 0 ? `/ ${maxRounds}` : ''} 次
+              </span>
+            </div>
+            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#CF995F]/10 border border-[#CF995F]/20 text-xs">
+              <span className="font-bold text-[#CF995F]">對手：</span>
+              <span className="font-mono font-black text-[#2E2925]">
+                {opponentGuesses.length} {maxRounds > 0 ? `/ ${maxRounds}` : ''} 次
+              </span>
+            </div>
+          </div>
+        </div>
       ) : (
         <div className="w-full flex justify-center py-2 px-4">
           <div className="flex items-center gap-2 px-5 py-2.5 rounded-full bg-[#DBAD6A]/15 border border-[#DBAD6A] text-[#2E2925] font-extrabold text-sm shadow-sm backdrop-blur-md">
@@ -182,7 +205,7 @@ export const Game1A2B: React.FC = () => {
         </div>
       )}
 
-      {/* Opponent Live Status (Req 1) */}
+      {/* Opponent Live Status during setup */}
       {!bothLocked && (
         <div
           className={`w-full max-w-lg flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
@@ -204,7 +227,7 @@ export const Game1A2B: React.FC = () => {
             </span>
           </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/70">
-            {opponentLocked ? '已出題' : '思考中'}
+            {opponentLocked ? '已就緒' : '思考中'}
           </span>
         </div>
       )}
@@ -214,10 +237,14 @@ export const Game1A2B: React.FC = () => {
         {/* Left Column: Input Pad & Secret Status */}
         <div className="lg:col-span-6 flex flex-col items-center">
           <div className="w-full glass-panel rounded-3xl p-6 border-2 border-white/80 shadow-md">
-            {/* Phase info */}
+            {/* Header info */}
             <div className="flex items-center justify-between mb-4 pb-3 border-b border-[#96897B]/20">
               <span className="font-extrabold text-sm text-[#2E2925]">
-                {!bothLocked ? '出題設定' : isMyTurn ? '輪到你猜測！' : '等待對方猜測'}
+                {!bothLocked
+                  ? '出題設定'
+                  : hasReachedMaxRounds
+                  ? '已達猜題上限'
+                  : `猜題第 ${myGuesses.length + 1} 回合`}
               </span>
 
               <div className="flex items-center gap-2">
@@ -229,7 +256,7 @@ export const Game1A2B: React.FC = () => {
             </div>
 
             {/* Display slots */}
-            <div className="flex justify-center gap-3 my-6">
+            <div className="flex justify-center gap-3 my-5">
               {[0, 1, 2, 3].map((idx) => {
                 const char = inputDigits[idx] || '';
                 return (
@@ -252,7 +279,10 @@ export const Game1A2B: React.FC = () => {
             <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto mb-5">
               {[1, 2, 3, 4, 5, 6, 7, 8, 9].map((digit) => {
                 const isSelected = inputDigits.includes(digit.toString());
-                const disabled = (!bothLocked && myLocked) || (bothLocked && !isMyTurn) || isSelected;
+                const disabled =
+                  (!bothLocked && myLocked) ||
+                  (bothLocked && (!canGuess || isSettled)) ||
+                  isSelected;
 
                 return (
                   <motion.button
@@ -293,7 +323,7 @@ export const Game1A2B: React.FC = () => {
                 disabled={
                   inputDigits.includes('0') ||
                   (!bothLocked && myLocked) ||
-                  (bothLocked && !isMyTurn)
+                  (bothLocked && (!canGuess || isSettled))
                 }
                 onClick={() => handleDigitPress(0)}
                 className={`h-12 sm:h-14 rounded-2xl font-mono font-black text-xl transition-all shadow-sm ${
@@ -348,49 +378,59 @@ export const Game1A2B: React.FC = () => {
               </motion.button>
             ) : (
               <motion.button
-                whileHover={isMyTurn && inputDigits.length === 4 ? { scale: 1.02 } : {}}
-                whileTap={isMyTurn && inputDigits.length === 4 ? { scale: 0.98 } : {}}
-                disabled={!isMyTurn || inputDigits.length !== 4}
+                whileHover={canGuess && inputDigits.length === 4 ? { scale: 1.02 } : {}}
+                whileTap={canGuess && inputDigits.length === 4 ? { scale: 0.98 } : {}}
+                disabled={!canGuess || inputDigits.length !== 4}
                 onClick={handleSubmitGuess}
                 className={`w-full py-3.5 px-6 rounded-2xl font-extrabold text-sm shadow-md flex items-center justify-center gap-2 transition-all ${
-                  isMyTurn && inputDigits.length === 4
+                  canGuess && inputDigits.length === 4
                     ? 'bg-[#628395] hover:bg-[#526f7f] text-white shadow-[#628395]/20 cursor-pointer'
                     : 'bg-neutral-300 text-neutral-500 cursor-not-allowed'
                 }`}
               >
                 <Send className="w-4 h-4" />
-                <span>送出猜題結果</span>
+                <span>
+                  {hasReachedMaxRounds
+                    ? '已達回合上限'
+                    : `送出第 ${myGuesses.length + 1} 回合猜測`}
+                </span>
               </motion.button>
             )}
 
-            {/* 5-Round Hint Feature (Req 8) */}
+            {/* Hint Feature Section */}
             {bothLocked && (
               <div className="mt-4 pt-3.5 border-t border-[#96897B]/20">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center gap-1.5 text-xs font-bold text-[#2E2925]">
                     <Sparkles className="w-4 h-4 text-[#DBAD6A]" />
-                    <span>5 回合提示功能</span>
+                    <span>
+                      {hintEnabled ? `提示功能（第 ${hintRound} 回合）` : '提示功能（本局未開啟）'}
+                    </span>
                   </div>
 
-                  {myGuesses.length >= 5 ? (
-                    <button
-                      onClick={() => {
-                        sound.playClick();
-                        setHintRevealed((prev) => !prev);
-                      }}
-                      className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-xs shadow-xs transition-all cursor-pointer"
-                    >
-                      <span>{hintRevealed ? '隱藏提示' : '💡 查看密碼線索'}</span>
-                    </button>
+                  {hintEnabled ? (
+                    myGuesses.length >= hintRound ? (
+                      <button
+                        onClick={() => {
+                          sound.playClick();
+                          setHintRevealed((prev) => !prev);
+                        }}
+                        className="flex items-center gap-1 px-3 py-1.5 rounded-xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-xs shadow-xs transition-all cursor-pointer"
+                      >
+                        <span>{hintRevealed ? '隱藏提示' : '查看密碼線索'}</span>
+                      </button>
+                    ) : (
+                      <span className="text-[11px] font-bold text-[#96897B] bg-white/70 px-2.5 py-1 rounded-lg border border-[#96897B]/20">
+                        再猜 {hintRound - myGuesses.length} 次解鎖提示
+                      </span>
+                    )
                   ) : (
-                    <span className="text-[11px] font-bold text-[#96897B] bg-white/70 px-2.5 py-1 rounded-lg border border-[#96897B]/20">
-                      再猜 {5 - myGuesses.length} 次解鎖提示
-                    </span>
+                    <span className="text-[11px] font-bold text-[#96897B]/60">無提示模式</span>
                   )}
                 </div>
 
                 <AnimatePresence>
-                  {hintRevealed && myGuesses.length >= 5 && secrets[opponentUid] && (
+                  {hintEnabled && hintRevealed && myGuesses.length >= hintRound && secrets[opponentUid] && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -427,10 +467,10 @@ export const Game1A2B: React.FC = () => {
 
               <div className="flex items-center gap-2 text-xs">
                 <span className="flex items-center gap-1 text-[#628395] font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#628395]" /> 我方
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#628395]" /> 我方 ({myGuesses.length})
                 </span>
                 <span className="flex items-center gap-1 text-[#CF995F] font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#CF995F]" /> 對手
+                  <span className="w-2.5 h-2.5 rounded-full bg-[#CF995F]" /> 對手 ({opponentGuesses.length})
                 </span>
               </div>
             </div>

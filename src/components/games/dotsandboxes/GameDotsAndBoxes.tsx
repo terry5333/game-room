@@ -8,9 +8,6 @@ import { TurnBanner } from '../../common/TurnBanner';
 import { sound } from '../../../services/soundService';
 import type { StateDots } from '../../../types';
 
-const GRID_DOTS = 5; // 5x5 dots
-const BOXES_COUNT = 4; // 4x4 = 16 boxes
-
 export const GameDotsAndBoxes: React.FC = () => {
   const { currentRoom, updateRoomState, myRole } = useRoom();
   const { currentUser } = useAuth();
@@ -20,8 +17,14 @@ export const GameDotsAndBoxes: React.FC = () => {
     boxes: {},
     currentTurnUid: currentRoom?.player1.uid || '',
     scores: {},
-    lastBonusTurn: false
+    lastBonusTurn: false,
+    gridSize: 4
   };
+
+  const boxesCount = state.gridSize || 4;
+  const gridDots = boxesCount + 1;
+  const totalBoxes = boxesCount * boxesCount;
+  const stepPercent = 100 / boxesCount;
 
   const lines = state.lines || {};
   const boxes = state.boxes || {};
@@ -52,9 +55,9 @@ export const GameDotsAndBoxes: React.FC = () => {
     const newBoxes = { ...boxes };
     let newlyCompletedBoxes = 0;
 
-    // Check all 16 boxes
-    for (let r = 0; r < BOXES_COUNT; r++) {
-      for (let c = 0; c < BOXES_COUNT; c++) {
+    // Check all boxes
+    for (let r = 0; r < boxesCount; r++) {
+      for (let c = 0; c < boxesCount; c++) {
         const boxKey = `${r}_${c}`;
         if (!newBoxes[boxKey]) {
           const top = newLines[`h_${r}_${c}`];
@@ -75,7 +78,7 @@ export const GameDotsAndBoxes: React.FC = () => {
     }
 
     const totalClaimed = Object.keys(newBoxes).length;
-    const isGameOver = totalClaimed === 16;
+    const isGameOver = totalClaimed === totalBoxes;
 
     if (isGameOver) {
       confetti({
@@ -121,7 +124,7 @@ export const GameDotsAndBoxes: React.FC = () => {
       <TurnBanner
         isMyTurn={isMyTurn}
         currentTurnPlayerName={currentTurnPlayer?.displayName || ''}
-        phaseLabel={state.lastBonusTurn && isMyTurn ? '連鎖加步 (Bonus Turn)！' : '點線對弈'}
+        phaseLabel={state.lastBonusTurn && isMyTurn ? '連鎖加步 (Bonus Turn)！' : `點線對弈 (${boxesCount}x${boxesCount})`}
       />
 
       {/* Score Header */}
@@ -130,7 +133,7 @@ export const GameDotsAndBoxes: React.FC = () => {
           <div className="w-3.5 h-3.5 rounded-full bg-[#628395]" />
           <span className="text-xs font-bold text-[#628395]">{p1?.displayName || '玩家1'}：</span>
           <span className="font-mono font-extrabold text-base text-[#628395]">
-            {p1Score} <span className="text-xs font-normal text-[#96897B]">/ 16 格</span>
+            {p1Score} <span className="text-xs font-normal text-[#96897B]">/ {totalBoxes} 格</span>
           </span>
         </div>
 
@@ -140,7 +143,7 @@ export const GameDotsAndBoxes: React.FC = () => {
           <div className="w-3.5 h-3.5 rounded-full bg-[#CF995F]" />
           <span className="text-xs font-bold text-[#CF995F]">{p2?.displayName || '玩家2'}：</span>
           <span className="font-mono font-extrabold text-base text-[#CF995F]">
-            {p2Score} <span className="text-xs font-normal text-[#96897B]">/ 16 格</span>
+            {p2Score} <span className="text-xs font-normal text-[#96897B]">/ {totalBoxes} 格</span>
           </span>
         </div>
       </div>
@@ -169,9 +172,9 @@ export const GameDotsAndBoxes: React.FC = () => {
       {/* Dots and Boxes Board Container */}
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-white/80 shadow-lg max-w-md sm:max-w-lg w-full flex flex-col items-center justify-center">
         <div className="relative w-full max-w-xs sm:max-w-sm aspect-square select-none">
-          {/* Render 4x4 Boxes */}
-          {Array.from({ length: BOXES_COUNT }).map((_, r) =>
-            Array.from({ length: BOXES_COUNT }).map((_, c) => {
+          {/* Render Boxes */}
+          {Array.from({ length: boxesCount }).map((_, r) =>
+            Array.from({ length: boxesCount }).map((_, c) => {
               const boxOwner = boxes[`${r}_${c}`];
               const isP1 = boxOwner === p1?.uid;
               const isWinnerBox = isSettled && winnerUid && boxOwner === winnerUid;
@@ -181,11 +184,11 @@ export const GameDotsAndBoxes: React.FC = () => {
                   key={`box-${r}-${c}`}
                   className="absolute transition-all rounded-xl flex items-center justify-center overflow-hidden"
                   style={{
-                    top: `${r * 25}%`,
-                    left: `${c * 25}%`,
-                    width: '25%',
-                    height: '25%',
-                    padding: '8px'
+                    top: `${r * stepPercent}%`,
+                    left: `${c * stepPercent}%`,
+                    width: `${stepPercent}%`,
+                    height: `${stepPercent}%`,
+                    padding: boxesCount >= 5 ? '4px' : '8px'
                   }}
                 >
                   <AnimatePresence>
@@ -208,8 +211,8 @@ export const GameDotsAndBoxes: React.FC = () => {
           )}
 
           {/* Render Horizontal Lines */}
-          {Array.from({ length: GRID_DOTS }).map((_, r) =>
-            Array.from({ length: GRID_DOTS - 1 }).map((_, c) => {
+          {Array.from({ length: gridDots }).map((_, r) =>
+            Array.from({ length: gridDots - 1 }).map((_, c) => {
               const key = `h_${r}_${c}`;
               const lineOwner = lines[key];
               const isP1 = lineOwner === p1?.uid;
@@ -229,9 +232,9 @@ export const GameDotsAndBoxes: React.FC = () => {
                       : 'bg-transparent border-b border-dashed border-[#96897B]/20 cursor-default'
                   }`}
                   style={{
-                    top: `${r * 25}%`,
-                    left: `${c * 25}%`,
-                    width: '25%'
+                    top: `${r * stepPercent}%`,
+                    left: `${c * stepPercent}%`,
+                    width: `${stepPercent}%`
                   }}
                 />
               );
@@ -239,8 +242,8 @@ export const GameDotsAndBoxes: React.FC = () => {
           )}
 
           {/* Render Vertical Lines */}
-          {Array.from({ length: GRID_DOTS - 1 }).map((_, r) =>
-            Array.from({ length: GRID_DOTS }).map((_, c) => {
+          {Array.from({ length: gridDots - 1 }).map((_, r) =>
+            Array.from({ length: gridDots }).map((_, c) => {
               const key = `v_${r}_${c}`;
               const lineOwner = lines[key];
               const isP1 = lineOwner === p1?.uid;
@@ -260,24 +263,24 @@ export const GameDotsAndBoxes: React.FC = () => {
                       : 'bg-transparent border-r border-dashed border-[#96897B]/20 cursor-default'
                   }`}
                   style={{
-                    top: `${r * 25}%`,
-                    left: `${c * 25}%`,
-                    height: '25%'
+                    top: `${r * stepPercent}%`,
+                    left: `${c * stepPercent}%`,
+                    height: `${stepPercent}%`
                   }}
                 />
               );
             })
           )}
 
-          {/* Render 5x5 Dots */}
-          {Array.from({ length: GRID_DOTS }).map((_, r) =>
-            Array.from({ length: GRID_DOTS }).map((_, c) => (
+          {/* Render Dots */}
+          {Array.from({ length: gridDots }).map((_, r) =>
+            Array.from({ length: gridDots }).map((_, c) => (
               <div
                 key={`dot-${r}-${c}`}
-                className="absolute w-3.5 h-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#2E2925] border-2 border-white shadow-sm z-30 pointer-events-none"
+                className="absolute w-3 h-3 sm:w-3.5 sm:h-3.5 -translate-x-1/2 -translate-y-1/2 rounded-full bg-[#2E2925] border-2 border-white shadow-sm z-30 pointer-events-none"
                 style={{
-                  top: `${r * 25}%`,
-                  left: `${c * 25}%`
+                  top: `${r * stepPercent}%`,
+                  left: `${c * stepPercent}%`
                 }}
               />
             ))
