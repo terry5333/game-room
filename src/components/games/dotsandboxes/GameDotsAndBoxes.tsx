@@ -1,5 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
+import confetti from 'canvas-confetti';
 import { SquareDot, Sparkles, Trophy, Award, Zap } from 'lucide-react';
 import { useRoom } from '../../../context/RoomContext';
 import { useAuth } from '../../../context/AuthContext';
@@ -39,6 +40,9 @@ export const GameDotsAndBoxes: React.FC = () => {
   const myScore = myRole === 'player1' ? p1Score : p2Score;
   const oppScore = myRole === 'player1' ? p2Score : p1Score;
 
+  const isSettled = currentRoom?.status === 'settled';
+  const winnerUid = currentRoom?.winnerUid;
+
   // Handle line click
   const handleLineClick = async (lineKey: string) => {
     if (!isMyTurn || lines[lineKey]) return;
@@ -72,6 +76,15 @@ export const GameDotsAndBoxes: React.FC = () => {
 
     const totalClaimed = Object.keys(newBoxes).length;
     const isGameOver = totalClaimed === 16;
+
+    if (isGameOver) {
+      confetti({
+        particleCount: 90,
+        spread: 90,
+        origin: { y: 0.6 },
+        colors: ['#DBAD6A', '#628395', '#CF995F', '#DFD5A5']
+      });
+    }
 
     await updateRoomState((draft) => {
       if (!draft.stateDots) return;
@@ -132,6 +145,27 @@ export const GameDotsAndBoxes: React.FC = () => {
         </div>
       </div>
 
+      {/* Settlement Results Card */}
+      {isSettled && (
+        <motion.div
+          initial={{ opacity: 0, scale: 0.9, y: -8 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          className="w-full max-w-md py-2.5 px-4 rounded-2xl bg-[#DBAD6A]/20 border-2 border-[#DBAD6A] text-[#2E2925] flex items-center justify-between shadow-md backdrop-blur-md"
+        >
+          <div className="flex items-center gap-2">
+            <Trophy className="w-5 h-5 text-[#DBAD6A] animate-bounce" />
+            <span className="text-xs font-black">
+              {winnerUid === 'draw'
+                ? '對局結算：勢均力敵 平手！'
+                : `對局結算：${winnerUid === p1?.uid ? p1?.displayName : p2?.displayName} 獲勝！`}
+            </span>
+          </div>
+          <span className="text-xs font-mono font-extrabold text-[#DBAD6A]">
+            {p1Score} 格 vs {p2Score} 格
+          </span>
+        </motion.div>
+      )}
+
       {/* Dots and Boxes Board Container */}
       <div className="glass-panel rounded-3xl p-6 sm:p-8 border-2 border-white/80 shadow-lg max-w-md sm:max-w-lg w-full flex flex-col items-center justify-center">
         <div className="relative w-full max-w-xs sm:max-w-sm aspect-square select-none">
@@ -140,6 +174,7 @@ export const GameDotsAndBoxes: React.FC = () => {
             Array.from({ length: BOXES_COUNT }).map((_, c) => {
               const boxOwner = boxes[`${r}_${c}`];
               const isP1 = boxOwner === p1?.uid;
+              const isWinnerBox = isSettled && winnerUid && boxOwner === winnerUid;
 
               return (
                 <div
@@ -157,11 +192,11 @@ export const GameDotsAndBoxes: React.FC = () => {
                     {boxOwner && (
                       <motion.div
                         initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: 1, opacity: 1 }}
+                        animate={{ scale: isWinnerBox ? 1.05 : 1, opacity: 1 }}
                         transition={{ type: 'spring', damping: 15 }}
-                        className={`w-full h-full rounded-xl flex items-center justify-center font-extrabold text-white text-xs sm:text-sm shadow-sm ${
+                        className={`w-full h-full rounded-xl flex items-center justify-center font-extrabold text-white text-xs sm:text-sm shadow-sm transition-all ${
                           isP1 ? 'bg-[#628395]' : 'bg-[#CF995F]'
-                        }`}
+                        } ${isWinnerBox ? 'ring-3 ring-[#DBAD6A] shadow-md shadow-[#DBAD6A]/50 animate-pulse' : ''}`}
                       >
                         {isP1 ? 'P1' : 'P2'}
                       </motion.div>

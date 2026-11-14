@@ -34,7 +34,7 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
     { id: 'battleship' as const, label: '海戰棋', icon: Anchor },
     { id: 'bingo' as const, label: '賓果 5x5', icon: Grid },
     { id: 'dots' as const, label: '點線棋', icon: SquareDot },
-    { id: 'ooxx' as const, label: '無限三子棋', icon: CircleDot },
+    { id: 'ooxx' as const, label: '經典 OOXX', icon: CircleDot },
     { id: 'general' as const, label: '金幣與系統', icon: Coins }
   ];
 
@@ -258,28 +258,28 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
                   <div className="glass-panel-subtle rounded-2xl p-4 border border-white/60">
                     <div className="flex items-center gap-2 font-bold text-base text-[#628395] mb-2">
                       <CircleDot className="w-4 h-4" />
-                      <span>無限三子棋（防平手專利架構）</span>
+                      <span>經典 OOXX（圈圈叉叉）</span>
                     </div>
                     <p className="text-xs text-[#2E2925]/80 leading-relaxed mb-3">
-                      徹底終結傳統 3x3 OOXX 必和局的痛點！預設啟用動態無限三子棋模式，亦可在房內切換為經典模式。
+                      經典 3x3 棋盤對弈，雙方輪流落子，先將三個相同符號連成一線者獲勝！
                     </p>
                     <div className="space-y-2 text-xs">
                       <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#628395] mb-1">3 顆棋子上限</div>
+                        <div className="font-bold text-[#628395] mb-1">玩家代表符號</div>
                         <p className="text-[#2E2925]/80">
-                          每位玩家在棋盤上最多只能同時保留 3 顆棋子。
+                          玩家一代表藍色「O」，玩家二代表焦糖色「X」。
                         </p>
                       </div>
                       <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#CF995F] mb-1">預警呼吸與自動消逝</div>
+                        <div className="font-bold text-[#DBAD6A] mb-1">連線獲勝判定</div>
                         <p className="text-[#2E2925]/80">
-                          當你準備下第 4 顆棋時，你最早落下的第 1 顆棋子會出現半透明呼吸閃爍預警動畫。一旦第 4 顆棋落下，第 1 顆棋子將瞬間化作星芒消失！
+                          任何橫排、直排或斜對角先形成連續 3 個符號的玩家直接獲勝。
                         </p>
                       </div>
                       <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#DBAD6A] mb-1">三連線直接奪冠</div>
+                        <div className="font-bold text-[#96897B] mb-1">平局判定</div>
                         <p className="text-[#2E2925]/80">
-                          直到任意一方透過動態換位成功串成橫、直或斜的三連線為止，戰鬥永遠緊張刺激！
+                          若 9 格全滿且雙方皆未達成 3 連線，則判定為和局（平局）。
                         </p>
                       </div>
                     </div>

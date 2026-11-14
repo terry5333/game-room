@@ -75,7 +75,7 @@ export const AppContent: React.FC = () => {
                   ? '賓果'
                   : currentRoom.gameId === 'dots'
                   ? '點線棋'
-                  : '無限三子棋'
+                  : '經典 OOXX'
               }
               gameId={currentRoom.gameId}
               onOpenRules={() => handleOpenRules(currentRoom.gameId)}

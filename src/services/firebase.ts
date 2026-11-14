@@ -31,6 +31,7 @@ import {
   child,
   onValue,
   onDisconnect,
+  remove,
   serverTimestamp as rtdbServerTimestamp,
   type Database
 } from 'firebase/database';
@@ -111,5 +112,6 @@ export {
   child,
   onValue,
   onDisconnect,
+  remove,
   rtdbServerTimestamp
 };

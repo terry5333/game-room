@@ -66,6 +66,12 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
       return () => clearTimeout(timer);
     } else {
       sound.playCoin();
+      confetti({
+        particleCount: 40,
+        spread: 70,
+        origin: { y: 0.6 },
+        colors: ['#628395', '#CF995F', '#DFD5A5', '#DBAD6A']
+      });
     }
   }, [isWinner]);
 

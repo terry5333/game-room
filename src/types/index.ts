@@ -132,6 +132,7 @@ export interface StateBingo {
   calledNumbers: number[];
   currentTurnUid: string;
   linesCompleted: Record<string, number>; // uid -> count 0-5
+  targetLines?: number; // 房主指定獲勝連線數 1-5 (預設 5)
 }
 
 // Dots and Boxes Types

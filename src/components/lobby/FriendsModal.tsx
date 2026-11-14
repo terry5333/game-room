@@ -38,7 +38,7 @@ const GAME_NAMES: Record<GameId, string> = {
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) => {
   const { currentUser, allUsers } = useAuth();
-  const { createRoom, joinRoomById } = useRoom();
+  const { createRoom, joinRoomById, joinRoomByCode } = useRoom();
 
   const [activeTab, setActiveTab] = useState<'friends' | 'requests'>('friends');
   const [searchInput, setSearchInput] = useState('');
@@ -172,10 +172,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
   // Follow friend into their active room
   const handleFollowFriend = async (friend: UserPresence) => {
-    if (!friend.currentRoomId) return;
+    if (!friend.currentRoomId && !friend.currentRoomCode) return;
     sound.playClick();
     onClose();
-    const ok = await joinRoomById(friend.currentRoomId);
+
+    let ok = false;
+    if (friend.currentRoomId) {
+      ok = await joinRoomById(friend.currentRoomId);
+    }
+    if (!ok && friend.currentRoomCode) {
+      ok = await joinRoomByCode(friend.currentRoomCode);
+    }
     if (!ok) {
       alert('無法進入該房間，可能該房間已滿員或已關閉。');
     }

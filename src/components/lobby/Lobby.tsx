@@ -85,8 +85,8 @@ export const Lobby: React.FC<LobbyProps> = ({
     },
     {
       id: 'ooxx' as const,
-      title: '無限三子棋',
-      desc: '每方上限 3 顆棋，下第 4 顆時最早棋子消逝，打破和局。',
+      title: '經典 OOXX',
+      desc: '經典 3x3 圈圈叉叉對弈，雙方輪流落子，先連成三點一線者獲勝！',
       icon: CircleDot,
       color: '#628395'
     }
@@ -120,7 +120,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                     ? '賓果'
                     : activeOngoingRoom.gameId === 'dots'
                     ? '點線棋'
-                    : '無限三子棋'}{' '}
+                    : '經典 OOXX'}{' '}
                   · 房號 #{activeOngoingRoom.code}
                 </div>
               </div>

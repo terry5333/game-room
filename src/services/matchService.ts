@@ -7,6 +7,7 @@ import {
   child,
   onValue,
   onDisconnect,
+  remove,
   rtdbServerTimestamp
 } from './firebase';
 import type {
@@ -73,15 +74,19 @@ class MatchService {
     }
   }
 
+  private saveLocalRoomsTimeout: any = null;
   private saveLocalRooms() {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem(
-          'duo_local_rooms',
-          JSON.stringify(Array.from(this.localRooms.values()))
-        );
-      } catch {}
-    }
+    if (this.saveLocalRoomsTimeout) clearTimeout(this.saveLocalRoomsTimeout);
+    this.saveLocalRoomsTimeout = setTimeout(() => {
+      if (typeof window !== 'undefined') {
+        try {
+          localStorage.setItem(
+            'duo_local_rooms',
+            JSON.stringify(Array.from(this.localRooms.values()))
+          );
+        } catch {}
+      }
+    }, 400);
   }
 
   // --- PRESENCE SYSTEM (Realtime Database) ---
@@ -257,14 +262,7 @@ class MatchService {
   public async joinRoomByCode(code: string, user: UserProfile): Promise<GameRoom | null> {
     const cleanCode = code.trim();
 
-    // 1. Check local rooms first
-    for (const room of this.localRooms.values()) {
-      if (room.code === cleanCode && room.status !== 'closed') {
-        return this.joinRoom(room.id, user);
-      }
-    }
-
-    // 2. Search in Firebase Realtime Database
+    // 1. Prioritize querying Firebase Realtime Database for authoritative room state
     if (rtdb) {
       try {
         const snap = await get(child(ref(rtdb), 'rooms'));
@@ -283,13 +281,21 @@ class MatchService {
       }
     }
 
+    // 2. Fallback to local memory
+    for (const room of this.localRooms.values()) {
+      if (room.code === cleanCode && room.status !== 'closed') {
+        return this.joinRoom(room.id, user);
+      }
+    }
+
     return null;
   }
 
   public async joinRoom(roomId: string, user: UserProfile): Promise<GameRoom | null> {
-    let room = this.localRooms.get(roomId);
+    let room: GameRoom | null = null;
 
-    if (!room && rtdb) {
+    // 1. Always query real-time server first to ensure fresh state
+    if (rtdb) {
       try {
         const snap = await get(child(ref(rtdb), `rooms/${roomId}`));
         if (snap.exists()) {
@@ -297,29 +303,42 @@ class MatchService {
           this.localRooms.set(roomId, room);
         }
       } catch (e) {
-        console.warn(e);
+        console.warn('RTDB joinRoom error:', e);
       }
     }
 
-    if (!room) return null;
+    if (!room) {
+      room = this.localRooms.get(roomId) || null;
+    }
 
+    if (!room || room.status === 'closed') return null;
+
+    // If already in this room as player 1 or 2, re-enter seamlessly
     if (room.player1.uid === user.uid) {
       return this.normalizeRoom(room);
     }
+    if (room.player2?.uid === user.uid) {
+      return this.normalizeRoom(room);
+    }
 
-    // Join as player 2
-    room.player2 = {
-      uid: user.uid,
-      displayName: user.displayName,
-      photoURL: user.photoURL,
-      ready: false
-    };
-    room.status = 'in_progress';
-    room.updatedAt = Date.now();
+    // Join as player 2 if slot is open or status is waiting
+    if (!room.player2 || room.status === 'waiting') {
+      room.player2 = {
+        uid: user.uid,
+        displayName: user.displayName,
+        photoURL: user.photoURL,
+        ready: false
+      };
+      room.status = 'in_progress';
+      room.updatedAt = Date.now();
 
-    const normalized = this.normalizeRoom(room);
-    await this.updateRoom(normalized);
-    return normalized;
+      const normalized = this.normalizeRoom(room);
+      await this.updateRoom(normalized);
+      return normalized;
+    }
+
+    // If room already has two players, allow entering as spectator
+    return this.normalizeRoom(room);
   }
 
   public async getRoom(roomId: string): Promise<GameRoom | null> {
@@ -405,15 +424,27 @@ class MatchService {
     return Array.from(this.localRooms.values());
   }
 
+  public async deleteRoom(roomId: string): Promise<void> {
+    this.localRooms.delete(roomId);
+    this.saveLocalRooms();
+    if (rtdb) {
+      try {
+        await remove(ref(rtdb, `rooms/${roomId}`));
+      } catch (err) {
+        console.warn('RTDB delete room error:', err);
+      }
+    }
+  }
+
   public async forceCloseRoom(roomId: string): Promise<void> {
     const r = this.localRooms.get(roomId);
     if (r) {
       r.status = 'closed';
       r.updatedAt = Date.now();
       await this.updateRoom(r);
-    } else if (rtdb) {
-      set(ref(rtdb, `rooms/${roomId}/status`), 'closed').catch(console.warn);
     }
+    // Delete/close in RTDB
+    await this.deleteRoom(roomId);
   }
 
   private broadcastRoom(room: GameRoom) {
@@ -512,7 +543,8 @@ class MatchService {
           ? Object.values(rawCalled)
           : [],
         currentTurnUid: room.stateBingo?.currentTurnUid || room.hostUid,
-        linesCompleted: room.stateBingo?.linesCompleted || {}
+        linesCompleted: room.stateBingo?.linesCompleted || {},
+        targetLines: room.stateBingo?.targetLines || 5
       };
     } else if (room.gameId === 'dots') {
       room.stateDots = {
@@ -546,7 +578,7 @@ class MatchService {
         grid,
         movesHistory,
         currentTurnUid: room.stateOOXX?.currentTurnUid || room.hostUid,
-        infiniteMode: room.stateOOXX?.infiniteMode ?? true,
+        infiniteMode: room.stateOOXX?.infiniteMode ?? false,
         winningLine: room.stateOOXX?.winningLine
       };
     }
@@ -731,7 +763,7 @@ class MatchService {
       'battleship': '海戰棋',
       'bingo': '賓果',
       'dots': '點線棋',
-      'ooxx': '無限三子棋'
+      'ooxx': '經典 OOXX'
     };
 
     return friends.map((f) => {
@@ -792,7 +824,8 @@ class MatchService {
         ready: {},
         calledNumbers: [],
         currentTurnUid: room.hostUid,
-        linesCompleted: {}
+        linesCompleted: {},
+        targetLines: 5
       };
     } else if (room.gameId === 'dots') {
       room.stateDots = {
@@ -811,7 +844,7 @@ class MatchService {
         ],
         movesHistory: [],
         currentTurnUid: room.hostUid,
-        infiniteMode: true
+        infiniteMode: false
       };
     }
   }

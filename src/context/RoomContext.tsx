@@ -189,11 +189,10 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const leaveRoom = async () => {
     localStorage.removeItem('duo_active_room_id');
     setActiveOngoingRoom(null);
-    if (currentRoom && currentUser) {
-      if (isHost && currentRoom.status === 'waiting') {
-        currentRoom.status = 'closed';
-        await matchService.updateRoom(currentRoom);
-      }
+    if (currentRoom) {
+      const roomId = currentRoom.id;
+      // 房間結束之後除非再戰一局不然就刪除房間
+      await matchService.deleteRoom(roomId);
     }
     setCurrentRoom(null);
     sound.playClick();
@@ -203,8 +202,9 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentRoom) return;
     const copy: GameRoom = JSON.parse(JSON.stringify(currentRoom));
     updater(copy);
+    // Instantaneous local UI response for zero input lag
     setCurrentRoom(copy);
-    await matchService.updateRoom(copy);
+    matchService.updateRoom(copy).catch(console.warn);
   };
 
   const surrender = async () => {
@@ -237,12 +237,14 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentTurnUid: draft.hostUid
         };
       } else if (draft.gameId === 'bingo') {
+        const preservedTarget = draft.stateBingo?.targetLines || 5;
         draft.stateBingo = {
           boards: {},
           ready: {},
           calledNumbers: [],
           currentTurnUid: draft.hostUid,
-          linesCompleted: {}
+          linesCompleted: {},
+          targetLines: preservedTarget
         };
       } else if (draft.gameId === 'dots') {
         draft.stateDots = {
@@ -261,7 +263,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           ],
           movesHistory: [],
           currentTurnUid: draft.hostUid,
-          infiniteMode: draft.stateOOXX?.infiniteMode ?? true
+          infiniteMode: false
         };
       }
     });
