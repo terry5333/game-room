@@ -503,8 +503,10 @@ export const GameBingo: React.FC = () => {
               return (
                 <motion.button
                   key={`${r}-${c}`}
-                  whileHover={allReady && isMyTurn && !isCalled ? { scale: 1.08 } : {}}
-                  whileTap={allReady && isMyTurn && !isCalled ? { scale: 0.94 } : {}}
+                  animate={isCalled ? { scale: [0.92, 1.08, 1] } : {}}
+                  transition={{ type: 'spring', stiffness: 500, damping: 18 }}
+                  whileHover={allReady && isMyTurn && !isCalled ? { scale: 1.08, y: -2 } : {}}
+                  whileTap={allReady && isMyTurn && !isCalled ? { scale: 0.92 } : {}}
                   disabled={myReady && (!allReady || !isMyTurn || isCalled)}
                   onClick={() => {
                     if (!myReady) {

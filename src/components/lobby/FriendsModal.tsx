@@ -72,21 +72,23 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     return () => unsub();
   }, [currentUser?.uid]);
 
-  // Poll live presence & active rooms for friends
+  // Real-time zero-latency presence listener for friends
   useEffect(() => {
     if (!isOpen || friendRecords.length === 0) {
       setFriendPresences([]);
       return;
     }
 
-    const refreshPresences = async () => {
-      const enriched = await matchService.getFriendsLiveStatus(friendRecords);
+    const refresh = () => {
+      const enriched = matchService.getFriendsLiveStatus(friendRecords);
       setFriendPresences(enriched);
     };
 
-    refreshPresences();
-    const interval = setInterval(refreshPresences, 2500);
-    return () => clearInterval(interval);
+    refresh();
+    const unsub = matchService.subscribePresence(() => {
+      refresh();
+    });
+    return () => unsub();
   }, [isOpen, friendRecords]);
 
   // Listen to battle invites

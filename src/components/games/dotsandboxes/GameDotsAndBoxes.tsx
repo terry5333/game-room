@@ -202,9 +202,9 @@ export const GameDotsAndBoxes: React.FC = () => {
                   <AnimatePresence>
                     {boxOwner && (
                       <motion.div
-                        initial={{ scale: 0, opacity: 0 }}
-                        animate={{ scale: isWinnerBox ? 1.05 : 1, opacity: 1 }}
-                        transition={{ type: 'spring', damping: 15 }}
+                        initial={{ scale: 0, rotate: -12 }}
+                        animate={{ scale: isWinnerBox ? 1.05 : 1, rotate: 0 }}
+                        transition={{ type: 'spring', stiffness: 400, damping: 20 }}
                         className={`w-full h-full rounded-xl flex items-center justify-center font-extrabold text-white text-xs sm:text-sm shadow-sm transition-all ${
                           theme.bg
                         } ${isWinnerBox ? 'ring-3 ring-[#DBAD6A] shadow-md shadow-[#DBAD6A]/50 animate-pulse' : ''}`}
@@ -227,8 +227,10 @@ export const GameDotsAndBoxes: React.FC = () => {
               const theme = ownerIdx !== -1 ? PLAYER_DOTS_THEMES[ownerIdx] : PLAYER_DOTS_THEMES[0];
 
               return (
-                <button
+                <motion.button
                   key={key}
+                  whileHover={isMyTurn && !lineOwner ? { scale: 1.15 } : {}}
+                  whileTap={isMyTurn && !lineOwner ? { scale: 0.9 } : {}}
                   disabled={!isMyTurn || Boolean(lineOwner)}
                   onClick={() => handleLineClick(key)}
                   className={`absolute h-3 -translate-y-1.5 transition-all cursor-pointer z-20 rounded-full group ${
@@ -257,8 +259,10 @@ export const GameDotsAndBoxes: React.FC = () => {
               const theme = ownerIdx !== -1 ? PLAYER_DOTS_THEMES[ownerIdx] : PLAYER_DOTS_THEMES[0];
 
               return (
-                <button
+                <motion.button
                   key={key}
+                  whileHover={isMyTurn && !lineOwner ? { scale: 1.15 } : {}}
+                  whileTap={isMyTurn && !lineOwner ? { scale: 0.9 } : {}}
                   disabled={!isMyTurn || Boolean(lineOwner)}
                   onClick={() => handleLineClick(key)}
                   className={`absolute w-3 -translate-x-1.5 transition-all cursor-pointer z-20 rounded-full group ${

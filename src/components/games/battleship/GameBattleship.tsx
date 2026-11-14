@@ -537,15 +537,21 @@ export const GameBattleship: React.FC = () => {
                       >
                         {isHit && (
                           <motion.div
-                            initial={{ scale: 0 }}
-                            animate={{ scale: 1 }}
+                            initial={{ scale: 0, rotate: 30 }}
+                            animate={{ scale: [0, 1.4, 1], rotate: [30, -10, 0] }}
+                            transition={{ type: 'spring', stiffness: 500, damping: 15 }}
                             className="flex items-center justify-center"
                           >
                             <Flame className="w-4 h-4 text-amber-200 animate-pulse" />
                           </motion.div>
                         )}
                         {isMiss && (
-                          <div className="w-2.5 h-2.5 rounded-full bg-sky-500/70 animate-ripple" />
+                          <motion.div
+                            initial={{ scale: 0 }}
+                            animate={{ scale: [0, 1.3, 1] }}
+                            transition={{ type: 'spring', stiffness: 400, damping: 20 }}
+                            className="w-2.5 h-2.5 rounded-full bg-sky-500/70"
+                          />
                         )}
                       </motion.button>
                     );

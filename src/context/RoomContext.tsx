@@ -110,7 +110,20 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         setCurrentRoom(null);
         return;
       }
-      setCurrentRoom(updatedRoom);
+      setCurrentRoom((prev) => {
+        if (!prev) return updatedRoom;
+        // Ignore stale out-of-order packets if local state is already newer
+        if (
+          prev.id === updatedRoom.id &&
+          prev.updatedAt &&
+          updatedRoom.updatedAt &&
+          updatedRoom.updatedAt < prev.updatedAt &&
+          updatedRoom.status === prev.status
+        ) {
+          return prev;
+        }
+        return updatedRoom;
+      });
     });
 
     return () => unsub();

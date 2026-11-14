@@ -180,8 +180,8 @@ export const GameOOXX: React.FC = () => {
               return (
                 <motion.button
                   key={`${r}-${c}`}
-                  whileHover={isMyTurn && !cellUid ? { scale: 1.05 } : {}}
-                  whileTap={isMyTurn && !cellUid ? { scale: 0.95 } : {}}
+                  whileHover={isMyTurn && !cellUid ? { scale: 1.08, y: -2 } : {}}
+                  whileTap={isMyTurn && !cellUid ? { scale: 0.92 } : {}}
                   disabled={!isMyTurn || Boolean(cellUid)}
                   onClick={() => handleCellClick(r, c)}
                   className={`relative rounded-2xl flex items-center justify-center transition-all ${
@@ -199,9 +199,10 @@ export const GameOOXX: React.FC = () => {
                   <AnimatePresence>
                     {cellUid && (
                       <motion.div
-                        initial={{ scale: 0, rotate: -25 }}
-                        animate={{ scale: 1, rotate: 0 }}
+                        initial={{ scale: 0, rotate: -45 }}
+                        animate={{ scale: [0, 1.25, 1], rotate: [-45, 10, 0] }}
                         exit={{ scale: 0, opacity: 0 }}
+                        transition={{ type: 'spring', stiffness: 450, damping: 20 }}
                         className="font-black text-4xl sm:text-5xl"
                       >
                         {isP1 ? 'O' : 'X'}

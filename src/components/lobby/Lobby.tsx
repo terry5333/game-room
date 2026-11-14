@@ -160,7 +160,9 @@ export const Lobby: React.FC<LobbyProps> = ({
       {/* Sleek Top Join & Friends Bar */}
       <div className="glass-panel rounded-2xl px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs border border-white/70">
         <div className="flex items-center gap-3">
-          <button
+          <motion.button
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.95 }}
             onClick={() => {
               sound.playClick();
               onOpenFriends();
@@ -169,7 +171,7 @@ export const Lobby: React.FC<LobbyProps> = ({
           >
             <Users2 className="w-4 h-4" />
             <span>好友與對戰</span>
-          </button>
+          </motion.button>
 
           <span className="text-xs text-[#96897B] font-medium hidden sm:inline">
             或輸入 6 碼代碼進房
@@ -184,24 +186,40 @@ export const Lobby: React.FC<LobbyProps> = ({
               value={roomCodeInput}
               onChange={(e) => setRoomCodeInput(e.target.value.replace(/\D/g, ''))}
               placeholder="輸入 6 碼房號"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/80 border border-[#96897B]/20 focus:outline-none focus:border-[#628395] text-xs font-mono font-bold tracking-widest text-[#2E2925]"
+              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/80 border border-[#96897B]/20 focus:outline-none focus:border-[#628395] text-xs font-mono font-bold tracking-widest text-[#2E2925] transition-all"
             />
             <LogIn className="w-3.5 h-3.5 text-[#96897B] absolute left-2.5 top-1/2 -translate-y-1/2" />
           </div>
 
-          <button
+          <motion.button
+            whileHover={{ scale: 1.04 }}
+            whileTap={{ scale: 0.95 }}
             type="submit"
             disabled={roomCodeInput.length < 6}
             className="px-3.5 py-1.5 rounded-xl bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20 disabled:opacity-40 font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
           >
             <span>進入</span>
             <ArrowRight className="w-3 h-3" />
-          </button>
+          </motion.button>
         </form>
       </div>
 
       {/* 5 Game Cards */}
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+      <motion.div
+        initial="hidden"
+        animate="visible"
+        variants={{
+          hidden: { opacity: 0 },
+          visible: {
+            opacity: 1,
+            transition: {
+              staggerChildren: 0.07,
+              delayChildren: 0.05
+            }
+          }
+        }}
+        className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4"
+      >
         {games.map((game) => {
           const Icon = game.icon;
           const isBusy = creatingGame === game.id;
@@ -209,18 +227,32 @@ export const Lobby: React.FC<LobbyProps> = ({
           return (
             <motion.div
               key={game.id}
-              whileHover={{ y: -3 }}
-              transition={{ type: 'spring', stiffness: 300, damping: 25 }}
-              className="glass-panel rounded-2xl p-5 border border-white/70 shadow-xs flex flex-col justify-between hover:shadow-md transition-all group"
+              variants={{
+                hidden: { opacity: 0, y: 18, scale: 0.96 },
+                visible: {
+                  opacity: 1,
+                  y: 0,
+                  scale: 1,
+                  transition: {
+                    type: 'spring',
+                    stiffness: 300,
+                    damping: 24
+                  }
+                }
+              }}
+              whileHover={{ y: -6, scale: 1.015 }}
+              className="glass-panel rounded-2xl p-5 border border-white/70 shadow-xs flex flex-col justify-between hover:shadow-lg transition-shadow group"
             >
               <div>
                 <div className="flex items-center justify-between mb-3">
-                  <div
+                  <motion.div
+                    whileHover={{ scale: 1.1, rotate: 6 }}
+                    transition={{ type: 'spring', stiffness: 400, damping: 15 }}
                     className="w-10 h-10 rounded-xl flex items-center justify-center text-white shadow-xs"
                     style={{ backgroundColor: game.color }}
                   >
                     <Icon className="w-5 h-5 text-white" />
-                  </div>
+                  </motion.div>
 
                   <button
                     onClick={() => {
@@ -228,7 +260,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                       onOpenRulesForGame(game.id);
                     }}
                     title="玩法說明"
-                    className="p-1 rounded-lg text-[#96897B] hover:text-[#628395] hover:bg-white/60 transition-colors"
+                    className="p-1.5 rounded-lg text-[#96897B] hover:text-[#628395] hover:bg-white/60 transition-colors cursor-pointer"
                   >
                     <BookOpen className="w-3.5 h-3.5" />
                   </button>
@@ -242,18 +274,20 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </p>
               </div>
 
-              <button
+              <motion.button
+                whileHover={{ scale: 1.02 }}
+                whileTap={{ scale: 0.95 }}
                 disabled={isBusy}
                 onClick={() => handleCreateGame(game.id)}
                 className="w-full py-2.5 px-4 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <Plus className="w-3.5 h-3.5" />
                 <span>{isBusy ? '建立中...' : '開房對戰'}</span>
-              </button>
+              </motion.button>
             </motion.div>
           );
         })}
-      </div>
+      </motion.div>
 
       {/* Room Configuration Dialog (1A2B, Bingo, Battleship, Dots) */}
       <AnimatePresence>

@@ -253,14 +253,12 @@ class MatchService {
     this.saveLocalRooms();
     this.broadcastRoom(normalized);
 
-    // 2. Write to Firebase RTDB in parallel
+    // 2. Non-blocking parallel write to Firebase RTDB in background (0ms UI lag!)
     if (rtdb) {
-      try {
-        await set(ref(rtdb, `rooms/${roomId}`), this.cleanForRTDB(normalized));
-        await set(ref(rtdb, `room_codes/${newRoom.code}`), roomId);
-      } catch (err) {
-        console.warn('RTDB createRoom error:', err);
-      }
+      Promise.all([
+        set(ref(rtdb, `rooms/${roomId}`), this.cleanForRTDB(normalized)),
+        set(ref(rtdb, `room_codes/${newRoom.code}`), roomId)
+      ]).catch((err) => console.warn('RTDB createRoom error:', err));
     }
 
     return normalized;
@@ -269,43 +267,25 @@ class MatchService {
   public async joinRoomByCode(code: string, user: UserProfile): Promise<GameRoom | null> {
     const cleanCode = code.trim();
 
-    // 1. Direct fast index lookup in RTDB
+    // 1. Instant check in local memory first (0ms if already known)
+    for (const room of this.localRooms.values()) {
+      if (String(room.code).trim() === cleanCode && room.status !== 'closed') {
+        return this.joinRoom(room.id, user);
+      }
+    }
+
+    // 2. Direct fast O(1) index lookup in RTDB
     if (rtdb) {
       try {
         const codeSnap = await get(child(ref(rtdb), `room_codes/${cleanCode}`));
         if (codeSnap.exists()) {
           const targetRoomId = codeSnap.val();
           if (targetRoomId) {
-            const joined = await this.joinRoom(targetRoomId, user);
-            if (joined) return joined;
+            return this.joinRoom(targetRoomId, user);
           }
         }
       } catch (err) {
         console.warn('RTDB direct code lookup error:', err);
-      }
-
-      // Fallback: search all rooms in RTDB
-      try {
-        const snap = await get(child(ref(rtdb), 'rooms'));
-        if (snap.exists()) {
-          const all = snap.val();
-          for (const [id, r] of Object.entries<any>(all)) {
-            if (String(r.code).trim() === cleanCode && r.status !== 'closed') {
-              const norm = this.normalizeRoom(r);
-              this.localRooms.set(id, norm);
-              return this.joinRoom(id, user);
-            }
-          }
-        }
-      } catch (err) {
-        console.warn('RTDB search room error:', err);
-      }
-    }
-
-    // 2. Fallback to local memory
-    for (const room of this.localRooms.values()) {
-      if (String(room.code).trim() === cleanCode && room.status !== 'closed') {
-        return this.joinRoom(room.id, user);
       }
     }
 
@@ -374,7 +354,7 @@ class MatchService {
       room.updatedAt = Date.now();
 
       const normalized = this.normalizeRoom(room);
-      await this.updateRoom(normalized);
+      this.updateRoom(normalized); // Non-blocking write to avoid UI freeze
       return normalized;
     }
 
@@ -850,13 +830,8 @@ class MatchService {
     }
   }
 
-  // --- CROSS-REFERENCE LIVE ROOMS FOR FRIENDS PRESENCE ---
-  public async getFriendsLiveStatus(friends: FriendRecord[]): Promise<UserPresence[]> {
-    const liveRooms = await this.fetchAllRoomsFromRTDB();
-    const activeRooms = liveRooms.filter(
-      (r) => r.status === 'waiting' || r.status === 'in_progress'
-    );
-
+  // --- REAL-TIME ZERO-LATENCY FRIENDS PRESENCE ---
+  public getFriendsLiveStatus(friends: FriendRecord[]): UserPresence[] {
     const gameNames: Record<string, string> = {
       '1a2b': '1A2B',
       'battleship': '海戰棋',
@@ -865,12 +840,28 @@ class MatchService {
       'ooxx': '經典 OOXX'
     };
 
+    const localActiveRooms = Array.from(this.localRooms.values()).filter(
+      (r) => r.status === 'waiting' || r.status === 'in_progress'
+    );
+
     return friends.map((f) => {
-      // 1. Direct cross-reference with active rooms in RTDB
-      const activeRoom = activeRooms.find(
-        (r) => r.player1.uid === f.uid || r.player2?.uid === f.uid
-      );
       const presence = this.localPresence.get(f.uid);
+      const activeRoom = localActiveRooms.find(
+        (r) =>
+          (r.players && r.players.some((p) => p.uid === f.uid)) ||
+          r.player1.uid === f.uid ||
+          r.player2?.uid === f.uid
+      );
+
+      if (presence && (presence.status === 'in_game' || presence.status === 'lobby' || presence.status === 'online')) {
+        return {
+          ...presence,
+          userTag: f.userTag,
+          displayName: f.displayName || presence.displayName,
+          photoURL: f.photoURL || presence.photoURL,
+          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined
+        };
+      }
 
       if (activeRoom) {
         return {

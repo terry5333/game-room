@@ -115,7 +115,12 @@ export const GameShell: React.FC<GameShellProps> = ({
   const winnerPlayer = (displayPlayers || []).find((p) => p.uid === currentRoom.winnerUid) || p1;
 
   return (
-    <div className="flex-1 max-w-4xl mx-auto w-full px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between min-w-0">
+    <motion.div
+      initial={{ opacity: 0, y: 10 }}
+      animate={{ opacity: 1, y: 0 }}
+      transition={{ duration: 0.25, ease: 'easeOut' }}
+      className="flex-1 max-w-4xl mx-auto w-full px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between min-w-0"
+    >
       {/* Reconnection & Offline Alerts */}
       <AnimatePresence>
         {!isConnected && (
@@ -226,8 +231,11 @@ export const GameShell: React.FC<GameShellProps> = ({
           const isMe = p.uid === currentUser.uid;
 
           return (
-            <div
+            <motion.div
               key={p.uid}
+              initial={{ opacity: 0, scale: 0.92, y: 6 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              transition={{ type: 'spring', stiffness: 350, damping: 25, delay: idx * 0.05 }}
               className={`rounded-xl px-2.5 py-1.5 flex items-center gap-2 border transition-all ${
                 isMe
                   ? `${theme.bg} ${theme.border} shadow-xs`
@@ -247,7 +255,7 @@ export const GameShell: React.FC<GameShellProps> = ({
                   {isMe ? `我方 (${theme.name})` : `對手 (${theme.name})`}
                 </div>
               </div>
-            </div>
+            </motion.div>
           );
         })}
 
@@ -382,6 +390,6 @@ export const GameShell: React.FC<GameShellProps> = ({
           }}
         />
       )}
-    </div>
+    </motion.div>
   );
 };
