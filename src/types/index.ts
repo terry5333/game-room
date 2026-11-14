@@ -72,7 +72,7 @@ export interface FriendRecord {
   addedAt: number;
 }
 
-export type PlayerRole = 'player1' | 'player2' | 'player3' | 'player4' | 'spectator';
+export type PlayerRole = 'player1' | 'player2' | 'player3' | 'player4' | 'player5' | 'spectator';
 
 export interface PlayerSlot {
   uid: string;

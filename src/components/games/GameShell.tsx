@@ -80,7 +80,8 @@ export const GameShell: React.FC<GameShellProps> = ({
     { bg: 'bg-[#628395]/15', border: 'border-[#628395]/40', text: 'text-[#628395]', name: 'P1' },
     { bg: 'bg-[#CF995F]/15', border: 'border-[#CF995F]/40', text: 'text-[#CF995F]', name: 'P2' },
     { bg: 'bg-emerald-500/15', border: 'border-emerald-500/40', text: 'text-emerald-700', name: 'P3' },
-    { bg: 'bg-purple-500/15', border: 'border-purple-500/40', text: 'text-purple-700', name: 'P4' }
+    { bg: 'bg-purple-500/15', border: 'border-purple-500/40', text: 'text-purple-700', name: 'P4' },
+    { bg: 'bg-rose-500/15', border: 'border-rose-500/40', text: 'text-rose-700', name: 'P5' }
   ];
 
   const p1 = currentRoom.player1 || {
@@ -197,14 +198,16 @@ export const GameShell: React.FC<GameShellProps> = ({
         </div>
       </div>
 
-      {/* Sleek Dynamic Players Bar (Supports 2-4 Players) */}
+      {/* Sleek Dynamic Players Bar (Supports 2-5 Players) */}
       <div
-        className={`grid gap-2.5 mb-3 ${
+        className={`grid gap-2 mb-3 ${
           players.length <= 2
             ? 'grid-cols-2'
             : players.length === 3
             ? 'grid-cols-3'
-            : 'grid-cols-2 sm:grid-cols-4'
+            : players.length === 4
+            ? 'grid-cols-2 sm:grid-cols-4'
+            : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5'
         }`}
       >
         {players.map((p, idx) => {
@@ -270,7 +273,13 @@ export const GameShell: React.FC<GameShellProps> = ({
             </div>
 
             {/* Slots Grid */}
-            <div className="grid grid-cols-2 gap-2 mb-5">
+            <div
+              className={`grid gap-2 mb-5 ${
+                (currentRoom.maxPlayers || 2) >= 5
+                  ? 'grid-cols-2 sm:grid-cols-3'
+                  : 'grid-cols-2'
+              }`}
+            >
               {Array.from({ length: currentRoom.maxPlayers || 2 }).map((_, slotIdx) => {
                 const slotPlayer = players[slotIdx];
                 const theme = PLAYER_THEMES[slotIdx] || PLAYER_THEMES[0];

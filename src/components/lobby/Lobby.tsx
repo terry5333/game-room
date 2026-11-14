@@ -71,35 +71,35 @@ export const Lobby: React.FC<LobbyProps> = ({
     {
       id: '1a2b' as const,
       title: '1A2B 數字密碼戰',
-      desc: '支援 2-4 人即時搶答解密！推理解析 4 位神秘密碼，搶先破譯 4A0B 者獲勝。',
+      desc: '雙人即時競速！推理解析 4 位神秘密碼，搶先破譯 4A0B 者獲勝。（限定 2 人）',
       icon: Hash,
       color: '#628395'
     },
     {
       id: 'battleship' as const,
       title: '海戰棋 艦隊對決',
-      desc: '自選 6x6~10x10 棋盤！佈署旗艦、驅逐艦與潛艇，雷達轟炸擊沉敵艦。',
+      desc: '雙人艦隊對決！自選 6x6~10x10 棋盤，佈署艦艇雷達轟炸擊沉敵艦。（限定 2 人）',
       icon: Anchor,
       color: '#628395'
     },
     {
       id: 'bingo' as const,
       title: '賓果 5x5 連線',
-      desc: '支援 2-4 人同場連線！自訂獲勝連線數與輪流喊號，動態 3D 彩球即時滾動進球。',
+      desc: '支援 2-5 人多人連線派對！自訂獲勝條數與輪流喊號，動態 3D 彩球即時進球。（2-5 人）',
       icon: Grid,
       color: '#DBAD6A'
     },
     {
       id: 'dots' as const,
       title: '點線棋 圍地方格',
-      desc: '支援 2-4 人混戰圈地！自選 3x3~6x6 點陣，封閉方格即刻佔領並獲得連續回合。',
+      desc: '支援 2-3 人圍地對弈！自選 3x3~6x6 點陣，封閉方格佔領並獲得連續回合。（最多 3 人）',
       icon: SquareDot,
       color: '#CF995F'
     },
     {
       id: 'ooxx' as const,
       title: '經典 OOXX',
-      desc: '經典 3x3 圈圈叉叉對弈，雙方輪流落子，先連成三點一線者獲勝！',
+      desc: '經典 3x3 圈圈叉叉對弈，雙方輪流落子，先連成三點一線者獲勝！（限定 2 人）',
       icon: CircleDot,
       color: '#628395'
     }

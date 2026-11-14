@@ -154,6 +154,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   else if (playerIndex === 1) myRole = 'player2';
   else if (playerIndex === 2) myRole = 'player3';
   else if (playerIndex === 3) myRole = 'player4';
+  else if (playerIndex === 4) myRole = 'player5';
 
   const createRoom = async (gameId: GameId, options?: RoomCreationOptions): Promise<GameRoom> => {
     if (!currentUser) throw new Error('Must be logged in to create room');

@@ -47,8 +47,19 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     sound.playClick();
+    const finalMaxPlayers =
+      gameId === '1a2b'
+        ? 2
+        : gameId === 'battleship'
+        ? 2
+        : gameId === 'ooxx'
+        ? 2
+        : gameId === 'dots'
+        ? Math.min(3, maxPlayers)
+        : Math.min(5, maxPlayers); // Bingo up to 5
+
     onConfirm({
-      maxPlayers,
+      maxPlayers: finalMaxPlayers,
       hintEnabled,
       hintRound,
       maxRounds,
@@ -103,46 +114,22 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
           {/* 1A2B Configuration */}
           {gameId === '1a2b' && (
             <>
-              {/* 遊玩人數 */}
-              <div className="space-y-2">
+              {/* 遊玩人數 (固定雙人) */}
+              <div className="space-y-1.5">
                 <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#628395]" />
-                    <span>遊玩人數（多人即時對決）</span>
+                    <span>遊玩人數</span>
                   </span>
                   <span className="text-[11px] font-bold text-[#628395]">
-                    {maxPlayers} 人模式
+                    2 人模式（雙人對決）
                   </span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[
-                    { count: 2, label: '2 人', sub: '雙人競速' },
-                    { count: 3, label: '3 人', sub: '三方對決' },
-                    { count: 4, label: '4 人', sub: '四人狂歡' }
-                  ].map((item) => (
-                    <button
-                      key={item.count}
-                      type="button"
-                      onClick={() => {
-                        sound.playClick();
-                        setMaxPlayers(item.count);
-                      }}
-                      className={`py-2 px-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                        maxPlayers === item.count
-                          ? 'bg-[#628395] text-white border-[#628395] shadow-xs'
-                          : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#628395]'
-                      }`}
-                    >
-                      <span className="font-mono font-black text-xs">{item.label}</span>
-                      <span
-                        className={`text-[10px] ${
-                          maxPlayers === item.count ? 'text-white/80' : 'text-[#96897B]'
-                        }`}
-                      >
-                        {item.sub}
-                      </span>
-                    </button>
-                  ))}
+                <div className="w-full py-2.5 px-4 rounded-xl bg-white border border-[#628395]/30 text-xs font-extrabold text-[#2E2925] flex items-center justify-between shadow-2xs">
+                  <span>1A2B 雙人密碼推理破譯對決</span>
+                  <span className="text-[10px] font-mono font-bold px-2.5 py-0.5 rounded-full bg-[#628395]/15 text-[#628395] border border-[#628395]/20">
+                    限定 2 人
+                  </span>
                 </div>
               </div>
 
@@ -266,17 +253,18 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
                 <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#DBAD6A]" />
-                    <span>遊玩人數（多人連線派對）</span>
+                    <span>遊玩人數（多人連線派對，支援 2-5 人）</span>
                   </span>
                   <span className="text-[11px] font-bold text-[#DBAD6A]">
                     {maxPlayers} 人連線
                   </span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                   {[
                     { count: 2, label: '2 人', sub: '雙人對決' },
                     { count: 3, label: '3 人', sub: '三人派對' },
-                    { count: 4, label: '4 人', sub: '四人混戰' }
+                    { count: 4, label: '4 人', sub: '四人混戰' },
+                    { count: 5, label: '5 人', sub: '五人狂歡' }
                   ].map((item) => (
                     <button
                       key={item.count}
@@ -382,22 +370,21 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
           {/* Dots and Boxes Configuration */}
           {gameId === 'dots' && (
             <>
-              {/* 遊玩人數 */}
+              {/* 遊玩人數 (最多 3 人) */}
               <div className="space-y-2">
                 <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
                   <span className="flex items-center gap-1.5">
                     <Users className="w-3.5 h-3.5 text-[#CF995F]" />
-                    <span>遊玩人數（多人輪流下線）</span>
+                    <span>遊玩人數（最多 3 人）</span>
                   </span>
                   <span className="text-[11px] font-bold text-[#CF995F]">
-                    {maxPlayers} 人爭奪
+                    {maxPlayers > 3 ? 3 : maxPlayers} 人爭奪
                   </span>
                 </label>
-                <div className="grid grid-cols-3 gap-2">
+                <div className="grid grid-cols-2 gap-2">
                   {[
                     { count: 2, label: '2 人', sub: '雙人圍地' },
-                    { count: 3, label: '3 人', sub: '三方爭霸' },
-                    { count: 4, label: '4 人', sub: '四人混戰' }
+                    { count: 3, label: '3 人', sub: '三方爭霸' }
                   ].map((item) => (
                     <button
                       key={item.count}
@@ -407,7 +394,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
                         setMaxPlayers(item.count);
                       }}
                       className={`py-2 px-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
-                        maxPlayers === item.count
+                        (maxPlayers > 3 ? 3 : maxPlayers) === item.count
                           ? 'bg-[#CF995F] text-white border-[#CF995F] shadow-xs'
                           : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#CF995F]'
                       }`}
@@ -415,7 +402,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
                       <span className="font-mono font-black text-xs">{item.label}</span>
                       <span
                         className={`text-[10px] ${
-                          maxPlayers === item.count ? 'text-white/80' : 'text-[#96897B]'
+                          (maxPlayers > 3 ? 3 : maxPlayers) === item.count ? 'text-white/80' : 'text-[#96897B]'
                         }`}
                       >
                         {item.sub}

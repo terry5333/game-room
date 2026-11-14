@@ -241,7 +241,8 @@ export const GameBingo: React.FC = () => {
     { text: 'text-[#628395]', name: 'P1' },
     { text: 'text-[#CF995F]', name: 'P2' },
     { text: 'text-emerald-700', name: 'P3' },
-    { text: 'text-purple-700', name: 'P4' }
+    { text: 'text-purple-700', name: 'P4' },
+    { text: 'text-rose-700', name: 'P5' }
   ];
 
   const isBoardFilled =
