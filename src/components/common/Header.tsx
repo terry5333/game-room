@@ -9,7 +9,9 @@ import {
   Check,
   Shield,
   Gamepad2,
-  ChevronDown
+  ChevronDown,
+  User,
+  Users2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
@@ -17,12 +19,16 @@ import { sound } from '../../services/soundService';
 interface HeaderProps {
   onOpenRules: () => void;
   onOpenAdmin: () => void;
+  onOpenFriends: () => void;
+  onOpenEditProfile: () => void;
   inGame?: boolean;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onOpenAdmin,
+  onOpenFriends,
+  onOpenEditProfile,
   inGame = false
 }) => {
   const { currentUser, logout } = useAuth();
@@ -43,8 +49,8 @@ export const Header: React.FC<HeaderProps> = ({
 
   if (!currentUser) return null;
 
-  const copyFriendCode = () => {
-    navigator.clipboard.writeText(currentUser.friendCode);
+  const copyId = () => {
+    navigator.clipboard.writeText(`${currentUser.displayName}#${currentUser.userTag}`);
     setCopied(true);
     sound.playClick();
     setTimeout(() => setCopied(false), 2000);
@@ -72,6 +78,18 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Right Actions */}
         <div className="flex items-center gap-2 sm:gap-3">
+          {/* Friends Drawer Button */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              onOpenFriends();
+            }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white text-xs font-bold text-[#628395] border border-[#628395]/30 shadow-2xs transition-colors cursor-pointer"
+          >
+            <Users2 className="w-3.5 h-3.5 text-[#628395]" />
+            <span>好友</span>
+          </button>
+
           {/* Minimal Coin Chip */}
           <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-white/60 border border-[#DBAD6A]/40 text-[#2E2925] font-mono font-bold text-xs">
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />
@@ -97,7 +115,7 @@ export const Header: React.FC<HeaderProps> = ({
               sound.playClick();
               onOpenRules();
             }}
-            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#2E2925] hover:bg-white/60 transition-colors"
+            className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-xl text-xs font-semibold text-[#2E2925] hover:bg-white/60 transition-colors cursor-pointer"
           >
             <BookOpen className="w-3.5 h-3.5 text-[#628395]" />
             <span className="hidden sm:inline">規則</span>
@@ -114,23 +132,26 @@ export const Header: React.FC<HeaderProps> = ({
                 alt={currentUser.displayName}
                 className="w-7 h-7 rounded-lg object-cover border border-white shadow-xs"
               />
-              <span className="text-xs font-bold text-[#2E2925] max-w-[90px] truncate hidden sm:inline">
+              <span className="text-xs font-bold text-[#2E2925] max-w-[100px] truncate hidden sm:inline">
                 {currentUser.displayName}
+              </span>
+              <span className="font-mono text-[10px] text-[#628395] font-bold hidden sm:inline">
+                #{currentUser.userTag}
               </span>
               <ChevronDown className="w-3 h-3 text-[#96897B]" />
             </button>
 
             {/* Clean Dropdown Menu */}
             {menuOpen && (
-              <div className="absolute right-0 mt-2 w-52 glass-panel rounded-2xl p-2 shadow-xl border border-white/80 z-50 animate-in fade-in zoom-in-95 duration-150">
+              <div className="absolute right-0 mt-2 w-56 glass-panel rounded-2xl p-2 shadow-xl border border-white/80 z-50 animate-in fade-in zoom-in-95 duration-150">
                 <div className="px-3 py-2 border-b border-[#96897B]/15 mb-1">
                   <div className="text-xs font-extrabold text-[#2E2925] truncate">
                     {currentUser.displayName}
                   </div>
                   <div className="flex items-center justify-between mt-1 text-[11px] text-[#96897B]">
-                    <span>好友碼: {currentUser.friendCode}</span>
+                    <span>ID: #{currentUser.userTag}</span>
                     <button
-                      onClick={copyFriendCode}
+                      onClick={copyId}
                       className="text-[#628395] hover:underline flex items-center gap-0.5"
                     >
                       {copied ? <Check className="w-3 h-3 text-emerald-600" /> : <Copy className="w-3 h-3 text-[#96897B]" />}
@@ -139,16 +160,28 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
+                {/* Edit Profile Option */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    onOpenEditProfile();
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#2E2925] hover:bg-white/70 rounded-xl transition-colors cursor-pointer"
+                >
+                  <User className="w-3.5 h-3.5 text-[#628395]" />
+                  <span>編輯個人資料</span>
+                </button>
+
                 {currentUser.role === 'admin' && (
                   <button
                     onClick={() => {
                       setMenuOpen(false);
                       onOpenAdmin();
                     }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#CF995F] hover:bg-white/70 rounded-xl transition-colors"
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#CF995F] hover:bg-white/70 rounded-xl transition-colors cursor-pointer"
                   >
                     <Shield className="w-3.5 h-3.5" />
-                    <span>管理員後台</span>
+                    <span>管理員後台 (Admin)</span>
                   </button>
                 )}
 
@@ -159,7 +192,7 @@ export const Header: React.FC<HeaderProps> = ({
                     setMenuOpen(false);
                     logout();
                   }}
-                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors"
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
                 >
                   <LogOut className="w-3.5 h-3.5" />
                   <span>登出帳號</span>

@@ -1,16 +1,10 @@
 import {
   isFirebaseConfigured,
-  db,
   rtdb,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
-  collection,
-  onSnapshot,
-  getDocs,
   ref,
   set,
+  get,
+  child,
   onValue,
   onDisconnect,
   rtdbServerTimestamp
@@ -21,11 +15,9 @@ import type {
   UserProfile,
   UserPresence,
   BattleInvite,
-  CoinTransaction,
   GameSettings
 } from '../types';
 
-// Default global settings
 export const DEFAULT_SETTINGS: GameSettings = {
   multipliers: {
     '1a2b': 1,
@@ -36,7 +28,6 @@ export const DEFAULT_SETTINGS: GameSettings = {
   }
 };
 
-// Cross-tab broadcast channel for local / instant multi-tab sync
 const syncChannel = typeof window !== 'undefined' && 'BroadcastChannel' in window
   ? new BroadcastChannel('duo_arena_sync_channel')
   : null;
@@ -51,7 +42,6 @@ class MatchService {
 
   constructor() {
     if (typeof window !== 'undefined') {
-      // Load saved state from localStorage
       try {
         const savedRooms = localStorage.getItem('duo_local_rooms');
         if (savedRooms) {
@@ -92,7 +82,7 @@ class MatchService {
     }
   }
 
-  // --- PRESENCE SYSTEM ---
+  // --- PRESENCE SYSTEM (Realtime Database) ---
   public updatePresence(presence: UserPresence) {
     this.localPresence.set(presence.uid, presence);
     this.notifyPresenceListeners();
@@ -101,7 +91,7 @@ class MatchService {
       syncChannel.postMessage({ type: 'PRESENCE_UPDATE', payload: presence });
     }
 
-    if (isFirebaseConfigured() && rtdb) {
+    if (rtdb) {
       try {
         const presenceRef = ref(rtdb, `presence/${presence.uid}`);
         set(presenceRef, {
@@ -115,7 +105,7 @@ class MatchService {
           lastActive: rtdbServerTimestamp()
         });
       } catch (err) {
-        console.warn('Firebase presence sync error:', err);
+        console.warn('Presence sync error:', err);
       }
     }
   }
@@ -124,8 +114,8 @@ class MatchService {
     this.presenceListeners.add(callback);
     callback(Array.from(this.localPresence.values()));
 
-    let unsubscribeFirebase: (() => void) | null = null;
-    if (isFirebaseConfigured() && rtdb) {
+    let unsubRtdb: (() => void) | null = null;
+    if (rtdb) {
       try {
         const presencesRef = ref(rtdb, 'presence');
         const unsub = onValue(presencesRef, (snapshot) => {
@@ -136,15 +126,15 @@ class MatchService {
             callback(Array.from(this.localPresence.values()));
           }
         });
-        unsubscribeFirebase = () => unsub();
+        unsubRtdb = () => unsub();
       } catch (err) {
-        console.warn('Firebase presence listen error:', err);
+        console.warn('Presence listen error:', err);
       }
     }
 
     return () => {
       this.presenceListeners.delete(callback);
-      if (unsubscribeFirebase) unsubscribeFirebase();
+      if (unsubRtdb) unsubRtdb();
     };
   }
 
@@ -162,11 +152,11 @@ class MatchService {
       syncChannel.postMessage({ type: 'INVITE_SEND', payload: invite });
     }
 
-    if (isFirebaseConfigured() && rtdb) {
+    if (rtdb) {
       try {
         set(ref(rtdb, `invites/${invite.toUid}/${invite.id}`), invite);
       } catch (e) {
-        console.warn('Firebase invite error:', e);
+        console.warn('RTDB invite error:', e);
       }
     }
   }
@@ -178,7 +168,7 @@ class MatchService {
     this.inviteListeners.get(myUid)!.add(callback);
 
     let unsubRtdb: (() => void) | null = null;
-    if (isFirebaseConfigured() && rtdb) {
+    if (rtdb) {
       try {
         const userInvitesRef = ref(rtdb, `invites/${myUid}`);
         const unsub = onValue(userInvitesRef, (snapshot) => {
@@ -193,7 +183,7 @@ class MatchService {
         });
         unsubRtdb = () => unsub();
       } catch (e) {
-        console.warn('Firebase subscribe invite error:', e);
+        console.warn('Subscribe invite error:', e);
       }
     }
 
@@ -210,14 +200,13 @@ class MatchService {
     }
   }
 
-  // --- ROOM MANAGEMENT ---
+  // --- ROOM MANAGEMENT (Instantaneous RTDB) ---
   public async createRoom(
     hostUser: UserProfile,
     gameId: GameId,
     multiplier: number = 1
   ): Promise<GameRoom> {
     const roomId = 'room_' + Math.random().toString(36).substring(2, 9);
-    // 6-digit room code
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
     const newRoom: GameRoom = {
@@ -237,21 +226,19 @@ class MatchService {
       multiplier
     };
 
-    // Initialize game specific state
     this.initGameState(newRoom);
 
+    // 1. Immediately store in local memory for instant zero-latency UI transition
     this.localRooms.set(roomId, newRoom);
     this.saveLocalRooms();
     this.broadcastRoom(newRoom);
 
-    if (isFirebaseConfigured() && db && rtdb) {
+    // 2. Write to Firebase RTDB in parallel
+    if (rtdb) {
       try {
-        // Save to RTDB for real-time play
-        await set(ref(rtdb, `rooms/${roomId}`), newRoom);
-        // And record to Firestore
-        await setDoc(doc(db, 'rooms', roomId), newRoom);
+        set(ref(rtdb, `rooms/${roomId}`), newRoom).catch(console.warn);
       } catch (err) {
-        console.warn('Firebase createRoom error:', err);
+        console.warn('RTDB createRoom error:', err);
       }
     }
 
@@ -259,22 +246,24 @@ class MatchService {
   }
 
   public async joinRoomByCode(code: string, user: UserProfile): Promise<GameRoom | null> {
-    // Search in local rooms first
+    const cleanCode = code.trim();
+
+    // 1. Check local rooms first
     for (const room of this.localRooms.values()) {
-      if (room.code === code && room.status !== 'closed') {
+      if (room.code === cleanCode && room.status !== 'closed') {
         return this.joinRoom(room.id, user);
       }
     }
 
-    // Search in Realtime Database (RTDB)
-    if (isFirebaseConfigured() && rtdb) {
+    // 2. Search in Firebase Realtime Database
+    if (rtdb) {
       try {
-        const snap = await new Promise<any>((resolve) => {
-          onValue(ref(rtdb, 'rooms'), (s) => resolve(s.val()), { onlyOnce: true });
-        });
-        if (snap) {
-          for (const [id, r] of Object.entries<any>(snap)) {
-            if (r.code === code && r.status !== 'closed') {
+        const snap = await get(child(ref(rtdb), 'rooms'));
+        if (snap.exists()) {
+          const all = snap.val();
+          for (const [id, r] of Object.entries<any>(all)) {
+            if (r.code === cleanCode && r.status !== 'closed') {
+              this.localRooms.set(id, r);
               return this.joinRoom(id, user);
             }
           }
@@ -284,46 +273,18 @@ class MatchService {
       }
     }
 
-    // Search in Firestore
-    if (isFirebaseConfigured() && db) {
-      try {
-        const q = collection(db, 'rooms');
-        const snap = await getDocs(q);
-        for (const docSnap of snap.docs) {
-          const r = docSnap.data() as GameRoom;
-          if (r.code === code && r.status !== 'closed') {
-            return this.joinRoom(r.id, user);
-          }
-        }
-      } catch (err) {
-        console.warn('Firebase search room error:', err);
-      }
-    }
-
     return null;
   }
 
   public async joinRoom(roomId: string, user: UserProfile): Promise<GameRoom | null> {
     let room = this.localRooms.get(roomId);
 
-    if (!room && isFirebaseConfigured() && rtdb) {
+    if (!room && rtdb) {
       try {
-        const snap = await new Promise<any>((resolve) => {
-          onValue(ref(rtdb, `rooms/${roomId}`), (s) => resolve(s.val()), { onlyOnce: true });
-        });
-        if (snap) {
-          room = snap as GameRoom;
-        }
-      } catch (e) {
-        console.warn(e);
-      }
-    }
-
-    if (!room && isFirebaseConfigured() && db) {
-      try {
-        const docSnap = await getDoc(doc(db, 'rooms', roomId));
-        if (docSnap.exists()) {
-          room = docSnap.data() as GameRoom;
+        const snap = await get(child(ref(rtdb), `rooms/${roomId}`));
+        if (snap.exists()) {
+          room = snap.val() as GameRoom;
+          this.localRooms.set(roomId, room);
         }
       } catch (e) {
         console.warn(e);
@@ -332,7 +293,6 @@ class MatchService {
 
     if (!room) return null;
 
-    // Check if user is already player 1
     if (room.player1.uid === user.uid) {
       return room;
     }
@@ -357,14 +317,11 @@ class MatchService {
     this.saveLocalRooms();
     this.broadcastRoom(room);
 
-    if (isFirebaseConfigured() && rtdb) {
+    if (rtdb) {
       try {
-        await set(ref(rtdb, `rooms/${room.id}`), room);
-        if (db) {
-          await updateDoc(doc(db, 'rooms', room.id), { ...room });
-        }
+        set(ref(rtdb, `rooms/${room.id}`), room).catch(console.warn);
       } catch (err) {
-        console.warn('Firebase update room error:', err);
+        console.warn('RTDB update room error:', err);
       }
     }
   }
@@ -379,7 +336,7 @@ class MatchService {
     if (existing) callback(existing);
 
     let unsubRtdb: (() => void) | null = null;
-    if (isFirebaseConfigured() && rtdb) {
+    if (rtdb) {
       try {
         const roomRef = ref(rtdb, `rooms/${roomId}`);
         const unsub = onValue(roomRef, (snapshot) => {
@@ -391,7 +348,7 @@ class MatchService {
         });
         unsubRtdb = () => unsub();
       } catch (err) {
-        console.warn('Firebase subscribe room error:', err);
+        console.warn('RTDB subscribe room error:', err);
       }
     }
 
@@ -401,8 +358,30 @@ class MatchService {
     };
   }
 
-  public getActiveRooms(): GameRoom[] {
-    return Array.from(this.localRooms.values()).filter(r => r.status !== 'closed');
+  public async fetchAllRoomsFromRTDB(): Promise<GameRoom[]> {
+    if (rtdb) {
+      try {
+        const snap = await get(child(ref(rtdb), 'rooms'));
+        if (snap.exists()) {
+          const val = snap.val();
+          return Object.values(val);
+        }
+      } catch (e) {
+        console.warn('fetchAllRoomsFromRTDB err:', e);
+      }
+    }
+    return Array.from(this.localRooms.values());
+  }
+
+  public async forceCloseRoom(roomId: string): Promise<void> {
+    const r = this.localRooms.get(roomId);
+    if (r) {
+      r.status = 'closed';
+      r.updatedAt = Date.now();
+      await this.updateRoom(r);
+    } else if (rtdb) {
+      set(ref(rtdb, `rooms/${roomId}/status`), 'closed').catch(console.warn);
+    }
   }
 
   private broadcastRoom(room: GameRoom) {

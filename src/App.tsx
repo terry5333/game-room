@@ -4,10 +4,12 @@ import { useRoom } from './context/RoomContext';
 import { Header } from './components/common/Header';
 import { LandingPage } from './components/auth/LandingPage';
 import { Lobby } from './components/lobby/Lobby';
-import { FriendsSidebar } from './components/lobby/FriendsSidebar';
+import { FriendsModal } from './components/lobby/FriendsModal';
 import { RuleDrawer } from './components/common/RuleDrawer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
+import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
+import { EditProfileModal } from './components/profile/EditProfileModal';
 import { GameShell } from './components/games/GameShell';
 import { Game1A2B } from './components/games/game1a2b/Game1A2B';
 import { GameBattleship } from './components/games/battleship/GameBattleship';
@@ -23,7 +25,8 @@ export const AppContent: React.FC = () => {
   const [ruleDrawerOpen, setRuleDrawerOpen] = useState(false);
   const [selectedRuleGame, setSelectedRuleGame] = useState<GameId>('1a2b');
   const [adminOpen, setAdminOpen] = useState(false);
-  const [friendsSidebarOpen, setFriendsSidebarOpen] = useState(false);
+  const [friendsOpen, setFriendsOpen] = useState(false);
+  const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   if (loading) {
     return (
@@ -52,6 +55,8 @@ export const AppContent: React.FC = () => {
       <Header
         onOpenRules={() => handleOpenRules(currentRoom?.gameId || '1a2b')}
         onOpenAdmin={() => setAdminOpen(true)}
+        onOpenFriends={() => setFriendsOpen(true)}
+        onOpenEditProfile={() => setEditProfileOpen(true)}
         inGame={Boolean(currentRoom)}
       />
 
@@ -80,15 +85,10 @@ export const AppContent: React.FC = () => {
             {currentRoom.gameId === 'ooxx' && <GameOOXX />}
           </GameShell>
         ) : (
-          <div className="flex-1 flex flex-col lg:flex-row max-w-5xl mx-auto w-full">
+          <div className="flex-1 flex max-w-5xl mx-auto w-full">
             <Lobby
               onOpenRulesForGame={(gid) => handleOpenRules(gid)}
-              onToggleFriends={() => setFriendsSidebarOpen(!friendsSidebarOpen)}
-            />
-            <FriendsSidebar
-              isOpen={friendsSidebarOpen}
-              onClose={() => setFriendsSidebarOpen(false)}
-              onOpenRules={() => handleOpenRules('general' as any)}
+              onOpenFriends={() => setFriendsOpen(true)}
             />
           </div>
         )}
@@ -106,12 +106,32 @@ export const AppContent: React.FC = () => {
         initialGameId={selectedRuleGame}
       />
 
-      {/* Admin Dashboard */}
-      <AdminDashboard isOpen={adminOpen} onClose={() => setAdminOpen(false)} />
+      {/* Friends Modal */}
+      <FriendsModal
+        isOpen={friendsOpen}
+        onClose={() => setFriendsOpen(false)}
+      />
 
-      {/* Interactive Onboarding Spotlight Tour */}
+      {/* Mandatory Profile Setup Modal before Onboarding */}
+      <ProfileSetupModal
+        isOpen={Boolean(currentUser && !currentUser.profileCompleted)}
+      />
+
+      {/* Edit Profile Modal from Header Menu */}
+      <EditProfileModal
+        isOpen={editProfileOpen}
+        onClose={() => setEditProfileOpen(false)}
+      />
+
+      {/* Admin Dashboard */}
+      <AdminDashboard
+        isOpen={adminOpen}
+        onClose={() => setAdminOpen(false)}
+      />
+
+      {/* Interactive Onboarding Spotlight Tour (shows only after profile setup completed) */}
       <OnboardingTour
-        isOpen={!currentUser.tutorialCompleted}
+        isOpen={Boolean(currentUser && currentUser.profileCompleted && !currentUser.tutorialCompleted)}
         onClose={() => {}}
       />
     </div>

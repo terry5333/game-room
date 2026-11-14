@@ -2,7 +2,6 @@ import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserProfile, CoinTransaction } from '../types';
 import {
   auth,
-  db,
   rtdb,
   GoogleAuthProvider,
   signInWithPopup,
@@ -10,34 +9,36 @@ import {
   getRedirectResult,
   signOut as fbSignOut,
   onAuthStateChanged,
-  doc,
-  setDoc,
-  getDoc,
-  updateDoc,
   ref,
   set,
   get,
-  child
+  child,
+  onValue
 } from '../services/firebase';
 import { matchService } from '../services/matchService';
+
+export const ADMIN_EMAIL = 'terrylie0215@gmail.com';
 
 interface AuthContextType {
   currentUser: UserProfile | null;
   loading: boolean;
   authError: string | null;
   loginWithGoogle: () => Promise<void>;
-  loginWithNickname: (nickname: string) => Promise<void>;
   logout: () => Promise<void>;
+  updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
-  setUserRole: (role: 'user' | 'admin') => Promise<void>;
   transactions: CoinTransaction[];
   allUsers: UserProfile[];
   adminUpdateUserCoins: (uid: string, delta: number) => Promise<void>;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
+
+function generateUserTag(): string {
+  return Math.floor(1000 + Math.random() * 9000).toString(); // 4 digits 1000-9999
+}
 
 function generateFriendCode(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
@@ -77,8 +78,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   }, []);
 
+  // Subscribe to all users in RTDB (for Admin & Friends search)
+  useEffect(() => {
+    if (rtdb) {
+      const usersRef = ref(rtdb, 'users');
+      const unsub = onValue(usersRef, (snap) => {
+        if (snap.exists()) {
+          setAllUsers(Object.values(snap.val()));
+        }
+      });
+      return () => unsub();
+    }
+  }, []);
+
   const handleFirebaseUser = async (fbUser: any) => {
-    // 1. Try to read from Realtime Database first (which is 100% active)
+    const isAdmin = fbUser.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
+
+    // Try reading existing profile from RTDB
     let existingProfile: UserProfile | null = null;
     if (rtdb) {
       try {
@@ -91,22 +107,23 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
-    const profile: UserProfile = existingProfile || {
+    const profile: UserProfile = {
       uid: fbUser.uid,
-      displayName: fbUser.displayName || fbUser.email?.split('@')[0] || '玩家_' + fbUser.uid.substring(0, 4),
-      photoURL: fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
+      displayName: existingProfile?.displayName || fbUser.displayName || '玩家_' + fbUser.uid.substring(0, 4),
+      photoURL: existingProfile?.photoURL || fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
       email: fbUser.email || '',
+      userTag: existingProfile?.userTag || generateUserTag(),
       coins: existingProfile ? existingProfile.coins : 100,
       wins: existingProfile ? existingProfile.wins : 0,
       losses: existingProfile ? existingProfile.losses : 0,
       gamesPlayed: existingProfile ? existingProfile.gamesPlayed : 0,
-      tutorialCompleted: existingProfile ? existingProfile.tutorialCompleted : false,
-      role: fbUser.email?.includes('admin') ? 'admin' : 'user',
+      profileCompleted: existingProfile ? Boolean(existingProfile.profileCompleted) : false,
+      tutorialCompleted: existingProfile ? Boolean(existingProfile.tutorialCompleted) : false,
+      role: isAdmin ? 'admin' : (existingProfile?.role || 'user'),
       friendCode: existingProfile?.friendCode || generateFriendCode(),
       createdAt: existingProfile?.createdAt || Date.now()
     };
 
-    // ALWAYS set current user immediately so user enters the app
     setCurrentUser(profile);
     localStorage.setItem('duo_current_user', JSON.stringify(profile));
     setAuthError(null);
@@ -114,13 +131,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     // Save to RTDB
     if (rtdb) {
       set(ref(rtdb, `users/${profile.uid}`), profile).catch(console.warn);
-    }
-
-    // Try saving to Firestore if available
-    if (db) {
-      try {
-        setDoc(doc(db, 'users', profile.uid), profile, { merge: true }).catch(() => {});
-      } catch {}
     }
   };
 
@@ -134,6 +144,9 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
       if (fbUser) {
         await handleFirebaseUser(fbUser);
+      } else {
+        setCurrentUser(null);
+        localStorage.removeItem('duo_current_user');
       }
       setLoading(false);
     });
@@ -149,6 +162,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       uid: currentUser.uid,
       displayName: currentUser.displayName,
       photoURL: currentUser.photoURL,
+      userTag: currentUser.userTag,
       status: 'online',
       lastActive: Date.now()
     });
@@ -158,6 +172,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         uid: currentUser.uid,
         displayName: currentUser.displayName,
         photoURL: currentUser.photoURL,
+        userTag: currentUser.userTag,
         status: 'online',
         lastActive: Date.now()
       });
@@ -174,9 +189,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Mandatory Google Login
   const loginWithGoogle = async () => {
     if (!auth) {
-      setAuthError('Firebase 認證模組尚未就緒，請重試。');
+      setAuthError('Firebase 尚未就緒，請檢查連線');
       return;
     }
 
@@ -185,7 +201,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     provider.setCustomParameters({ prompt: 'select_account' });
 
     try {
-      // First attempt standard popup
       const result = await signInWithPopup(auth, provider);
       if (result.user) {
         await handleFirebaseUser(result.user);
@@ -193,7 +208,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     } catch (err: any) {
       console.warn('Google popup error:', err);
 
-      // If popup is blocked by browser/webview, attempt redirect
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         try {
           await signInWithRedirect(auth, provider);
@@ -207,41 +221,29 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         return;
       }
 
-      // Friendly explanatory error
       let msg = err.message || 'Google 登入失敗';
       if (err.code === 'auth/unauthorized-domain') {
-        msg = '此網域尚未在 Firebase 授權網域清單中，請在 Firebase 控制台新增 localhost。';
+        msg = '此網域尚未在 Firebase 授權網域清單中，請在 Firebase 控制台新增。';
       } else if (err.code === 'auth/operation-not-allowed') {
         msg = 'Firebase Authentication 尚未啟用 Google 登入提供者。';
       } else if (err.code === 'auth/popup-blocked') {
-        msg = '瀏覽器阻擋了登入彈出視窗，請允許彈跳視窗或使用下方暱稱快速進入。';
+        msg = '瀏覽器阻擋了登入彈出視窗，請允許彈跳視窗。';
       }
       setAuthError(msg);
     }
   };
 
-  // Instant sign-in with nickname (guaranteed access even if browser popup is blocked)
-  const loginWithNickname = async (nickname: string) => {
-    const cleanName = nickname.trim();
-    if (!cleanName) return;
-
-    const uid = 'user_' + Math.random().toString(36).substring(2, 10);
-    const profile: UserProfile = {
-      uid,
-      displayName: cleanName,
-      photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${cleanName}`,
-      email: `${cleanName.toLowerCase()}@player.local`,
-      coins: 100,
-      wins: 0,
-      losses: 0,
-      gamesPlayed: 0,
-      tutorialCompleted: false,
-      role: 'user',
-      friendCode: generateFriendCode(),
-      createdAt: Date.now()
+  // Update profile (Name, Avatar, 4-digit ID)
+  const updateUserProfile = async (data: { displayName: string; photoURL: string; userTag: string }) => {
+    if (!currentUser) return;
+    const updated: UserProfile = {
+      ...currentUser,
+      displayName: data.displayName.trim() || currentUser.displayName,
+      photoURL: data.photoURL || currentUser.photoURL,
+      userTag: data.userTag.trim() || currentUser.userTag,
+      profileCompleted: true
     };
-
-    saveUser(profile);
+    saveUser(updated);
   };
 
   const logout = async () => {
@@ -317,12 +319,6 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     saveUser(updated);
   };
 
-  const setUserRole = async (role: 'user' | 'admin') => {
-    if (!currentUser) return;
-    const updated = { ...currentUser, role };
-    saveUser(updated);
-  };
-
   const adminUpdateUserCoins = async (uid: string, delta: number) => {
     setAllUsers((prev) =>
       prev.map((u) => {
@@ -357,12 +353,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loading,
         authError,
         loginWithGoogle,
-        loginWithNickname,
         logout,
+        updateUserProfile,
         updateCoins,
         recordGameResult,
         completeTutorial,
-        setUserRole,
         transactions,
         allUsers,
         adminUpdateUserCoins

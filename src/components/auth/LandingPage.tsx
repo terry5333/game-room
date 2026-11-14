@@ -7,15 +7,13 @@ import {
   Grid,
   SquareDot,
   CircleDot,
-  ArrowRight,
   AlertCircle
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
 
 export const LandingPage: React.FC = () => {
-  const { loginWithGoogle, loginWithNickname, authError } = useAuth();
-  const [nickname, setNickname] = useState('');
+  const { loginWithGoogle, authError } = useAuth();
   const [isSigningIn, setIsSigningIn] = useState(false);
 
   const gamesShowcase = [
@@ -34,13 +32,6 @@ export const LandingPage: React.FC = () => {
     } finally {
       setIsSigningIn(false);
     }
-  };
-
-  const handleNicknameSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    sound.playClick();
-    if (!nickname.trim()) return;
-    loginWithNickname(nickname);
   };
 
   return (
@@ -68,7 +59,7 @@ export const LandingPage: React.FC = () => {
             遊戲室
           </h1>
           <p className="text-xs sm:text-sm text-[#96897B] font-medium">
-            雙人即時連線對戰
+            雙人即時連線對戰平台
           </p>
         </motion.div>
 
@@ -79,7 +70,16 @@ export const LandingPage: React.FC = () => {
           transition={{ delay: 0.1 }}
           className="glass-panel rounded-3xl p-6 sm:p-7 shadow-sm border border-white/80"
         >
-          {/* Google Login Button */}
+          <div className="mb-5">
+            <h2 className="text-base font-extrabold text-[#2E2925] mb-1">
+              登入以開始對戰
+            </h2>
+            <p className="text-xs text-[#96897B] font-medium">
+              請使用 Google 帳號安全登入，同步戰績與好友名單
+            </p>
+          </div>
+
+          {/* Mandatory Google Login Button */}
           <motion.button
             whileHover={!isSigningIn ? { scale: 1.02 } : {}}
             whileTap={!isSigningIn ? { scale: 0.98 } : {}}
@@ -87,7 +87,7 @@ export const LandingPage: React.FC = () => {
             onClick={handleGoogleLogin}
             className="w-full py-3.5 px-6 rounded-2xl bg-white hover:bg-neutral-50 text-[#2E2925] font-extrabold text-sm shadow-xs border border-[#96897B]/20 flex items-center justify-center gap-3 transition-all cursor-pointer disabled:opacity-50"
           >
-            <svg className="w-4 h-4" viewBox="0 0 24 24">
+            <svg className="w-4 h-4 shrink-0" viewBox="0 0 24 24">
               <path
                 fill="#4285F4"
                 d="M23.745 12.27c0-.7-.06-1.4-.19-2.07H12v4.51h6.6c-.29 1.52-1.14 2.8-2.4 3.66v3.04h3.88c2.27-2.09 3.66-5.17 3.66-9.14z"
@@ -122,32 +122,6 @@ export const LandingPage: React.FC = () => {
               </motion.div>
             )}
           </AnimatePresence>
-
-          <div className="flex items-center gap-2 my-4">
-            <div className="h-px bg-[#96897B]/20 flex-1" />
-            <span className="text-[11px] text-[#96897B] font-medium">或免授權快速進房</span>
-            <div className="h-px bg-[#96897B]/20 flex-1" />
-          </div>
-
-          {/* Quick Nickname Entry for seamless fallback */}
-          <form onSubmit={handleNicknameSubmit} className="flex gap-2">
-            <input
-              type="text"
-              maxLength={12}
-              value={nickname}
-              onChange={(e) => setNickname(e.target.value)}
-              placeholder="輸入玩家暱稱"
-              className="flex-1 px-3 py-2 rounded-xl bg-white/80 border border-[#96897B]/20 text-xs font-bold text-[#2E2925] focus:outline-none focus:border-[#628395]"
-            />
-            <button
-              type="submit"
-              disabled={!nickname.trim()}
-              className="px-4 py-2 rounded-xl bg-[#628395] hover:bg-[#526f7f] disabled:opacity-40 text-white font-bold text-xs transition-colors flex items-center gap-1 cursor-pointer"
-            >
-              <span>進入</span>
-              <ArrowRight className="w-3.5 h-3.5" />
-            </button>
-          </form>
         </motion.div>
 
         {/* 5 Games Pills */}

@@ -5,10 +5,12 @@ export interface UserProfile {
   displayName: string;
   photoURL: string;
   email: string;
+  userTag: string; // 4-digit ID (e.g. "8823")
   coins: number;
   wins: number;
   losses: number;
   gamesPlayed: number;
+  profileCompleted: boolean;
   tutorialCompleted: boolean;
   role: 'user' | 'admin';
   friendCode: string;
@@ -21,10 +23,13 @@ export interface UserPresence {
   uid: string;
   displayName: string;
   photoURL: string;
+  userTag?: string;
   status: PresenceStatus;
   lastActive: number;
   currentRoomId?: string;
+  currentRoomCode?: string;
   currentGameId?: GameId;
+  currentGameName?: string;
 }
 
 export interface CoinTransaction {
@@ -111,19 +116,6 @@ export interface StateBingo {
 }
 
 // Dots and Boxes Types
-export interface LineSegment {
-  type: 'h' | 'v';
-  r: number;
-  c: number;
-  ownerUid: string;
-}
-
-export interface BoxClaim {
-  r: number;
-  c: number;
-  ownerUid: string;
-}
-
 export interface StateDots {
   lines: Record<string, string>; // "h_0_0" -> uid
   boxes: Record<string, string>; // "0_0" -> uid
@@ -170,5 +162,5 @@ export interface GameRoom {
 }
 
 export interface GameSettings {
-  multipliers: Record<GameId, number>; // Win coin multiplier per game
+  multipliers: Record<GameId, number>;
 }
