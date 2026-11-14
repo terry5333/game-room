@@ -82,7 +82,7 @@ export const Game1A2B: React.FC = () => {
 
   // Keypad inputs
   const handleDigitPress = (d: number) => {
-    sound.playClick();
+    sound.playPop();
     const str = d.toString();
     if (inputDigits.includes(str)) return; // No duplicates allowed!
     if (inputDigits.length < 4) {
@@ -103,7 +103,7 @@ export const Game1A2B: React.FC = () => {
   // Lock in secret number in setup phase
   const handleLockSecret = async () => {
     if (inputDigits.length !== 4) return;
-    sound.playClick();
+    sound.playLock();
 
     await updateRoomState((draft) => {
       if (!draft.state1a2b) return;
@@ -117,7 +117,7 @@ export const Game1A2B: React.FC = () => {
   // Submit guess in battle phase (Simultaneous real-time guessing)
   const handleSubmitGuess = async () => {
     if (inputDigits.length !== 4 || !canGuess) return;
-    sound.playClick();
+    sound.playAcknowledge();
 
     const secretToMatch = isMultiplayer
       ? state.targetSecret || '1234'

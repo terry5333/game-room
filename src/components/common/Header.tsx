@@ -70,7 +70,7 @@ export const Header: React.FC<HeaderProps> = ({
     const next = !soundEnabled;
     sound.setEnabled(next);
     setSoundEnabled(next);
-    if (next) sound.playClick();
+    if (next) sound.playSuccess();
   };
 
   return (

@@ -1,6 +1,7 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Clock, Swords, UserCheck } from 'lucide-react';
+import { sound } from '../../services/soundService';
 
 interface TurnBannerProps {
   isMyTurn: boolean;
@@ -15,6 +16,11 @@ export const TurnBanner: React.FC<TurnBannerProps> = ({
   timeLeft,
   phaseLabel
 }) => {
+  useEffect(() => {
+    if (isMyTurn) {
+      sound.playTurnChime();
+    }
+  }, [isMyTurn]);
   return (
     <div className="w-full flex justify-center py-1.5 px-4">
       <AnimatePresence mode="wait">

@@ -137,6 +137,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
     // Check if already friends
     if (friendRecords.some((f) => f.uid === target.uid)) {
+      sound.playError();
       setFeedbackMsg({ text: '該玩家已經是您的好友！', type: 'error' });
       return;
     }
@@ -144,13 +145,16 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     setRequestSending(true);
     try {
       const result = await matchService.sendFriendRequest(currentUser, target);
+      if (result.success) {
+        sound.playSuccess();
+        setSearchInput('');
+      } else {
+        sound.playError();
+      }
       setFeedbackMsg({
         text: result.message,
         type: result.success ? 'success' : 'error'
       });
-      if (result.success) {
-        setSearchInput('');
-      }
     } finally {
       setRequestSending(false);
     }
@@ -158,14 +162,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
   // Accept incoming friend request
   const handleAcceptRequest = async (req: FriendRequest) => {
-    sound.playClick();
+    sound.playSuccess();
     await matchService.acceptFriendRequest(req, currentUser);
     setFeedbackMsg({ text: `已同意並成功與 ${req.fromDisplayName} 加為好友！`, type: 'success' });
   };
 
   // Decline incoming friend request
   const handleDeclineRequest = async (req: FriendRequest) => {
-    sound.playClick();
+    sound.playPop();
     await matchService.declineFriendRequest(currentUser.uid, req.fromUid);
     setFeedbackMsg({ text: '已婉拒該好友邀請。', type: 'success' });
   };
@@ -173,7 +177,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
   // Follow friend into their active room
   const handleFollowFriend = async (friend: UserPresence) => {
     if (!friend.currentRoomId && !friend.currentRoomCode) return;
-    sound.playClick();
+    sound.playJoin();
     onClose();
 
     let ok = false;
@@ -184,6 +188,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
       ok = await joinRoomByCode(friend.currentRoomCode);
     }
     if (!ok) {
+      sound.playError();
       alert('無法進入該房間，可能該房間已滿員或已關閉。');
     }
   };

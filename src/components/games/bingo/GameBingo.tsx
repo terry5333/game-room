@@ -141,7 +141,7 @@ export const GameBingo: React.FC = () => {
 
   // Random shuffle numbers 1-25
   const handleRandomShuffle = () => {
-    sound.playClick();
+    sound.playPop();
     const nums = Array.from({ length: 25 }, (_, i) => i + 1);
     for (let i = nums.length - 1; i > 0; i--) {
       const j = Math.floor(Math.random() * (i + 1));
@@ -159,7 +159,7 @@ export const GameBingo: React.FC = () => {
   // Click cell to fill number sequentially
   const handleCellFill = (r: number, c: number) => {
     if (myReady || myBoard[r][c] !== 0 || currentFillNumber > 25) return;
-    sound.playClick();
+    sound.playPop();
 
     const copy = myBoard.map((row) => [...row]);
     copy[r][c] = currentFillNumber;
@@ -183,7 +183,7 @@ export const GameBingo: React.FC = () => {
     const allFilled = flat.every((n) => n >= 1 && n <= 25) && new Set(flat).size === 25;
     if (!allFilled) return;
 
-    sound.playClick();
+    sound.playSuccess();
     await updateRoomState((draft) => {
       if (!draft.stateBingo) return;
       draft.stateBingo.boards[myUid] = myBoard;
@@ -195,7 +195,7 @@ export const GameBingo: React.FC = () => {
   // Call number during turn
   const handleCallNumber = async (num: number) => {
     if (!isMyTurn || calledNumbers.includes(num)) return;
-    sound.playClick();
+    sound.playBallRoll();
 
     const nextCalled = [...calledNumbers, num];
 

@@ -98,7 +98,7 @@ export const GameOOXX: React.FC = () => {
   // Place a piece at (r, c)
   const handleCellClick = async (r: number, c: number) => {
     if (!isMyTurn || grid[r]?.[c] || currentRoom?.status === 'settled') return;
-    sound.playClick();
+    sound.playPop();
 
     const newGrid = grid.map((row) => [...row]);
     newGrid[r][c] = myUid;
@@ -118,6 +118,12 @@ export const GameOOXX: React.FC = () => {
 
     // Check draw in classic mode (all 9 cells filled)
     const isGridFull = newGrid.every((row) => row.every((cell) => cell !== null));
+
+    if (winResult) {
+      sound.playVictory();
+    } else if (isGridFull) {
+      sound.playDraw();
+    }
 
     await updateRoomState((draft) => {
       if (!draft.stateOOXX) return;

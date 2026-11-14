@@ -130,11 +130,11 @@ export const GameBattleship: React.FC = () => {
 
     const filtered = myShips.filter((s) => s.id !== selectedShipId);
     if (!canPlaceShip(r, c, meta.length, orientation, filtered)) {
-      sound.playSplash();
+      sound.playError();
       return;
     }
 
-    sound.playClick();
+    sound.playPlaceShip();
     const coords: { r: number; c: number }[] = [];
     for (let i = 0; i < meta.length; i++) {
       coords.push({
@@ -163,7 +163,7 @@ export const GameBattleship: React.FC = () => {
 
   // Random Placement generator
   const handleRandomPlacement = () => {
-    sound.playClick();
+    sound.playPop();
     const placed: Ship[] = [];
 
     for (const meta of initialShips) {
@@ -201,7 +201,7 @@ export const GameBattleship: React.FC = () => {
   // Confirm fleet deployment and lock in
   const handleConfirmFleet = async () => {
     if (myShips.length !== initialShips.length) return;
-    sound.playClick();
+    sound.playSuccess();
 
     await updateRoomState((draft) => {
       if (!draft.stateBattleship) return;

@@ -64,29 +64,31 @@ export const VictoryCelebration: React.FC<VictoryCelebrationProps> = ({
       }, 350);
 
       return () => clearTimeout(timer);
+    } else if (isDraw) {
+      sound.playDraw();
     } else {
-      sound.playCoin();
-      confetti({
-        particleCount: 40,
-        spread: 70,
-        origin: { y: 0.6 },
-        colors: ['#628395', '#CF995F', '#DFD5A5', '#DBAD6A']
-      });
+      sound.playDefeat();
     }
-  }, [isWinner]);
+  }, [isWinner, isDraw]);
 
   // Rolling count-up animation for coins
   useEffect(() => {
     let start = 0;
     const duration = 1200; // ms
-    const stepTime = 30;
+    const stepTime = 60;
     const totalSteps = duration / stepTime;
     const increment = finalReward / totalSteps;
 
+    let step = 0;
     const timer = setInterval(() => {
       start += increment;
+      step++;
+      if (step % 4 === 0) {
+        sound.playCoin();
+      }
       if (start >= finalReward) {
         setDisplayedCoins(finalReward);
+        sound.playCoin();
         clearInterval(timer);
       } else {
         setDisplayedCoins(Math.floor(start));

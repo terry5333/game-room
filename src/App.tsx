@@ -17,6 +17,7 @@ import { GameBattleship } from './components/games/battleship/GameBattleship';
 import { GameBingo } from './components/games/bingo/GameBingo';
 import { GameDotsAndBoxes } from './components/games/dotsandboxes/GameDotsAndBoxes';
 import { GameOOXX } from './components/games/ooxx/GameOOXX';
+import { LoadingScreen } from './components/common/LoadingScreen';
 import type { GameId } from './types';
 
 export const AppContent: React.FC = () => {
@@ -30,14 +31,7 @@ export const AppContent: React.FC = () => {
   const [editProfileOpen, setEditProfileOpen] = useState(false);
 
   if (loading) {
-    return (
-      <div className="min-h-screen bg-[#DFD5A5] flex items-center justify-center">
-        <div className="flex flex-col items-center gap-2">
-          <div className="w-8 h-8 border-3 border-[#628395] border-t-transparent rounded-full animate-spin" />
-          <span className="text-xs font-bold text-[#96897B] font-mono">載入中...</span>
-        </div>
-      </div>
-    );
+    return <LoadingScreen message="對戰平台載入中..." subMessage="正在與雲端伺服器建立加密連線並同步使用者資訊..." />;
   }
 
   // Pure Google Sign-in Landing Page

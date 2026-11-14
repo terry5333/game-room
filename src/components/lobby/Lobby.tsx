@@ -40,12 +40,15 @@ export const Lobby: React.FC<LobbyProps> = ({
     if (code.length < 6) return;
     const success = await joinRoomByCode(code);
     if (!success) {
+      sound.playError();
       alert('找不到該房號之房間，或房間已滿員！');
+    } else {
+      sound.playJoin();
     }
   };
 
   const handleCreateGame = (gameId: GameId) => {
-    sound.playClick();
+    sound.playPop();
     if (gameId === 'ooxx') {
       // OOXX 什麼都不用問，直接建立房間
       executeCreateRoom('ooxx');
@@ -59,7 +62,9 @@ export const Lobby: React.FC<LobbyProps> = ({
     setCreatingGame(gameId);
     try {
       await createRoom(gameId, options);
+      sound.playSuccess();
     } catch (e) {
+      sound.playError();
       console.error(e);
     } finally {
       setCreatingGame(null);

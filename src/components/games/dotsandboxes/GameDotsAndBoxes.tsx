@@ -76,7 +76,10 @@ export const GameDotsAndBoxes: React.FC = () => {
     }
 
     if (newlyCompletedBoxes > 0) {
-      sound.playBingoLine();
+      sound.playBoxClaim();
+      setTimeout(() => {
+        sound.playBonusTurn();
+      }, 150);
     }
 
     const totalClaimed = Object.keys(newBoxes).length;

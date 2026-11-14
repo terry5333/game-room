@@ -56,18 +56,20 @@ export const ProfileSetupModal: React.FC<ProfileSetupModalProps> = ({ isOpen }) 
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    sound.playClick();
 
     if (!name.trim()) {
+      sound.playError();
       alert('請輸入玩家暱稱！');
       return;
     }
 
     if (!/^\d{4}$/.test(userTag.trim())) {
+      sound.playError();
       alert('專屬 ID 必須為 4 位數字 (0000 - 9999)！');
       return;
     }
 
+    sound.playSuccess();
     await updateUserProfile({
       displayName: name.trim(),
       photoURL,
