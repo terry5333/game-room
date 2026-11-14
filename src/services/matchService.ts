@@ -224,18 +224,21 @@ class MatchService {
     const roomId = 'room_' + Math.random().toString(36).substring(2, 9);
     const code = Math.floor(100000 + Math.random() * 900000).toString();
 
+    const hostPlayer = {
+      uid: hostUser.uid,
+      displayName: hostUser.displayName,
+      photoURL: hostUser.photoURL,
+      ready: false
+    };
+
     const newRoom: GameRoom = {
       id: roomId,
       code,
       gameId,
       hostUid: hostUser.uid,
       status: 'waiting',
-      player1: {
-        uid: hostUser.uid,
-        displayName: hostUser.displayName,
-        photoURL: hostUser.photoURL,
-        ready: false
-      },
+      player1: hostPlayer,
+      players: [hostPlayer],
       createdAt: Date.now(),
       updatedAt: Date.now(),
       multiplier,
@@ -331,23 +334,43 @@ class MatchService {
 
     if (!room || room.status === 'closed') return null;
 
-    // If already in this room as player 1 or 2, re-enter seamlessly
-    if (room.player1.uid === user.uid) {
-      return this.normalizeRoom(room);
+    let players: any[] = Array.isArray(room.players)
+      ? [...room.players]
+      : room.players
+      ? Object.values(room.players)
+      : [];
+    if (players.length === 0) {
+      if (room.player1) players.push(room.player1);
+      if (room.player2) players.push(room.player2);
     }
-    if (room.player2?.uid === user.uid) {
+
+    // If already in this room, re-enter seamlessly
+    const existingPlayer = players.find((p) => p.uid === user.uid);
+    if (existingPlayer) {
       return this.normalizeRoom(room);
     }
 
-    // Join as player 2 if slot is open or status is waiting
-    if (!room.player2 || room.status === 'waiting') {
-      room.player2 = {
+    const maxLimit = room.maxPlayers || 2;
+    // Join as player if slots remain
+    if (players.length < maxLimit) {
+      const newPlayer = {
         uid: user.uid,
         displayName: user.displayName,
         photoURL: user.photoURL,
         ready: false
       };
-      room.status = 'in_progress';
+      players.push(newPlayer);
+      room.players = players;
+      room.player1 = players[0];
+      room.player2 = players[1];
+
+      // Auto start if room reached maximum players or for standard 2-player duel
+      if (players.length >= maxLimit) {
+        room.status = 'in_progress';
+      } else {
+        // Keep waiting for more players
+        room.status = 'waiting';
+      }
       room.updatedAt = Date.now();
 
       const normalized = this.normalizeRoom(room);
@@ -355,7 +378,7 @@ class MatchService {
       return normalized;
     }
 
-    // If room already has two players, allow entering as spectator
+    // Room is full, enter as spectator
     return this.normalizeRoom(room);
   }
 
@@ -522,6 +545,20 @@ class MatchService {
     if (!raw) return raw;
     const room: GameRoom = { ...raw };
 
+    let rawPlayers = room.players;
+    let players = Array.isArray(rawPlayers)
+      ? rawPlayers
+      : rawPlayers
+      ? Object.values(rawPlayers)
+      : [];
+    if (players.length === 0) {
+      if (room.player1) players.push(room.player1);
+      if (room.player2) players.push(room.player2);
+    }
+    room.players = players;
+    if (players[0]) room.player1 = players[0];
+    if (players[1]) room.player2 = players[1];
+
     if (!room.player1) {
       room.player1 = {
         uid: room.hostUid || '',
@@ -547,7 +584,8 @@ class MatchService {
         hintsUsed: room.state1a2b?.hintsUsed || {},
         hintEnabled: room.state1a2b?.hintEnabled !== undefined ? Boolean(room.state1a2b?.hintEnabled) : true,
         hintRound: room.state1a2b?.hintRound || 5,
-        maxRounds: room.state1a2b?.maxRounds || 0
+        maxRounds: room.state1a2b?.maxRounds || 0,
+        targetSecret: room.state1a2b?.targetSecret
       };
     } else if (room.gameId === 'battleship') {
       const rawBoards = room.stateBattleship?.boards || {};
@@ -853,16 +891,24 @@ class MatchService {
   // --- INITIALIZE SPECIFIC GAME STATES ---
   private initGameState(room: GameRoom, options?: RoomCreationOptions) {
     if (room.gameId === '1a2b') {
+      let targetSecret: string | undefined = undefined;
+      const lockedIn: Record<string, boolean> = {};
+      if (room.maxPlayers && room.maxPlayers > 2) {
+        const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+        targetSecret = pool.slice(0, 4).join('');
+        lockedIn[room.hostUid] = true;
+      }
       room.state1a2b = {
         secrets: {},
-        lockedIn: {},
+        lockedIn,
         guesses: [],
         currentTurnUid: room.hostUid,
         turnDeadline: Date.now() + 30000,
         hintsUsed: {},
         hintEnabled: options?.hintEnabled !== undefined ? options.hintEnabled : true,
         hintRound: options?.hintRound || 5,
-        maxRounds: options?.maxRounds || 0
+        maxRounds: options?.maxRounds || 0,
+        targetSecret
       };
     } else if (room.gameId === 'battleship') {
       room.stateBattleship = {

@@ -71,28 +71,28 @@ export const Lobby: React.FC<LobbyProps> = ({
     {
       id: '1a2b' as const,
       title: '1A2B 數字密碼戰',
-      desc: '雙方互相為對手設定 4 位秘密密碼，輪流邏輯推理。',
+      desc: '支援 2-4 人即時搶答解密！推理解析 4 位神秘密碼，搶先破譯 4A0B 者獲勝。',
       icon: Hash,
       color: '#628395'
     },
     {
       id: 'battleship' as const,
-      title: '海戰棋 8x8 艦隊',
-      desc: '佈署旗艦、驅逐艦與潛艇，雷達轟炸擊沉敵艦。',
+      title: '海戰棋 艦隊對決',
+      desc: '自選 6x6~10x10 棋盤！佈署旗艦、驅逐艦與潛艇，雷達轟炸擊沉敵艦。',
       icon: Anchor,
       color: '#628395'
     },
     {
       id: 'bingo' as const,
       title: '賓果 5x5 連線',
-      desc: '自由排列 1-25 號碼，雙方輪流喊號，搶先連成五條線。',
+      desc: '支援 2-4 人同場連線！自訂獲勝連線數與輪流喊號，動態 3D 彩球即時滾動進球。',
       icon: Grid,
       color: '#DBAD6A'
     },
     {
       id: 'dots' as const,
       title: '點線棋 圍地方格',
-      desc: '在 5x5 點陣劃線，封閉方格即刻佔領並獲得連續回合。',
+      desc: '支援 2-4 人混戰圈地！自選 3x3~6x6 點陣，封閉方格即刻佔領並獲得連續回合。',
       icon: SquareDot,
       color: '#CF995F'
     },

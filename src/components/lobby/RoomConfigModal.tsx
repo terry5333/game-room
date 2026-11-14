@@ -105,32 +105,44 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
             <>
               {/* 遊玩人數 */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-[#2E2925] flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-[#628395]" />
-                  <span>遊玩人數</span>
+                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-[#628395]" />
+                    <span>遊玩人數（多人即時對決）</span>
+                  </span>
+                  <span className="text-[11px] font-bold text-[#628395]">
+                    {maxPlayers} 人模式
+                  </span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setMaxPlayers(2);
-                    }}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      maxPlayers === 2
-                        ? 'bg-[#628395] text-white border-[#628395] shadow-xs'
-                        : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#628395]'
-                    }`}
-                  >
-                    <span>2 人（雙人極速競猜）</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="py-2.5 px-3 rounded-xl border border-dashed border-[#96897B]/30 bg-neutral-100/60 text-[#96897B]/60 text-xs font-bold flex items-center justify-center gap-1 cursor-not-allowed"
-                  >
-                    <span>3-4 人（多人籌備中）</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { count: 2, label: '2 人', sub: '雙人競速' },
+                    { count: 3, label: '3 人', sub: '三方對決' },
+                    { count: 4, label: '4 人', sub: '四人狂歡' }
+                  ].map((item) => (
+                    <button
+                      key={item.count}
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setMaxPlayers(item.count);
+                      }}
+                      className={`py-2 px-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                        maxPlayers === item.count
+                          ? 'bg-[#628395] text-white border-[#628395] shadow-xs'
+                          : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#628395]'
+                      }`}
+                    >
+                      <span className="font-mono font-black text-xs">{item.label}</span>
+                      <span
+                        className={`text-[10px] ${
+                          maxPlayers === item.count ? 'text-white/80' : 'text-[#96897B]'
+                        }`}
+                      >
+                        {item.sub}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -251,32 +263,44 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
             <>
               {/* 遊玩人數 */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-[#2E2925] flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-[#DBAD6A]" />
-                  <span>遊玩人數</span>
+                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-[#DBAD6A]" />
+                    <span>遊玩人數（多人連線派對）</span>
+                  </span>
+                  <span className="text-[11px] font-bold text-[#DBAD6A]">
+                    {maxPlayers} 人連線
+                  </span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setMaxPlayers(2);
-                    }}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      maxPlayers === 2
-                        ? 'bg-[#DBAD6A] text-white border-[#DBAD6A] shadow-xs'
-                        : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#DBAD6A]'
-                    }`}
-                  >
-                    <span>2 人（雙人連線對抗）</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="py-2.5 px-3 rounded-xl border border-dashed border-[#96897B]/30 bg-neutral-100/60 text-[#96897B]/60 text-xs font-bold flex items-center justify-center gap-1 cursor-not-allowed"
-                  >
-                    <span>3-4 人（多人籌備中）</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { count: 2, label: '2 人', sub: '雙人對決' },
+                    { count: 3, label: '3 人', sub: '三人派對' },
+                    { count: 4, label: '4 人', sub: '四人混戰' }
+                  ].map((item) => (
+                    <button
+                      key={item.count}
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setMaxPlayers(item.count);
+                      }}
+                      className={`py-2 px-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                        maxPlayers === item.count
+                          ? 'bg-[#DBAD6A] text-white border-[#DBAD6A] shadow-xs'
+                          : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#DBAD6A]'
+                      }`}
+                    >
+                      <span className="font-mono font-black text-xs">{item.label}</span>
+                      <span
+                        className={`text-[10px] ${
+                          maxPlayers === item.count ? 'text-white/80' : 'text-[#96897B]'
+                        }`}
+                      >
+                        {item.sub}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 
@@ -360,32 +384,44 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
             <>
               {/* 遊玩人數 */}
               <div className="space-y-2">
-                <label className="text-xs font-black text-[#2E2925] flex items-center gap-1.5">
-                  <Users className="w-3.5 h-3.5 text-[#CF995F]" />
-                  <span>遊玩人數</span>
+                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
+                  <span className="flex items-center gap-1.5">
+                    <Users className="w-3.5 h-3.5 text-[#CF995F]" />
+                    <span>遊玩人數（多人輪流下線）</span>
+                  </span>
+                  <span className="text-[11px] font-bold text-[#CF995F]">
+                    {maxPlayers} 人爭奪
+                  </span>
                 </label>
-                <div className="grid grid-cols-2 gap-2">
-                  <button
-                    type="button"
-                    onClick={() => {
-                      sound.playClick();
-                      setMaxPlayers(2);
-                    }}
-                    className={`py-2.5 px-3 rounded-xl border text-xs font-black flex items-center justify-center gap-2 transition-all cursor-pointer ${
-                      maxPlayers === 2
-                        ? 'bg-[#CF995F] text-white border-[#CF995F] shadow-xs'
-                        : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#CF995F]'
-                    }`}
-                  >
-                    <span>2 人（雙人方格圍地）</span>
-                  </button>
-                  <button
-                    type="button"
-                    disabled
-                    className="py-2.5 px-3 rounded-xl border border-dashed border-[#96897B]/30 bg-neutral-100/60 text-[#96897B]/60 text-xs font-bold flex items-center justify-center gap-1 cursor-not-allowed"
-                  >
-                    <span>3-4 人（多人籌備中）</span>
-                  </button>
+                <div className="grid grid-cols-3 gap-2">
+                  {[
+                    { count: 2, label: '2 人', sub: '雙人圍地' },
+                    { count: 3, label: '3 人', sub: '三方爭霸' },
+                    { count: 4, label: '4 人', sub: '四人混戰' }
+                  ].map((item) => (
+                    <button
+                      key={item.count}
+                      type="button"
+                      onClick={() => {
+                        sound.playClick();
+                        setMaxPlayers(item.count);
+                      }}
+                      className={`py-2 px-2 rounded-xl border flex flex-col items-center justify-center gap-0.5 transition-all cursor-pointer ${
+                        maxPlayers === item.count
+                          ? 'bg-[#CF995F] text-white border-[#CF995F] shadow-xs'
+                          : 'bg-white text-[#2E2925] border-[#96897B]/30 hover:border-[#CF995F]'
+                      }`}
+                    >
+                      <span className="font-mono font-black text-xs">{item.label}</span>
+                      <span
+                        className={`text-[10px] ${
+                          maxPlayers === item.count ? 'text-white/80' : 'text-[#96897B]'
+                        }`}
+                      >
+                        {item.sub}
+                      </span>
+                    </button>
+                  ))}
                 </div>
               </div>
 

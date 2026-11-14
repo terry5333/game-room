@@ -18,7 +18,7 @@ import { sound } from '../../../services/soundService';
 import type { GuessRecord, State1A2B } from '../../../types';
 
 export const Game1A2B: React.FC = () => {
-  const { currentRoom, updateRoomState, myRole } = useRoom();
+  const { currentRoom, updateRoomState, myRole, players } = useRoom();
   const { currentUser } = useAuth();
 
   const [inputDigits, setInputDigits] = useState<string>('');
@@ -39,6 +39,13 @@ export const Game1A2B: React.FC = () => {
   const lockedIn = state.lockedIn || {};
   const allGuesses = Array.isArray(state.guesses) ? state.guesses : [];
 
+  const allPlayers =
+    players && players.length > 0
+      ? players
+      : ([currentRoom?.player1, currentRoom?.player2].filter(Boolean) as any[]);
+
+  const isMultiplayer = (currentRoom?.maxPlayers || 2) > 2 || Boolean(state.targetSecret);
+
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
@@ -48,16 +55,26 @@ export const Game1A2B: React.FC = () => {
   const mySecret = secrets[myUid] || '';
   const myLocked = Boolean(lockedIn[myUid]);
   const opponentLocked = Boolean(lockedIn[opponentUid]);
-  const bothLocked = myLocked && opponentLocked;
+  const bothLocked = isMultiplayer ? true : myLocked && opponentLocked;
+
+  const targetSecret = isMultiplayer
+    ? state.targetSecret || '1234'
+    : secrets[opponentUid] || '';
 
   // Configuration options
   const hintEnabled = state.hintEnabled !== false;
   const hintRound = state.hintRound || 5;
   const maxRounds = state.maxRounds || 0; // 0 = unlimited
 
+  const PLAYER_THEMES = [
+    { bg: 'bg-[#628395]', border: 'border-[#628395]/40', text: 'text-[#628395]', name: 'P1' },
+    { bg: 'bg-[#CF995F]', border: 'border-[#CF995F]/40', text: 'text-[#CF995F]', name: 'P2' },
+    { bg: 'bg-emerald-600', border: 'border-emerald-500/40', text: 'text-emerald-700', name: 'P3' },
+    { bg: 'bg-purple-600', border: 'border-purple-500/40', text: 'text-purple-700', name: 'P4' }
+  ];
+
   // Filter guesses by player
   const myGuesses = allGuesses.filter((g) => g.guesserUid === myUid);
-  const opponentGuesses = allGuesses.filter((g) => g.guesserUid === opponentUid);
 
   const hasReachedMaxRounds = maxRounds > 0 && myGuesses.length >= maxRounds;
   const canGuess = bothLocked && !hasReachedMaxRounds && currentRoom?.status === 'in_progress';
@@ -102,16 +119,18 @@ export const Game1A2B: React.FC = () => {
     if (inputDigits.length !== 4 || !canGuess) return;
     sound.playClick();
 
-    const targetSecret = secrets[opponentUid];
-    if (!targetSecret) return;
+    const secretToMatch = isMultiplayer
+      ? state.targetSecret || '1234'
+      : secrets[opponentUid];
+    if (!secretToMatch) return;
 
     let bulls = 0; // A
     let cows = 0;  // B
 
     for (let i = 0; i < 4; i++) {
-      if (inputDigits[i] === targetSecret[i]) {
+      if (inputDigits[i] === secretToMatch[i]) {
         bulls++;
-      } else if (targetSecret.includes(inputDigits[i])) {
+      } else if (secretToMatch.includes(inputDigits[i])) {
         cows++;
       }
     }
@@ -135,23 +154,32 @@ export const Game1A2B: React.FC = () => {
         draft.status = 'settled';
         draft.winnerUid = myUid;
       } else if (maxRounds > 0) {
-        // If max rounds enabled, check if both players have exhausted guesses
+        // If max rounds enabled, check if all players have exhausted guesses
         const updatedMyCount = myGuesses.length + 1;
-        const oppCount = opponentGuesses.length;
-        if (updatedMyCount >= maxRounds && oppCount >= maxRounds) {
-          draft.status = 'settled';
-          // Find best A (bulls)
-          const allMyBulls = [bulls, ...myGuesses.map((g) => g.bulls)];
-          const myBestA = Math.max(...allMyBulls);
-          const oppBestA = Math.max(0, ...opponentGuesses.map((g) => g.bulls));
+        const allPlayersExhausted = allPlayers.every((p) => {
+          if (p.uid === myUid) return updatedMyCount >= maxRounds;
+          const otherGuesses = allGuesses.filter((g) => g.guesserUid === p.uid);
+          return otherGuesses.length >= maxRounds;
+        });
 
-          if (myBestA > oppBestA) {
-            draft.winnerUid = myUid;
-          } else if (oppBestA > myBestA) {
-            draft.winnerUid = opponentUid;
-          } else {
-            draft.winnerUid = 'draw';
-          }
+        if (allPlayersExhausted) {
+          draft.status = 'settled';
+          // Find player with best A (bulls)
+          let bestA = -1;
+          let bestPlayerUid = 'draw';
+          allPlayers.forEach((p) => {
+            const pGuesses = p.uid === myUid
+              ? [bulls, ...myGuesses.map((g) => g.bulls)]
+              : allGuesses.filter((g) => g.guesserUid === p.uid).map((g) => g.bulls);
+            const pMax = pGuesses.length > 0 ? Math.max(...pGuesses) : 0;
+            if (pMax > bestA) {
+              bestA = pMax;
+              bestPlayerUid = p.uid;
+            } else if (pMax === bestA) {
+              bestPlayerUid = 'draw';
+            }
+          });
+          draft.winnerUid = bestPlayerUid;
         }
       }
     });
@@ -181,19 +209,35 @@ export const Game1A2B: React.FC = () => {
             </div>
           </div>
 
-          <div className="flex items-center gap-3">
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#628395]/10 border border-[#628395]/20 text-xs">
-              <span className="font-bold text-[#628395]">我方：</span>
-              <span className="font-mono font-black text-[#2E2925]">
-                {myGuesses.length} {maxRounds > 0 ? `/ ${maxRounds}` : ''} 次
-              </span>
-            </div>
-            <div className="flex items-center gap-2 px-3 py-1.5 rounded-xl bg-[#CF995F]/10 border border-[#CF995F]/20 text-xs">
-              <span className="font-bold text-[#CF995F]">對手：</span>
-              <span className="font-mono font-black text-[#2E2925]">
-                {opponentGuesses.length} {maxRounds > 0 ? `/ ${maxRounds}` : ''} 次
-              </span>
-            </div>
+          <div className="flex flex-wrap items-center gap-2">
+            {allPlayers.map((player, pIdx) => {
+              const theme = PLAYER_THEMES[pIdx % PLAYER_THEMES.length];
+              const pGuesses = allGuesses.filter((g) => g.guesserUid === player.uid);
+              const isMe = player.uid === myUid;
+              return (
+                <div
+                  key={player.uid || pIdx}
+                  className={`flex items-center gap-1.5 px-3 py-1.5 rounded-xl border text-xs ${
+                    isMe
+                      ? 'bg-[#628395]/15 border-[#628395]/40 text-[#2E2925] font-black'
+                      : 'bg-white/80 border-[#96897B]/20 text-[#2E2925]'
+                  }`}
+                >
+                  <span
+                    className={`text-[10px] font-mono font-black px-1.5 py-0.5 rounded text-white ${theme.bg}`}
+                  >
+                    {theme.name}
+                  </span>
+                  <span className="font-bold truncate max-w-[80px]">
+                    {isMe ? '我' : player.displayName || `玩家${pIdx + 1}`}
+                  </span>
+                  <span className="font-mono font-black text-[#628395]">
+                    {pGuesses.length}
+                    {maxRounds > 0 ? `/${maxRounds}` : ''} 次
+                  </span>
+                </div>
+              );
+            })}
           </div>
         </div>
       ) : (
@@ -248,9 +292,11 @@ export const Game1A2B: React.FC = () => {
               </span>
 
               <div className="flex items-center gap-2">
-                <span className="text-xs font-bold text-[#96897B]">我方密碼：</span>
+                <span className="text-xs font-bold text-[#96897B]">
+                  {isMultiplayer ? '目標密碼：' : '我方密碼：'}
+                </span>
                 <span className="font-mono font-black text-sm bg-white/80 px-2.5 py-0.5 rounded-lg text-[#628395] border border-[#96897B]/20 tracking-wider">
-                  {mySecret ? mySecret : '尚未鎖定'}
+                  {isMultiplayer ? '4 位神秘數字' : mySecret ? mySecret : '尚未鎖定'}
                 </span>
               </div>
             </div>
@@ -430,7 +476,7 @@ export const Game1A2B: React.FC = () => {
                 </div>
 
                 <AnimatePresence>
-                  {hintEnabled && hintRevealed && myGuesses.length >= hintRound && secrets[opponentUid] && (
+                  {hintEnabled && hintRevealed && myGuesses.length >= hintRound && (
                     <motion.div
                       initial={{ opacity: 0, height: 0 }}
                       animate={{ opacity: 1, height: 'auto' }}
@@ -442,9 +488,9 @@ export const Game1A2B: React.FC = () => {
                           情報線索
                         </span>
                         <span>
-                          對手 4 位密碼中包含數字【
+                          目標 4 位密碼中包含數字【
                           <strong className="text-sm font-black text-[#628395] underline">
-                            {secrets[opponentUid][1] || secrets[opponentUid][0]}
+                            {targetSecret[1] || targetSecret[0] || '7'}
                           </strong>
                           】！
                         </span>
@@ -460,18 +506,31 @@ export const Game1A2B: React.FC = () => {
         {/* Right Column: History Panel */}
         <div className="lg:col-span-6 space-y-4">
           <div className="glass-panel rounded-3xl p-5 border-2 border-white/80 shadow-md">
-            <div className="flex items-center justify-between pb-3 border-b border-[#96897B]/20 mb-3">
+            <div className="flex flex-col sm:flex-row sm:items-center justify-between pb-3 border-b border-[#96897B]/20 gap-2 mb-3">
               <span className="font-extrabold text-sm text-[#2E2925]">
                 歷次猜題攻防紀錄 ({allGuesses.length} 次)
               </span>
 
-              <div className="flex items-center gap-2 text-xs">
-                <span className="flex items-center gap-1 text-[#628395] font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#628395]" /> 我方 ({myGuesses.length})
-                </span>
-                <span className="flex items-center gap-1 text-[#CF995F] font-bold">
-                  <span className="w-2.5 h-2.5 rounded-full bg-[#CF995F]" /> 對手 ({opponentGuesses.length})
-                </span>
+              <div className="flex flex-wrap items-center gap-2 text-xs">
+                {allPlayers.map((player, pIdx) => {
+                  const theme = PLAYER_THEMES[pIdx % PLAYER_THEMES.length];
+                  const pGuesses = allGuesses.filter((g) => g.guesserUid === player.uid);
+                  const isMe = player.uid === myUid;
+                  return (
+                    <span
+                      key={player.uid || pIdx}
+                      className="flex items-center gap-1 font-bold text-xs"
+                    >
+                      <span className={`w-2 h-2 rounded-full ${theme.bg}`} />
+                      <span className="text-[#96897B]">
+                        {isMe ? '我方' : player.displayName || `P${pIdx + 1}`}:
+                      </span>
+                      <span className="font-mono font-black text-[#2E2925]">
+                        {pGuesses.length}
+                      </span>
+                    </span>
+                  );
+                })}
               </div>
             </div>
 
@@ -479,12 +538,25 @@ export const Game1A2B: React.FC = () => {
             <div className="max-h-[380px] overflow-y-auto space-y-2 pr-1">
               {allGuesses.length === 0 ? (
                 <div className="text-center py-16 text-xs text-[#96897B] font-medium">
-                  雙方密碼鎖定後，每一次猜測的 A/B 結果將在此即時對壘！
+                  {bothLocked
+                    ? '已進入猜題競速！每一次猜測的 A/B 結果將在此即時對壘！'
+                    : '雙方密碼鎖定後，每一次猜測的 A/B 結果將在此即時對壘！'}
                 </div>
               ) : (
                 allGuesses.map((g, idx) => {
                   const isMine = g.guesserUid === myUid;
                   const is4A0B = g.bulls === 4;
+                  const guesserIndex = allPlayers.findIndex((p) => p.uid === g.guesserUid);
+                  const theme =
+                    PLAYER_THEMES[
+                      guesserIndex >= 0 ? guesserIndex % PLAYER_THEMES.length : 0
+                    ];
+                  const guesserName =
+                    guesserIndex >= 0
+                      ? isMine
+                        ? '我方'
+                        : allPlayers[guesserIndex]?.displayName || `玩家${guesserIndex + 1}`
+                      : '玩家';
 
                   return (
                     <motion.div
@@ -496,7 +568,7 @@ export const Game1A2B: React.FC = () => {
                           ? 'bg-[#DBAD6A]/25 border-[#DBAD6A] shadow-md'
                           : isMine
                           ? 'bg-[#628395]/10 border-[#628395]/30'
-                          : 'bg-[#CF995F]/10 border-[#CF995F]/30'
+                          : 'bg-white/80 border-[#96897B]/20'
                       }`}
                     >
                       <div className="flex items-center gap-2.5">
@@ -504,11 +576,9 @@ export const Game1A2B: React.FC = () => {
                           #{allGuesses.length - idx}
                         </span>
                         <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md text-white ${
-                            isMine ? 'bg-[#628395]' : 'bg-[#CF995F]'
-                          }`}
+                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md text-white ${theme.bg}`}
                         >
-                          {isMine ? '我方' : '對手'}
+                          {guesserName}
                         </span>
                         <span className="font-mono font-black text-lg tracking-widest text-[#2E2925]">
                           {g.guess}

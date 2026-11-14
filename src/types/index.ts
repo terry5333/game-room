@@ -72,6 +72,8 @@ export interface FriendRecord {
   addedAt: number;
 }
 
+export type PlayerRole = 'player1' | 'player2' | 'player3' | 'player4' | 'spectator';
+
 export interface PlayerSlot {
   uid: string;
   displayName: string;
@@ -99,6 +101,7 @@ export interface State1A2B {
   hintEnabled?: boolean;
   hintRound?: number; // 第幾回合開啟提示 (預設 5)
   maxRounds?: number; // 回合上限 (0 或 undefined 表示無上限)
+  targetSecret?: string; // 多人模式題庫密碼 (3-4人模式由全員搶答)
 }
 
 // Battleship Types
@@ -175,6 +178,7 @@ export interface GameRoom {
   status: 'waiting' | 'in_progress' | 'settled' | 'closed';
   player1: PlayerSlot;
   player2?: PlayerSlot;
+  players?: PlayerSlot[]; // 多人玩家列表 (2 至 4 人)
   maxPlayers?: number;
   winnerUid?: string | 'draw';
   createdAt: number;

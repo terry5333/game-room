@@ -10,7 +10,8 @@ import {
   WifiOff,
   Wifi,
   AlertTriangle,
-  RotateCcw
+  RotateCcw,
+  Sparkles
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -36,7 +37,10 @@ export const GameShell: React.FC<GameShellProps> = ({
     leaveRoom,
     surrender,
     restartGame,
+    startGame,
     myRole,
+    isHost,
+    players,
     isConnected,
     isOpponentConnected,
     reconnecting
@@ -72,6 +76,13 @@ export const GameShell: React.FC<GameShellProps> = ({
     }
   };
 
+  const PLAYER_THEMES = [
+    { bg: 'bg-[#628395]/15', border: 'border-[#628395]/40', text: 'text-[#628395]', name: 'P1' },
+    { bg: 'bg-[#CF995F]/15', border: 'border-[#CF995F]/40', text: 'text-[#CF995F]', name: 'P2' },
+    { bg: 'bg-emerald-500/15', border: 'border-emerald-500/40', text: 'text-emerald-700', name: 'P3' },
+    { bg: 'bg-purple-500/15', border: 'border-purple-500/40', text: 'text-purple-700', name: 'P4' }
+  ];
+
   const p1 = currentRoom.player1 || {
     uid: currentRoom.hostUid,
     displayName: '玩家1',
@@ -89,7 +100,7 @@ export const GameShell: React.FC<GameShellProps> = ({
     recordGameResult(isWinner, currentRoom.multiplier, currentRoom.gameId);
   }
 
-  const winnerPlayer = currentRoom.winnerUid === p1.uid ? p1 : p2;
+  const winnerPlayer = (players || []).find((p) => p.uid === currentRoom.winnerUid) || p1;
 
   return (
     <div className="flex-1 max-w-4xl mx-auto w-full px-2.5 sm:px-4 py-2 sm:py-3 flex flex-col justify-between min-w-0">
@@ -186,85 +197,66 @@ export const GameShell: React.FC<GameShellProps> = ({
         </div>
       </div>
 
-      {/* Sleek Minimalist Players Bar */}
-      <div className="grid grid-cols-2 gap-3 mb-3">
-        {/* Player 1 */}
-        <div
-          className={`rounded-xl px-3 py-2 flex items-center gap-2.5 transition-all ${
-            myRole === 'player1'
-              ? 'bg-[#628395]/15 border border-[#628395]/30'
-              : 'bg-white/40 border border-white/50'
-          }`}
-        >
-          <img
-            src={p1.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p1.uid}`}
-            alt={p1.displayName}
-            className="w-7 h-7 rounded-lg object-cover"
-          />
-          <div className="min-w-0 flex-1">
-            <div className="text-xs font-extrabold text-[#2E2925] truncate">
-              {p1.displayName}
-            </div>
-            <div className="text-[10px] text-[#628395] font-semibold">
-              {myRole === 'player1' ? '我方 (P1)' : '對手 (P1)'}
-            </div>
-          </div>
-        </div>
+      {/* Sleek Dynamic Players Bar (Supports 2-4 Players) */}
+      <div
+        className={`grid gap-2.5 mb-3 ${
+          players.length <= 2
+            ? 'grid-cols-2'
+            : players.length === 3
+            ? 'grid-cols-3'
+            : 'grid-cols-2 sm:grid-cols-4'
+        }`}
+      >
+        {players.map((p, idx) => {
+          const theme = PLAYER_THEMES[idx] || PLAYER_THEMES[0];
+          const isMe = p.uid === currentUser.uid;
 
-        {/* Player 2 */}
-        <div
-          className={`rounded-xl px-3 py-2 flex items-center gap-2.5 transition-all ${
-            myRole === 'player2'
-              ? 'bg-[#CF995F]/15 border border-[#CF995F]/30'
-              : 'bg-white/40 border border-white/50'
-          }`}
-        >
-          {p2 ? (
-            <>
+          return (
+            <div
+              key={p.uid}
+              className={`rounded-xl px-2.5 py-1.5 flex items-center gap-2 border transition-all ${
+                isMe ? `${theme.bg} ${theme.border} shadow-xs` : 'bg-white/40 border-white/50'
+              }`}
+            >
               <img
-                src={p2.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p2.uid}`}
-                alt={p2.displayName}
-                className="w-7 h-7 rounded-lg object-cover"
+                src={p.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid}`}
+                alt={p.displayName}
+                className="w-6 h-6 rounded-lg object-cover"
               />
               <div className="min-w-0 flex-1">
-                <div className="text-xs font-extrabold text-[#2E2925] truncate">
-                  {p2.displayName}
+                <div className="text-[11px] font-extrabold text-[#2E2925] truncate">
+                  {p.displayName}
                 </div>
-                <div className="text-[10px] text-[#CF995F] font-semibold">
-                  {myRole === 'player2' ? '我方 (P2)' : '對手 (P2)'}
+                <div className={`text-[10px] font-bold ${theme.text}`}>
+                  {isMe ? `我方 (${theme.name})` : theme.name}
                 </div>
               </div>
-            </>
-          ) : (
-            <div className="flex items-center gap-2 text-xs text-[#96897B] font-medium py-1">
-              <Users2 className="w-4 h-4 animate-pulse" />
-              <span>等待對手加入...</span>
             </div>
-          )}
-        </div>
+          );
+        })}
       </div>
 
       {/* Main Game Stage or Waiting Screen wrapped in ErrorBoundary */}
       <div className="flex-1 flex flex-col justify-center">
-        {!p2 ? (
-          /* Sleek Waiting Screen */
+        {currentRoom.status === 'waiting' ? (
+          /* Multi-player Waiting Screen */
           <motion.div
             initial={{ opacity: 0, scale: 0.98 }}
             animate={{ opacity: 1, scale: 1 }}
-            className="max-w-sm mx-auto glass-panel rounded-3xl p-6 text-center my-6 shadow-sm border border-white/80"
+            className="max-w-md mx-auto glass-panel rounded-3xl p-6 text-center my-6 shadow-md border border-white/80"
           >
             <div className="w-12 h-12 rounded-2xl bg-[#628395]/10 text-[#628395] flex items-center justify-center mx-auto mb-3">
               <Users2 className="w-6 h-6 text-[#628395] animate-pulse" />
             </div>
 
             <h3 className="text-base font-extrabold text-[#2E2925] mb-1">
-              等待挑戰者加入
+              房間等待大廳（{players.length} / {currentRoom.maxPlayers || 2} 人）
             </h3>
-            <p className="text-xs text-[#96897B] mb-5">
-              好友輸入下方房號即可立即進房對戰
+            <p className="text-xs text-[#96897B] mb-4">
+              好友輸入下方 6 位數房號即可立即進房對戰
             </p>
 
-            <div className="bg-white/70 rounded-2xl p-3 border border-white flex items-center justify-center gap-3 mb-2">
+            <div className="bg-white/80 rounded-2xl p-3 border border-white flex items-center justify-center gap-3 mb-5 shadow-xs">
               <span className="font-mono text-2xl font-black text-[#628395] tracking-widest">
                 {currentRoom.code}
               </span>
@@ -276,6 +268,66 @@ export const GameShell: React.FC<GameShellProps> = ({
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               </button>
             </div>
+
+            {/* Slots Grid */}
+            <div className="grid grid-cols-2 gap-2 mb-5">
+              {Array.from({ length: currentRoom.maxPlayers || 2 }).map((_, slotIdx) => {
+                const slotPlayer = players[slotIdx];
+                const theme = PLAYER_THEMES[slotIdx] || PLAYER_THEMES[0];
+
+                return slotPlayer ? (
+                  <div
+                    key={slotPlayer.uid}
+                    className={`p-2.5 rounded-2xl border flex items-center gap-2.5 ${theme.bg} ${theme.border} text-left`}
+                  >
+                    <img
+                      src={slotPlayer.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid}`}
+                      alt={slotPlayer.displayName}
+                      className="w-7 h-7 rounded-lg object-cover"
+                    />
+                    <div className="min-w-0 flex-1">
+                      <div className="text-xs font-bold text-[#2E2925] truncate">
+                        {slotPlayer.displayName}
+                      </div>
+                      <span className={`text-[10px] font-black ${theme.text}`}>
+                        {theme.name} 已加入
+                      </span>
+                    </div>
+                  </div>
+                ) : (
+                  <div
+                    key={`empty-${slotIdx}`}
+                    className="p-2.5 rounded-2xl border-2 border-dashed border-[#96897B]/30 bg-white/30 flex items-center justify-center text-xs text-[#96897B] font-bold"
+                  >
+                    等待玩家 {slotIdx + 1} 加入...
+                  </div>
+                );
+              })}
+            </div>
+
+            {/* Host or Guest Status */}
+            {isHost ? (
+              players.length >= 2 ? (
+                <button
+                  onClick={startGame}
+                  className="w-full py-3 px-6 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-black text-sm shadow-md shadow-[#628395]/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>
+                    立即開始遊戲（已加入 {players.length}/{maxSlots} 人
+                    {players.length >= maxSlots ? '・全員到齊' : ''}）
+                  </span>
+                </button>
+              ) : (
+                <div className="text-xs text-[#96897B] font-bold py-2">
+                  等待至少 1 位好友加入後即可開戰
+                </div>
+              )
+            ) : (
+              <div className="text-xs text-[#628395] font-black py-2 animate-pulse">
+                已成功進房！等待房主點擊開始遊戲...
+              </div>
+            )}
           </motion.div>
         ) : (
           <ErrorBoundary fallbackTitle="遊戲棋盤渲染異常">

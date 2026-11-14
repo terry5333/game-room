@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { GameRoom, GameId, UserProfile, RoomCreationOptions } from '../types';
+import type { GameRoom, GameId, UserProfile, RoomCreationOptions, PlayerRole, PlayerSlot } from '../types';
 import { matchService, DEFAULT_SETTINGS } from '../services/matchService';
 import { useAuth } from './AuthContext';
 import { sound } from '../services/soundService';
@@ -7,7 +7,9 @@ import { sound } from '../services/soundService';
 interface RoomContextType {
   currentRoom: GameRoom | null;
   isHost: boolean;
-  myRole: 'player1' | 'player2' | 'spectator';
+  myRole: PlayerRole;
+  playerIndex: number;
+  players: PlayerSlot[];
   isConnected: boolean;
   isOpponentConnected: boolean;
   reconnecting: boolean;
@@ -19,6 +21,7 @@ interface RoomContextType {
   updateRoomState: (updater: (draft: GameRoom) => void) => Promise<void>;
   surrender: () => Promise<void>;
   restartGame: () => Promise<void>;
+  startGame: () => Promise<void>;
   rejoinActiveRoom: () => Promise<void>;
 }
 
@@ -47,10 +50,13 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (savedRoomId && !currentRoom) {
       setReconnecting(true);
       matchService.getRoom(savedRoomId).then((room) => {
+        const roomPlayers = room?.players && room.players.length > 0
+          ? room.players
+          : [room?.player1, room?.player2].filter(Boolean);
         if (
           room &&
           room.status !== 'closed' &&
-          (room.player1.uid === currentUser.uid || room.player2?.uid === currentUser.uid)
+          roomPlayers.some((p: any) => p.uid === currentUser.uid)
         ) {
           setCurrentRoom(room);
           setActiveOngoingRoom(room);
@@ -134,14 +140,20 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const isHost = Boolean(currentUser && currentRoom && currentRoom.hostUid === currentUser.uid);
 
-  let myRole: 'player1' | 'player2' | 'spectator' = 'spectator';
-  if (currentUser && currentRoom) {
-    if (currentRoom.player1.uid === currentUser.uid) {
-      myRole = 'player1';
-    } else if (currentRoom.player2?.uid === currentUser.uid) {
-      myRole = 'player2';
-    }
-  }
+  const players: PlayerSlot[] = currentRoom
+    ? currentRoom.players && currentRoom.players.length > 0
+      ? currentRoom.players
+      : ([currentRoom.player1, currentRoom.player2].filter(Boolean) as PlayerSlot[])
+    : [];
+
+  const playerIndex =
+    currentUser && currentRoom ? players.findIndex((p) => p.uid === currentUser.uid) : -1;
+
+  let myRole: PlayerRole = 'spectator';
+  if (playerIndex === 0) myRole = 'player1';
+  else if (playerIndex === 1) myRole = 'player2';
+  else if (playerIndex === 2) myRole = 'player3';
+  else if (playerIndex === 3) myRole = 'player4';
 
   const createRoom = async (gameId: GameId, options?: RoomCreationOptions): Promise<GameRoom> => {
     if (!currentUser) throw new Error('Must be logged in to create room');
@@ -194,14 +206,20 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       const roomId = currentRoom.id;
       // 5 返回大廳就算退出 6 退出就結束遊戲默認對方勝利
       if (currentRoom.status === 'in_progress' && currentUser) {
-        const opponentUid =
-          currentRoom.player1.uid === currentUser.uid
-            ? currentRoom.player2?.uid
-            : currentRoom.player1.uid;
+        const activeList = currentRoom.players && currentRoom.players.length > 0
+          ? currentRoom.players
+          : ([currentRoom.player1, currentRoom.player2].filter(Boolean) as PlayerSlot[]);
+        const remaining = activeList.filter((p) => p.uid !== currentUser.uid);
 
         const copy: GameRoom = JSON.parse(JSON.stringify(currentRoom));
-        copy.status = 'settled';
-        copy.winnerUid = opponentUid || 'draw';
+        if (remaining.length <= 1) {
+          copy.status = 'settled';
+          copy.winnerUid = remaining[0]?.uid || 'draw';
+        } else {
+          copy.players = remaining;
+          copy.player1 = remaining[0] || copy.player1;
+          copy.player2 = remaining[1] || copy.player2;
+        }
         copy.updatedAt = Date.now();
         await matchService.updateRoom(copy);
       } else {
@@ -222,19 +240,37 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     matchService.updateRoom(copy).catch(console.warn);
   };
 
+  const startGame = async () => {
+    if (!currentRoom || !isHost) return;
+    sound.playClick();
+    await updateRoomState((draft) => {
+      draft.status = 'in_progress';
+      draft.updatedAt = Date.now();
+    });
+  };
+
   const surrender = async () => {
     if (!currentRoom || !currentUser) return;
-    const opponentUid = myRole === 'player1' ? currentRoom.player2?.uid : currentRoom.player1.uid;
+    const activeList = currentRoom.players && currentRoom.players.length > 0
+      ? currentRoom.players
+      : ([currentRoom.player1, currentRoom.player2].filter(Boolean) as PlayerSlot[]);
+    const other = activeList.find((p) => p.uid !== currentUser.uid);
     await updateRoomState((draft) => {
       draft.status = 'settled';
-      draft.winnerUid = opponentUid || 'draw';
+      draft.winnerUid = other?.uid || 'draw';
     });
   };
 
   const restartGame = async () => {
     if (!currentRoom) return;
     await updateRoomState((draft) => {
-      draft.status = draft.player2 ? 'in_progress' : 'waiting';
+      const activePlayers = draft.players && draft.players.length > 0
+        ? draft.players
+        : ([draft.player1, draft.player2].filter(Boolean) as PlayerSlot[]);
+      draft.players = activePlayers.map((p) => ({ ...p, ready: false }));
+      draft.player1 = draft.players[0] || draft.player1;
+      draft.player2 = draft.players[1] || draft.player2;
+      draft.status = draft.players.length >= (draft.maxPlayers || 2) ? 'in_progress' : 'waiting';
       draft.winnerUid = undefined;
 
       // Re-initialize specific game state
@@ -242,16 +278,22 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const preservedHintEnabled = draft.state1a2b?.hintEnabled !== undefined ? draft.state1a2b.hintEnabled : true;
         const preservedHintRound = draft.state1a2b?.hintRound || 5;
         const preservedMaxRounds = draft.state1a2b?.maxRounds || 0;
+        let targetSecret = draft.state1a2b?.targetSecret;
+        if ((draft.maxPlayers || 2) > 2) {
+          const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+          targetSecret = pool.slice(0, 4).join('');
+        }
         draft.state1a2b = {
           secrets: {},
-          lockedIn: {},
+          lockedIn: targetSecret ? { [draft.hostUid]: true } : {},
           guesses: [],
           currentTurnUid: draft.hostUid,
           turnDeadline: Date.now() + 30000,
           hintsUsed: {},
           hintEnabled: preservedHintEnabled,
           hintRound: preservedHintRound,
-          maxRounds: preservedMaxRounds
+          maxRounds: preservedMaxRounds,
+          targetSecret
         };
       } else if (draft.gameId === 'battleship') {
         const preservedGridSize = draft.stateBattleship?.gridSize || 8;
@@ -272,11 +314,15 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         };
       } else if (draft.gameId === 'dots') {
         const preservedGridSize = draft.stateDots?.gridSize || 4;
+        const initialScores: Record<string, number> = {};
+        draft.players.forEach((p) => {
+          initialScores[p.uid] = 0;
+        });
         draft.stateDots = {
           lines: {},
           boxes: {},
           currentTurnUid: draft.hostUid,
-          scores: { [draft.player1.uid]: 0, ...(draft.player2 ? { [draft.player2.uid]: 0 } : {}) },
+          scores: initialScores,
           lastBonusTurn: false,
           gridSize: preservedGridSize
         };
@@ -302,13 +348,21 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRoom,
         isHost,
         myRole,
+        playerIndex,
+        players,
+        isConnected,
+        isOpponentConnected,
+        reconnecting,
+        activeOngoingRoom,
         createRoom,
         joinRoomByCode,
         joinRoomById,
         leaveRoom,
         updateRoomState,
         surrender,
-        restartGame
+        restartGame,
+        startGame,
+        rejoinActiveRoom
       }}
     >
       {children}

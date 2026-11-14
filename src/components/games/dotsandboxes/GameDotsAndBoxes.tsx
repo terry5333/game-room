@@ -9,7 +9,7 @@ import { sound } from '../../../services/soundService';
 import type { StateDots } from '../../../types';
 
 export const GameDotsAndBoxes: React.FC = () => {
-  const { currentRoom, updateRoomState, myRole } = useRoom();
+  const { currentRoom, updateRoomState, myRole, players } = useRoom();
   const { currentUser } = useAuth();
 
   const state: StateDots = currentRoom?.stateDots || {
@@ -29,19 +29,21 @@ export const GameDotsAndBoxes: React.FC = () => {
   const lines = state.lines || {};
   const boxes = state.boxes || {};
 
-  const p1 = currentRoom?.player1;
-  const p2 = currentRoom?.player2;
+  const allPlayers =
+    players && players.length > 0
+      ? players
+      : ([currentRoom?.player1, currentRoom?.player2].filter(Boolean) as any[]);
+
   const myUid = currentUser?.uid || '';
-  const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
-
   const isMyTurn = state.currentTurnUid === myUid;
-  const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
+  const currentTurnPlayer = allPlayers.find((p) => p.uid === state.currentTurnUid) || allPlayers[0];
 
-  // Scores
-  const p1Score = Object.values(boxes).filter((u) => u === p1?.uid).length;
-  const p2Score = Object.values(boxes).filter((u) => u === p2?.uid).length;
-  const myScore = myRole === 'player1' ? p1Score : p2Score;
-  const oppScore = myRole === 'player1' ? p2Score : p1Score;
+  const PLAYER_DOTS_THEMES = [
+    { bg: 'bg-[#628395]', lineBg: 'bg-[#628395]', text: 'text-[#628395]', dot: 'bg-[#628395]', name: 'P1' },
+    { bg: 'bg-[#CF995F]', lineBg: 'bg-[#CF995F]', text: 'text-[#CF995F]', dot: 'bg-[#CF995F]', name: 'P2' },
+    { bg: 'bg-emerald-600', lineBg: 'bg-emerald-600', text: 'text-emerald-700', dot: 'bg-emerald-600', name: 'P3' },
+    { bg: 'bg-purple-600', lineBg: 'bg-purple-600', text: 'text-purple-700', dot: 'bg-purple-600', name: 'P4' }
+  ];
 
   const isSettled = currentRoom?.status === 'settled';
   const winnerUid = currentRoom?.winnerUid;
@@ -96,14 +98,17 @@ export const GameDotsAndBoxes: React.FC = () => {
 
       if (isGameOver) {
         draft.status = 'settled';
-        const finalP1 = Object.values(newBoxes).filter((u) => u === p1?.uid).length;
-        const finalP2 = Object.values(newBoxes).filter((u) => u === p2?.uid).length;
-        if (finalP1 > finalP2) {
-          draft.winnerUid = p1?.uid;
-        } else if (finalP2 > finalP1) {
-          draft.winnerUid = p2?.uid;
-        } else {
+        const playerCounts = allPlayers
+          .map((p) => ({
+            uid: p.uid,
+            count: Object.values(newBoxes).filter((u) => u === p.uid).length
+          }))
+          .sort((a, b) => b.count - a.count);
+
+        if (playerCounts[0].count === playerCounts[1]?.count) {
           draft.winnerUid = 'draw';
+        } else {
+          draft.winnerUid = playerCounts[0].uid;
         }
       } else {
         // If player completed a box, they get a BONUS TURN!
@@ -112,7 +117,10 @@ export const GameDotsAndBoxes: React.FC = () => {
           // currentTurnUid remains unchanged!
         } else {
           draft.stateDots.lastBonusTurn = false;
-          draft.stateDots.currentTurnUid = opponentUid;
+          const playerUids = allPlayers.map((p) => p.uid);
+          const currIdx = playerUids.indexOf(state.currentTurnUid);
+          const nextIdx = (currIdx + 1) % playerUids.length;
+          draft.stateDots.currentTurnUid = playerUids[nextIdx];
         }
       }
     });
@@ -128,24 +136,23 @@ export const GameDotsAndBoxes: React.FC = () => {
       />
 
       {/* Score Header */}
-      <div className="w-full max-w-md glass-panel rounded-2xl px-6 py-3 border border-white/70 shadow-sm flex items-center justify-between">
-        <div className="flex items-center gap-2">
-          <div className="w-3.5 h-3.5 rounded-full bg-[#628395]" />
-          <span className="text-xs font-bold text-[#628395]">{p1?.displayName || '玩家1'}：</span>
-          <span className="font-mono font-extrabold text-base text-[#628395]">
-            {p1Score} <span className="text-xs font-normal text-[#96897B]">/ {totalBoxes} 格</span>
-          </span>
-        </div>
-
-        <div className="h-4 w-px bg-[#96897B]/30" />
-
-        <div className="flex items-center gap-2">
-          <div className="w-3.5 h-3.5 rounded-full bg-[#CF995F]" />
-          <span className="text-xs font-bold text-[#CF995F]">{p2?.displayName || '玩家2'}：</span>
-          <span className="font-mono font-extrabold text-base text-[#CF995F]">
-            {p2Score} <span className="text-xs font-normal text-[#96897B]">/ {totalBoxes} 格</span>
-          </span>
-        </div>
+      <div className="w-full max-w-md glass-panel rounded-2xl px-4 py-2.5 border border-white/70 shadow-sm flex items-center justify-around gap-2 flex-wrap">
+        {allPlayers.map((p, idx) => {
+          const theme = PLAYER_DOTS_THEMES[idx] || PLAYER_DOTS_THEMES[0];
+          const sc = Object.values(boxes).filter((u) => u === p.uid).length;
+          const isMe = p.uid === myUid;
+          return (
+            <div key={p.uid} className="flex items-center gap-1.5 text-xs">
+              <div className={`w-3 h-3 rounded-full ${theme.dot}`} />
+              <span className={`font-bold ${theme.text}`}>
+                {isMe ? '我方' : theme.name}：
+              </span>
+              <span className="font-mono font-extrabold text-sm text-[#2E2925]">
+                {sc} <span className="text-[10px] text-[#96897B]">/ {totalBoxes}</span>
+              </span>
+            </div>
+          );
+        })}
       </div>
 
       {/* Settlement Results Card */}
@@ -160,12 +167,9 @@ export const GameDotsAndBoxes: React.FC = () => {
             <span className="text-xs font-black">
               {winnerUid === 'draw'
                 ? '對局結算：勢均力敵 平手！'
-                : `對局結算：${winnerUid === p1?.uid ? p1?.displayName : p2?.displayName} 獲勝！`}
+                : `對局結算：${allPlayers.find((p) => p.uid === winnerUid)?.displayName || '勝者'} 獲勝！`}
             </span>
           </div>
-          <span className="text-xs font-mono font-extrabold text-[#DBAD6A]">
-            {p1Score} 格 vs {p2Score} 格
-          </span>
         </motion.div>
       )}
 
@@ -176,7 +180,8 @@ export const GameDotsAndBoxes: React.FC = () => {
           {Array.from({ length: boxesCount }).map((_, r) =>
             Array.from({ length: boxesCount }).map((_, c) => {
               const boxOwner = boxes[`${r}_${c}`];
-              const isP1 = boxOwner === p1?.uid;
+              const ownerIdx = allPlayers.findIndex((p) => p.uid === boxOwner);
+              const theme = ownerIdx !== -1 ? PLAYER_DOTS_THEMES[ownerIdx] : PLAYER_DOTS_THEMES[0];
               const isWinnerBox = isSettled && winnerUid && boxOwner === winnerUid;
 
               return (
@@ -198,10 +203,10 @@ export const GameDotsAndBoxes: React.FC = () => {
                         animate={{ scale: isWinnerBox ? 1.05 : 1, opacity: 1 }}
                         transition={{ type: 'spring', damping: 15 }}
                         className={`w-full h-full rounded-xl flex items-center justify-center font-extrabold text-white text-xs sm:text-sm shadow-sm transition-all ${
-                          isP1 ? 'bg-[#628395]' : 'bg-[#CF995F]'
+                          theme.bg
                         } ${isWinnerBox ? 'ring-3 ring-[#DBAD6A] shadow-md shadow-[#DBAD6A]/50 animate-pulse' : ''}`}
                       >
-                        {isP1 ? 'P1' : 'P2'}
+                        {ownerIdx !== -1 ? `P${ownerIdx + 1}` : 'P?'}
                       </motion.div>
                     )}
                   </AnimatePresence>
@@ -215,7 +220,8 @@ export const GameDotsAndBoxes: React.FC = () => {
             Array.from({ length: gridDots - 1 }).map((_, c) => {
               const key = `h_${r}_${c}`;
               const lineOwner = lines[key];
-              const isP1 = lineOwner === p1?.uid;
+              const ownerIdx = allPlayers.findIndex((p) => p.uid === lineOwner);
+              const theme = ownerIdx !== -1 ? PLAYER_DOTS_THEMES[ownerIdx] : PLAYER_DOTS_THEMES[0];
 
               return (
                 <button
@@ -224,9 +230,7 @@ export const GameDotsAndBoxes: React.FC = () => {
                   onClick={() => handleLineClick(key)}
                   className={`absolute h-3 -translate-y-1.5 transition-all cursor-pointer z-20 rounded-full group ${
                     lineOwner
-                      ? isP1
-                        ? 'bg-[#628395] shadow-xs'
-                        : 'bg-[#CF995F] shadow-xs'
+                      ? `${theme.lineBg} shadow-xs`
                       : isMyTurn
                       ? 'bg-transparent hover:bg-[#628395]/40 border-b border-dashed border-[#96897B]/40'
                       : 'bg-transparent border-b border-dashed border-[#96897B]/20 cursor-default'
@@ -246,7 +250,8 @@ export const GameDotsAndBoxes: React.FC = () => {
             Array.from({ length: gridDots }).map((_, c) => {
               const key = `v_${r}_${c}`;
               const lineOwner = lines[key];
-              const isP1 = lineOwner === p1?.uid;
+              const ownerIdx = allPlayers.findIndex((p) => p.uid === lineOwner);
+              const theme = ownerIdx !== -1 ? PLAYER_DOTS_THEMES[ownerIdx] : PLAYER_DOTS_THEMES[0];
 
               return (
                 <button
@@ -255,9 +260,7 @@ export const GameDotsAndBoxes: React.FC = () => {
                   onClick={() => handleLineClick(key)}
                   className={`absolute w-3 -translate-x-1.5 transition-all cursor-pointer z-20 rounded-full group ${
                     lineOwner
-                      ? isP1
-                        ? 'bg-[#628395] shadow-xs'
-                        : 'bg-[#CF995F] shadow-xs'
+                      ? `${theme.lineBg} shadow-xs`
                       : isMyTurn
                       ? 'bg-transparent hover:bg-[#628395]/40 border-r border-dashed border-[#96897B]/40'
                       : 'bg-transparent border-r border-dashed border-[#96897B]/20 cursor-default'

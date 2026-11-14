@@ -89,7 +89,7 @@ const BALL_GRADIENTS = [
 ];
 
 export const GameBingo: React.FC = () => {
-  const { currentRoom, updateRoomState, myRole, isHost } = useRoom();
+  const { currentRoom, updateRoomState, myRole, isHost, players } = useRoom();
   const { currentUser } = useAuth();
 
   const [myBoard, setMyBoard] = useState<number[][]>(() =>
@@ -112,18 +112,17 @@ export const GameBingo: React.FC = () => {
   const linesCompleted = state.linesCompleted || {};
   const targetLines = state.targetLines || 5;
 
-  const p1 = currentRoom?.player1;
-  const p2 = currentRoom?.player2;
+  const allPlayers =
+    players && players.length > 0
+      ? players
+      : ([currentRoom?.player1, currentRoom?.player2].filter(Boolean) as any[]);
+
   const myUid = currentUser?.uid || '';
-  const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
-  const opponentUser = myRole === 'player1' ? p2 : p1;
-
   const myReady = Boolean(ready[myUid]);
-  const opponentReady = Boolean(ready[opponentUid]);
-  const bothReady = myReady && opponentReady;
+  const allReady = allPlayers.length >= 2 && allPlayers.every((p) => Boolean(ready[p.uid]));
 
-  const isMyTurn = bothReady && state.currentTurnUid === myUid && currentRoom?.status !== 'settled';
-  const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
+  const isMyTurn = allReady && state.currentTurnUid === myUid && currentRoom?.status !== 'settled';
+  const currentTurnPlayer = allPlayers.find((p) => p.uid === state.currentTurnUid) || allPlayers[0];
 
   // Initialize or reset board:
   // When boards[myUid] is unset (e.g. start of round or rematch), reset to BLANK board
@@ -170,7 +169,7 @@ export const GameBingo: React.FC = () => {
 
   // Host changes winning target lines (1-5)
   const handleSetTargetLines = async (lines: number) => {
-    if (!isHost || myReady || bothReady) return;
+    if (!isHost || myReady || allReady) return;
     sound.playClick();
     await updateRoomState((draft) => {
       if (!draft.stateBingo) return;
@@ -200,37 +199,36 @@ export const GameBingo: React.FC = () => {
 
     const nextCalled = [...calledNumbers, num];
 
-    // Calculate lines for me
-    const myLineResult = calculateLines(myBoard, nextCalled);
-    // Calculate lines for opponent
-    const oppBoard = boards[opponentUid] || [];
-    const oppLineResult = calculateLines(oppBoard, nextCalled);
+    let winningUid: string | null = null;
+    const nextLines: Record<string, number> = {};
 
-    if (myLineResult.count >= targetLines || oppLineResult.count >= targetLines) {
+    allPlayers.forEach((p) => {
+      const pBoard = p.uid === myUid ? myBoard : boards[p.uid] || [];
+      const res = calculateLines(pBoard, nextCalled);
+      nextLines[p.uid] = res.count;
+      if (res.count >= targetLines && !winningUid) {
+        winningUid = p.uid;
+      }
+    });
+
+    if (winningUid) {
       sound.playBingoLine();
     }
 
     await updateRoomState((draft) => {
       if (!draft.stateBingo) return;
       draft.stateBingo.calledNumbers = nextCalled;
-      draft.stateBingo.linesCompleted[myUid] = myLineResult.count;
-      if (opponentUid) {
-        draft.stateBingo.linesCompleted[opponentUid] = oppLineResult.count;
-      }
+      draft.stateBingo.linesCompleted = { ...draft.stateBingo.linesCompleted, ...nextLines };
 
-      // Check win condition based on host's targetLines
-      const winGoal = draft.stateBingo.targetLines || 5;
-      if (myLineResult.count >= winGoal && oppLineResult.count >= winGoal) {
+      if (winningUid) {
         draft.status = 'settled';
-        draft.winnerUid = myUid; // Active caller gets win priority
-      } else if (myLineResult.count >= winGoal) {
-        draft.status = 'settled';
-        draft.winnerUid = myUid;
-      } else if (oppLineResult.count >= winGoal) {
-        draft.status = 'settled';
-        draft.winnerUid = opponentUid;
+        draft.winnerUid = winningUid;
       } else {
-        draft.stateBingo.currentTurnUid = opponentUid;
+        // Rotate turn to next player in allPlayers
+        const playerUids = allPlayers.map((p) => p.uid);
+        const currIdx = playerUids.indexOf(state.currentTurnUid);
+        const nextIdx = (currIdx + 1) % playerUids.length;
+        draft.stateBingo.currentTurnUid = playerUids[nextIdx];
       }
     });
   };
@@ -238,7 +236,13 @@ export const GameBingo: React.FC = () => {
   // Calculate lines for local rendering
   const myLines = calculateLines(myBoard, calledNumbers);
   const myCompletedLines = myLines.count;
-  const oppCompletedLines = linesCompleted[opponentUid] || 0;
+
+  const PLAYER_THEMES = [
+    { text: 'text-[#628395]', name: 'P1' },
+    { text: 'text-[#CF995F]', name: 'P2' },
+    { text: 'text-emerald-700', name: 'P3' },
+    { text: 'text-purple-700', name: 'P4' }
+  ];
 
   const isBoardFilled =
     myBoard.flat().every((n) => n >= 1 && n <= 25) && new Set(myBoard.flat()).size === 25;
@@ -251,7 +255,7 @@ export const GameBingo: React.FC = () => {
   return (
     <div className="w-full flex flex-col items-center gap-3 sm:gap-4">
       {/* Turn banner */}
-      {bothReady ? (
+      {allReady ? (
         <TurnBanner
           isMyTurn={isMyTurn}
           currentTurnPlayerName={currentTurnPlayer?.displayName || ''}
@@ -267,7 +271,7 @@ export const GameBingo: React.FC = () => {
       )}
 
       {/* Target Lines Configuration Bar during Preparation Phase */}
-      {!bothReady && (
+      {!allReady && (
         <div className="w-full max-w-md glass-panel rounded-2xl px-4 py-2.5 border border-white/70 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-2.5">
           <div className="flex items-center gap-1.5 text-xs font-bold text-[#2E2925]">
             <Trophy className="w-4 h-4 text-[#DBAD6A]" />
@@ -300,35 +304,24 @@ export const GameBingo: React.FC = () => {
         </div>
       )}
 
-      {/* Opponent Status Indicator (Req 1) */}
-      {!bothReady && (
-        <div
-          className={`w-full max-w-md flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs transition-all ${
-            opponentReady
-              ? 'bg-emerald-50 text-emerald-800 border-emerald-300'
-              : 'bg-amber-50 text-amber-800 border-amber-300'
-          }`}
-        >
+      {/* Players Readiness Indicator Chip */}
+      {!allReady && (
+        <div className="w-full max-w-md flex items-center justify-between px-4 py-2 rounded-2xl border text-xs font-bold shadow-xs bg-amber-50 text-amber-800 border-amber-300">
           <div className="flex items-center gap-2">
-            {opponentReady ? (
-              <CheckCircle2 className="w-4 h-4 text-emerald-600" />
-            ) : (
-              <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
-            )}
+            <Clock className="w-4 h-4 text-amber-600 animate-pulse" />
             <span>
-              {opponentReady
-                ? `對手（${opponentUser?.displayName || '挑戰者'}）已排好數字，準備就緒！`
-                : `對手（${opponentUser?.displayName || '挑戰者'}）正在填寫數字中（未就緒）...`}
+              全員填卡就緒進度：
+              {allPlayers.filter((p) => Boolean(ready[p.uid])).length} / {allPlayers.length} 人已完成
             </span>
           </div>
           <span className="text-[10px] font-mono px-2 py-0.5 rounded-full bg-white/70">
-            {opponentReady ? '已就緒' : '佈局中'}
+            {myReady ? '我方已就緒' : '填寫中'}
           </span>
         </div>
       )}
 
       {/* Preparation Action Bar */}
-      {!bothReady && !myReady && (
+      {!allReady && !myReady && (
         <div className="w-full max-w-md glass-panel rounded-3xl p-3 sm:p-4 border-2 border-white/80 shadow-md flex items-center justify-between gap-3">
           <button
             onClick={handleRandomShuffle}
@@ -355,18 +348,18 @@ export const GameBingo: React.FC = () => {
         </div>
       )}
 
-      {/* Waiting for opponent indicator */}
-      {myReady && !bothReady && (
+      {/* Waiting for other players indicator */}
+      {myReady && !allReady && (
         <div className="px-6 py-2.5 rounded-2xl bg-white/70 border border-[#96897B]/20 text-xs font-bold text-[#628395] flex items-center gap-2">
           <CheckCircle2 className="w-4 h-4 text-emerald-600 animate-pulse" />
-          <span>我方棋盤已就緒！等待對手佈局...</span>
+          <span>我方棋盤已就緒！等待其他玩家完成佈局...</span>
         </div>
       )}
 
       {/* ============================================================== */}
       {/* 7. ROLLING LOTTERY BALL CHUTE (彩球進球軌道：一次顯示5顆，新球將舊球向前推) */}
       {/* ============================================================== */}
-      {bothReady && (
+      {allReady && (
         <div className="w-full max-w-md glass-panel rounded-3xl p-2.5 sm:p-3 border-2 border-white/80 shadow-md flex items-center justify-between gap-2 overflow-hidden">
           {/* Chute title tag */}
           <div className="flex items-center gap-1.5 shrink-0 px-2.5 py-1.5 rounded-2xl bg-white/70 border border-white text-[11px] font-extrabold text-[#628395]">
@@ -432,33 +425,31 @@ export const GameBingo: React.FC = () => {
         </div>
       )}
 
-      {/* Line Score Status Bar */}
-      {bothReady && (
-        <div className="w-full max-w-md glass-panel rounded-2xl px-6 py-2.5 border border-white/70 shadow-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#628395]">我方連線：</span>
-            <div className="flex items-center gap-1 font-mono font-extrabold text-base text-[#628395]">
-              <span>{myCompletedLines}</span>
-              <span className="text-xs text-[#96897B]">/ {targetLines} 條</span>
-            </div>
-          </div>
-
-          <div className="h-4 w-px bg-[#96897B]/30" />
-
-          <div className="flex items-center gap-2">
-            <span className="text-xs font-bold text-[#CF995F]">對手連線：</span>
-            <div className="flex items-center gap-1 font-mono font-extrabold text-base text-[#CF995F]">
-              <span>{oppCompletedLines}</span>
-              <span className="text-xs text-[#96897B]">/ {targetLines} 條</span>
-            </div>
-          </div>
+      {/* Multi-player Line Score Status Bar */}
+      {allReady && (
+        <div className="w-full max-w-md glass-panel rounded-2xl px-4 py-2.5 border border-white/70 shadow-sm flex items-center justify-around gap-2 flex-wrap">
+          {allPlayers.map((p, idx) => {
+            const theme = PLAYER_THEMES[idx] || PLAYER_THEMES[0];
+            const pLines = linesCompleted[p.uid] || 0;
+            const isMe = p.uid === myUid;
+            return (
+              <div key={p.uid} className="flex items-center gap-1.5 text-xs">
+                <span className={`font-bold ${theme.text}`}>
+                  {isMe ? '我方' : theme.name}：
+                </span>
+                <span className={`font-mono font-black ${theme.text}`}>
+                  {pLines} <span className="text-[10px] text-[#96897B]">/ {targetLines} 條</span>
+                </span>
+              </div>
+            );
+          })}
         </div>
       )}
 
       {/* 5x5 Bingo Board */}
       <div className="relative glass-panel rounded-3xl p-4 sm:p-5 border-2 border-white/80 shadow-lg max-w-sm sm:max-w-md w-full aspect-square flex items-center justify-center">
         {/* Dynamic Glowing Lines overlays */}
-        {bothReady && (
+        {allReady && (
           <div className="absolute inset-4 sm:inset-5 pointer-events-none z-10">
             {/* Rows glowing lines */}
             {myLines.rows.map((r) => (
@@ -511,13 +502,13 @@ export const GameBingo: React.FC = () => {
               return (
                 <motion.button
                   key={`${r}-${c}`}
-                  whileHover={bothReady && isMyTurn && !isCalled ? { scale: 1.08 } : {}}
-                  whileTap={bothReady && isMyTurn && !isCalled ? { scale: 0.94 } : {}}
-                  disabled={myReady && (!bothReady || !isMyTurn || isCalled)}
+                  whileHover={allReady && isMyTurn && !isCalled ? { scale: 1.08 } : {}}
+                  whileTap={allReady && isMyTurn && !isCalled ? { scale: 0.94 } : {}}
+                  disabled={myReady && (!allReady || !isMyTurn || isCalled)}
                   onClick={() => {
                     if (!myReady) {
                       handleCellFill(r, c);
-                    } else if (bothReady && isMyTurn && !isCalled) {
+                    } else if (allReady && isMyTurn && !isCalled) {
                       handleCallNumber(val);
                     }
                   }}
