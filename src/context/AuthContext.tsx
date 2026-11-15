@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
 import type { UserProfile, CoinTransaction, UserWardrobe, UserPetProfile } from '../types';
 import { DEFAULT_PET_PROFILE } from '../data/petAndChairCatalog';
+import { DEFAULT_WARDROBE } from '../data/wardrobeCatalog';
 import {
   auth,
   rtdb,
@@ -232,7 +233,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       role: isAdmin ? 'admin' : (existingProfile?.role || localBackup?.role || 'user'),
       friendCode: existingProfile?.friendCode || localBackup?.friendCode || generateFriendCode(),
       createdAt: existingProfile?.createdAt || localBackup?.createdAt || Date.now(),
-      wardrobe: existingProfile?.wardrobe || localBackup?.wardrobe,
+      wardrobe: existingProfile?.wardrobe || localBackup?.wardrobe || DEFAULT_WARDROBE,
       unlockedItems: Array.from(new Set([
         'none', 'default', 'candidate',
         ...(localBackup?.unlockedItems || []),
@@ -247,7 +248,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     // Save full merged profile to RTDB to ensure no data is lost
     if (rtdb) {
-      set(ref(rtdb, `users/${profile.uid}`), profile).catch(console.warn);
+      try {
+        const cleanPayload = JSON.parse(JSON.stringify(profile));
+        set(ref(rtdb, `users/${profile.uid}`), cleanPayload).catch(console.warn);
+      } catch (e) {
+        console.warn('RTDB write user profile error:', e);
+      }
     }
   };
 
@@ -259,13 +265,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     const unsub = onAuthStateChanged(auth, async (fbUser) => {
-      if (fbUser) {
-        await handleFirebaseUser(fbUser);
-      } else {
-        setCurrentUser(null);
-        localStorage.removeItem('duo_current_user');
+      try {
+        if (fbUser) {
+          await handleFirebaseUser(fbUser);
+        } else {
+          setCurrentUser(null);
+          localStorage.removeItem('duo_current_user');
+        }
+      } catch (err) {
+        console.error('Auth state error:', err);
+      } finally {
+        setLoading(false);
       }
-      setLoading(false);
     });
 
     return () => unsub();
@@ -275,7 +286,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     setCurrentUser(user);
     localStorage.setItem('duo_current_user', JSON.stringify(user));
     if (rtdb) {
-      set(ref(rtdb, `users/${user.uid}`), user).catch(console.warn);
+      try {
+        const cleanPayload = JSON.parse(JSON.stringify(user));
+        set(ref(rtdb, `users/${user.uid}`), cleanPayload).catch(console.warn);
+      } catch (e) {
+        console.warn('RTDB saveUser error:', e);
+      }
     }
   };
 
