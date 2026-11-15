@@ -34,8 +34,11 @@ interface AuthContextType {
   updatePetProfile: (newProfile: UserPetProfile) => Promise<void>;
   feedPet: () => Promise<boolean>;
   petThePet: () => Promise<boolean>;
+  playWithPet: () => Promise<boolean>;
+  bathePet: () => Promise<boolean>;
   purchaseChair: (chairId: string, cost: number, chairName: string) => Promise<boolean>;
   purchasePet: (petId: string, cost: number, petName: string) => Promise<boolean>;
+  purchaseOutfit: (outfitId: string, cost: number, outfitName: string) => Promise<boolean>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
@@ -618,6 +621,157 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const playWithPet = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const pet = { ...currProfile.pet };
+
+    pet.mood = Math.min(100, (pet.mood || 80) + 25);
+    pet.hunger = Math.max(10, (pet.hunger || 80) - 5);
+    pet.exp = (pet.exp || 0) + 15;
+    pet.lastPlayed = Date.now();
+
+    const maxExp = pet.maxExp || pet.level * 50;
+    if (pet.exp >= maxExp && pet.level < 10) {
+      pet.level += 1;
+      pet.exp -= maxExp;
+      pet.maxExp = pet.level * 50;
+    }
+
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      pet
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const bathePet = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const pet = { ...currProfile.pet };
+
+    pet.cleanliness = 100;
+    pet.intimacy = Math.min(100, (pet.intimacy || 60) + 10);
+    pet.exp = (pet.exp || 0) + 10;
+    pet.lastBathed = Date.now();
+
+    const maxExp = pet.maxExp || pet.level * 50;
+    if (pet.exp >= maxExp && pet.level < 10) {
+      pet.level += 1;
+      pet.exp -= maxExp;
+      pet.maxExp = pet.level * 50;
+    }
+
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      pet
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const purchaseOutfit = async (outfitId: string, cost: number, outfitName: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (cost > 0 && currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const unlockedOutfits = currProfile.unlockedOutfits || ['gakuran'];
+    const updatedUnlocked = unlockedOutfits.includes(outfitId) ? unlockedOutfits : [...unlockedOutfits, outfitId];
+
+    const newCoins = Math.max(0, currentUser.coins - cost);
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      character: {
+        ...currProfile.character,
+        outfitStyle: outfitId
+      },
+      unlockedOutfits: updatedUnlocked
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    if (cost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -cost,
+        type: 'shop_purchase',
+        description: `解鎖服裝：${outfitName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
   const logout = async () => {
     if (currentUser) {
       matchService.updatePresence({
@@ -733,8 +887,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updatePetProfile,
         feedPet,
         petThePet,
+        playWithPet,
+        bathePet,
         purchaseChair,
         purchasePet,
+        purchaseOutfit,
         updateCoins,
         recordGameResult,
         completeTutorial,

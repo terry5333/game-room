@@ -16,8 +16,18 @@ export interface PetData {
   maxExp: number;
   hunger: number;    // 0 - 100
   intimacy: number;  // 0 - 100
+  mood?: number;     // 0 - 100 (心情度)
+  cleanliness?: number; // 0 - 100 (潔淨度)
   lastFed: number;
   lastPetted: number;
+  lastPlayed?: number;
+  lastBathed?: number;
+  adventure?: {
+    isExploring: boolean;
+    returnTime: number;
+    destination: string;
+    rewardCoins?: number;
+  };
 }
 
 export interface PixelCharacterCustomization {
@@ -25,6 +35,7 @@ export interface PixelCharacterCustomization {
   skinTone: string;
   hairStyle: string; // 'short' | 'twintail' | 'bob' | 'spiky'
   hairColor: string; // hex color
+  outfitStyle?: string; // 'gakuran' | 'sailor' | 'trench' | 'hoodie' | 'haori' | 'cyber'
   outfitColor: string; // hex color
   accessory: string; // 'none' | 'glasses' | 'ribbon' | 'cap' | 'tie'
   chairId: string; // 'wooden_chair' | 'retro_sofa' | 'royal_throne' | 'gaming_chair' | 'beanbag' | 'tatami'
@@ -36,6 +47,7 @@ export interface UserPetProfile {
   pet: PetData;
   unlockedChairs: string[];
   unlockedPets: string[];
+  unlockedOutfits?: string[];
 }
 
 export interface UserProfile {
@@ -129,6 +141,7 @@ export interface PlayerSlot {
   ready: boolean;
   score?: number;
   wardrobe?: UserWardrobe;
+  petProfile?: UserPetProfile;
 }
 
 // 1A2B Game Types

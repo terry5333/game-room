@@ -12,6 +12,7 @@ interface PixelStageProps {
   onPetClick?: () => void;
   onCharacterClick?: () => void;
   showFloor?: boolean;
+  actionEffect?: 'feed' | 'pet' | 'ball' | 'bath' | null;
 }
 
 export const PixelStage: React.FC<PixelStageProps> = ({
@@ -20,7 +21,8 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   interactive = true,
   onPetClick,
   onCharacterClick,
-  showFloor = true
+  showFloor = true,
+  actionEffect = null
 }) => {
   const [speechText, setSpeechText] = useState<string | null>(null);
   const [hearts, setHearts] = useState<{ id: number; x: number; y: number }[]>([]);
@@ -139,6 +141,54 @@ export const PixelStage: React.FC<PixelStageProps> = ({
           ❤️
         </motion.div>
       ))}
+
+      {/* Action Effect: Bouncing Ball */}
+      {actionEffect === 'ball' && (
+        <motion.div
+          initial={{ x: -30, y: -20, scale: 0.8 }}
+          animate={{
+            x: [ -30, 20, 45, 65 ],
+            y: [ -20, 25, 0, 22 ],
+            rotate: 720
+          }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+          className="absolute z-25 pointer-events-none text-2xl"
+          style={{ left: '40%', top: '45%' }}
+        >
+          🎾
+        </motion.div>
+      )}
+
+      {/* Action Effect: Bath Soap Bubbles */}
+      {actionEffect === 'bath' && (
+        <>
+          {[1, 2, 3, 4, 5].map((b) => (
+            <motion.div
+              key={`bubble-${b}`}
+              initial={{ opacity: 0, y: 15, scale: 0.5 }}
+              animate={{ opacity: [0, 1, 0], y: -35 - b * 8, x: (b % 2 === 0 ? 1 : -1) * b * 6, scale: 1.2 }}
+              transition={{ duration: 1.3, delay: b * 0.15, ease: 'easeOut' }}
+              className="absolute z-25 pointer-events-none text-lg select-none"
+              style={{ left: `${60 + (b % 3) * 6}%`, top: '55%' }}
+            >
+              🫧
+            </motion.div>
+          ))}
+        </>
+      )}
+
+      {/* Action Effect: Feeding Snack */}
+      {actionEffect === 'feed' && (
+        <motion.div
+          initial={{ opacity: 0, y: -20, scale: 0.6 }}
+          animate={{ opacity: [0, 1, 1, 0], y: [ -20, 5, 12, 16 ], scale: [0.6, 1.2, 1, 0.7] }}
+          transition={{ duration: 1.2, ease: 'easeOut' }}
+          className="absolute z-25 pointer-events-none text-2xl select-none"
+          style={{ left: '62%', top: '40%' }}
+        >
+          {currentPetInfo.foodIcon || '🍖'}
+        </motion.div>
+      )}
 
       {/* Retro 16-Bit Crisp SVG Stage */}
       <svg
@@ -307,19 +357,91 @@ export const PixelStage: React.FC<PixelStageProps> = ({
             <rect x="25" y="66" width="7" height="3" rx="1" fill="#1C2833" stroke="#000" strokeWidth="0.3" />
             <rect x="36" y="66" width="7" height="3" rx="1" fill="#1C2833" stroke="#000" strokeWidth="0.3" />
 
-            {/* Torso / Uniform Jacket */}
+            {/* Torso / Outfits based on outfitStyle */}
             <rect x="26" y="37" width="16" height="16" rx="2" fill={outfitColor} stroke="#2C3E50" strokeWidth="0.5" />
-            {/* White Collar / Shirt inset */}
-            <polygon points="34,37 31,41 37,41" fill="#FFFFFF" />
+
+            {/* 1. Gakuran (昭和帝國制服) */}
+            {(!character.outfitStyle || character.outfitStyle === 'gakuran') && (
+              <g id="outfit-gakuran">
+                <rect x="31" y="36.5" width="6" height="3" fill="#1C2833" stroke="#F1C40F" strokeWidth="0.4" />
+                <circle cx="34" cy="41" r="0.7" fill="#F1C40F" />
+                <circle cx="34" cy="45" r="0.7" fill="#F1C40F" />
+                <circle cx="34" cy="49" r="0.7" fill="#F1C40F" />
+                <line x1="28" y1="42" x2="31" y2="42" stroke="#1C2833" strokeWidth="0.8" />
+              </g>
+            )}
+
+            {/* 2. Sailor (學院水手風制服) */}
+            {character.outfitStyle === 'sailor' && (
+              <g id="outfit-sailor">
+                <polygon points="34,37 31,43 37,43" fill="#FFFFFF" />
+                <polygon points="26,37 34,44 42,37 40,36 34,41 28,36" fill="#FFFFFF" stroke="#2980B9" strokeWidth="0.4" />
+                <polygon points="33,42 35,42 36,47 34,45 32,47" fill="#E74C3C" />
+                <circle cx="34" cy="42.5" r="1" fill="#C0392B" />
+                <rect x="23" y="46" width="4" height="1" fill="#FFFFFF" />
+                <rect x="41" y="46" width="4" height="1" fill="#FFFFFF" />
+              </g>
+            )}
+
+            {/* 3. Trench Coat (復古厚呢風衣) */}
+            {character.outfitStyle === 'trench' && (
+              <g id="outfit-trench">
+                <polygon points="34,37 30,42 34,45" fill="#8D6E63" stroke="#4E342E" strokeWidth="0.4" />
+                <polygon points="34,37 38,42 34,45" fill="#8D6E63" stroke="#4E342E" strokeWidth="0.4" />
+                <circle cx="32" cy="42" r="0.6" fill="#3E2723" />
+                <circle cx="36" cy="42" r="0.6" fill="#3E2723" />
+                <circle cx="32" cy="46" r="0.6" fill="#3E2723" />
+                <circle cx="36" cy="46" r="0.6" fill="#3E2723" />
+                <rect x="26" y="48" width="16" height="2" fill="#4E342E" />
+                <rect x="33" y="47.5" width="2" height="3" fill="#D4AF37" />
+              </g>
+            )}
+
+            {/* 4. Hoodie (街頭連帽休閒衫) */}
+            {character.outfitStyle === 'hoodie' && (
+              <g id="outfit-hoodie">
+                <path d="M 29 37 Q 34 39 39 37" stroke="#FFFFFF" strokeWidth="1" fill="none" />
+                <rect x="28.5" y="45" width="11" height="5" rx="1.5" fill="#2C3E50" opacity="0.25" />
+                <line x1="28.5" y1="46" x2="39.5" y2="46" stroke="#FFFFFF" strokeWidth="0.4" strokeDasharray="1,1" />
+                <line x1="32.5" y1="38" x2="32.5" y2="44" stroke="#FFFFFF" strokeWidth="0.6" />
+                <circle cx="32.5" cy="44.5" r="0.5" fill="#FFFFFF" />
+                <line x1="35.5" y1="38" x2="35.5" y2="44" stroke="#FFFFFF" strokeWidth="0.6" />
+                <circle cx="35.5" cy="44.5" r="0.5" fill="#FFFFFF" />
+              </g>
+            )}
+
+            {/* 5. Haori / Jinbei (日式傳統羽織甚平) */}
+            {character.outfitStyle === 'haori' && (
+              <g id="outfit-haori">
+                <line x1="28" y1="37" x2="37" y2="48" stroke="#FAF0E6" strokeWidth="1.2" />
+                <line x1="40" y1="37" x2="31" y2="48" stroke="#FAF0E6" strokeWidth="0.8" />
+                <rect x="26" y="46.5" width="16" height="3.5" fill="#C0392B" stroke="#922B21" strokeWidth="0.4" />
+                <rect x="33" y="47" width="2" height="2" fill="#F1C40F" />
+                <rect x="22" y="44" width="5" height="5" fill={outfitColor} stroke="#2C3E50" strokeWidth="0.4" />
+                <rect x="41" y="44" width="5" height="5" fill={outfitColor} stroke="#2C3E50" strokeWidth="0.4" />
+              </g>
+            )}
+
+            {/* 6. Cyber Tactical (賽博霓虹特工裝) */}
+            {character.outfitStyle === 'cyber' && (
+              <g id="outfit-cyber">
+                <rect x="30" y="36.5" width="8" height="2" fill="#00FFFF" />
+                <line x1="27" y1="40" x2="33" y2="45" stroke="#00FFFF" strokeWidth="0.8" />
+                <line x1="41" y1="40" x2="35" y2="45" stroke="#FF007F" strokeWidth="0.8" />
+                <circle cx="34" cy="45" r="1.5" fill="#00FFFF" />
+                <circle cx="34" cy="45" r="0.6" fill="#FFFFFF" />
+                <rect x="23" y="47" width="4" height="1" fill="#00FFFF" />
+                <rect x="41" y="47" width="4" height="1" fill="#FF007F" />
+              </g>
+            )}
+
+            {/* Accessories (Tie / Ribbon) */}
             {character.accessory === 'tie' && (
               <polygon points="33,40 35,40 34.5,46 34,48 33.5,46" fill="#C0392B" />
             )}
             {character.accessory === 'ribbon' && (
               <polygon points="32,40 36,40 35,42 36,44 32,44 33,42" fill="#E74C3C" />
             )}
-            {/* Gold uniform buttons */}
-            <circle cx="34" cy="44" r="0.6" fill="#F1C40F" />
-            <circle cx="34" cy="48" r="0.6" fill="#F1C40F" />
 
             {/* Arms resting on knees/lap */}
             <rect x="23" y="39" width="4" height="11" rx="1" fill={outfitColor} />

@@ -350,7 +350,9 @@ class MatchService {
       uid: hostUser.uid,
       displayName: hostUser.displayName,
       photoURL: hostUser.photoURL,
-      ready: false
+      ready: false,
+      wardrobe: hostUser.wardrobe,
+      petProfile: hostUser.petProfile
     };
 
     const newRoom: GameRoom = {
@@ -459,7 +461,9 @@ class MatchService {
         uid: user.uid,
         displayName: user.displayName,
         photoURL: user.photoURL,
-        ready: false
+        ready: false,
+        wardrobe: user.wardrobe,
+        petProfile: user.petProfile
       };
       players.push(newPlayer);
       room.players = players;

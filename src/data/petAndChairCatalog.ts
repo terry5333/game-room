@@ -148,12 +148,73 @@ export const PET_CATALOG: PetSpecies[] = [
   }
 ];
 
+export interface OutfitItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  icon: string;
+  rarity: 'normal' | 'rare' | 'epic' | 'legendary';
+}
+
+export const OUTFIT_CATALOG: OutfitItem[] = [
+  {
+    id: 'gakuran',
+    name: '昭和帝國制服',
+    description: '挺拔修身的深藍立領黑金制服，經典黃銅鈕扣，受驗精英的標準正裝。',
+    price: 0,
+    icon: '👔',
+    rarity: 'normal'
+  },
+  {
+    id: 'sailor',
+    name: '學院水手風制服',
+    description: '純白滾邊水手大翻領與胸前紅絲帶領結，青春活力、清爽俐落。',
+    price: 100,
+    icon: '🎀',
+    rarity: 'rare'
+  },
+  {
+    id: 'trench',
+    name: '復古厚呢風衣',
+    description: '福爾摩斯雙排扣英倫風衣，寬腰帶與翻折領口，散發名偵探的銳利氣場。',
+    price: 150,
+    icon: '🧥',
+    rarity: 'epic'
+  },
+  {
+    id: 'hoodie',
+    name: '街頭連帽休閒衫',
+    description: '運動潮流拼接連帽T恤，大容量前置口袋，下棋喝茶最放鬆的隨興穿搭。',
+    price: 120,
+    icon: '👕',
+    rarity: 'normal'
+  },
+  {
+    id: 'haori',
+    name: '日式傳統羽織甚平',
+    description: '和風浮世繪寬袖羽織，胸前交叉交領與繫繩，典雅端莊、沉穩自得。',
+    price: 180,
+    icon: '👘',
+    rarity: 'rare'
+  },
+  {
+    id: 'cyber',
+    name: '賽博霓虹特工裝',
+    description: '未來賽博高領防風夾克，鑲嵌動態青藍流光飾邊，專為極速破譯打造。',
+    price: 220,
+    icon: '⚡',
+    rarity: 'legendary'
+  }
+];
+
 export const DEFAULT_PET_PROFILE: UserPetProfile = {
   character: {
     gender: 'male',
     skinTone: '#FDDCB5',
     hairStyle: 'short',
     hairColor: '#2C3E50',
+    outfitStyle: 'gakuran',
     outfitColor: '#628395',
     accessory: 'none',
     chairId: 'wooden_chair',
@@ -167,9 +228,14 @@ export const DEFAULT_PET_PROFILE: UserPetProfile = {
     maxExp: 50,
     hunger: 80,
     intimacy: 60,
+    mood: 90,
+    cleanliness: 95,
     lastFed: Date.now(),
-    lastPetted: Date.now()
+    lastPetted: Date.now(),
+    lastPlayed: Date.now(),
+    lastBathed: Date.now()
   },
   unlockedChairs: ['wooden_chair'],
-  unlockedPets: ['shiba']
+  unlockedPets: ['shiba'],
+  unlockedOutfits: ['gakuran']
 };

@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Coins, Sparkles, Trophy, RotateCcw, Zap, HelpCircle } from 'lucide-react';
+import { X, Coins, Sparkles, Trophy, RotateCcw, Zap, HelpCircle, Crosshair, Flame, ShieldAlert } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
 
@@ -9,7 +9,7 @@ interface CasinoModalProps {
   onClose: () => void;
 }
 
-type CasinoTab = 'slot' | 'scratch' | 'dice';
+type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette';
 
 // ==========================================
 // 1. SLOT MACHINE SYMBOLS & PAYOUTS
@@ -111,6 +111,108 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
   const [isDiceRolling, setIsDiceRolling] = useState(false);
   const [diceMessage, setDiceMessage] = useState<string | null>(null);
 
+  // ------------------------------------------
+  // GLOBAL PROGRESSIVE JACKPOT (累積大獎池)
+  // ------------------------------------------
+  const [globalJackpot, setGlobalJackpot] = useState<number>(() => {
+    const saved = localStorage.getItem('gameroom_casino_jackpot');
+    return saved ? parseInt(saved, 10) : 13880;
+  });
+
+  const contributeJackpot = (betAmt: number) => {
+    const delta = Math.max(1, Math.round(betAmt * 0.03));
+    setGlobalJackpot((prev) => {
+      const next = prev + delta;
+      localStorage.setItem('gameroom_casino_jackpot', next.toString());
+      return next;
+    });
+  };
+
+  // ------------------------------------------
+  // 4. RUSSIAN ROULETTE (俄羅斯輪盤) STATE
+  // ------------------------------------------
+  const ROULETTE_MULTIPLIERS = [1.5, 2.5, 4.5, 9.0, 20.0];
+  const [rouletteBet, setRouletteBet] = useState<number>(10);
+  const [rouletteRound, setRouletteRound] = useState<number>(1);
+  const [bulletChamber, setBulletChamber] = useState<number>(1);
+  const [currentChamber, setCurrentChamber] = useState<number>(1);
+  const [firedChambers, setFiredChambers] = useState<number[]>([]);
+  const [isRevolverSpinning, setIsRevolverSpinning] = useState(false);
+  const [rouletteState, setRouletteState] = useState<'ready' | 'survived' | 'dead' | 'cashed'>('ready');
+  const [rouletteMessage, setRouletteMessage] = useState<string | null>(null);
+
+  const handlePullTrigger = async () => {
+    if (isRevolverSpinning) return;
+
+    const chamberToFire = rouletteState === 'survived' ? currentChamber + 1 : 1;
+    const roundNow = rouletteState === 'survived' ? rouletteRound + 1 : 1;
+
+    // Start fresh game if ready/dead/cashed
+    if (rouletteState === 'ready' || rouletteState === 'dead' || rouletteState === 'cashed') {
+      if (currentCoins < rouletteBet) {
+        sound.playError();
+        showToast('持有金幣不足以進行本輪挑戰！');
+        return;
+      }
+
+      await updateCoins(-rouletteBet, 'casino_bet', `俄羅斯輪盤下注 🪙${rouletteBet}`);
+      contributeJackpot(rouletteBet);
+
+      const targetBullet = Math.floor(Math.random() * 6) + 1;
+      setBulletChamber(targetBullet);
+      setCurrentChamber(1);
+      setFiredChambers([]);
+      setRouletteRound(1);
+      setRouletteMessage(null);
+    }
+
+    setIsRevolverSpinning(true);
+    sound.playRevolverSpin();
+
+    setTimeout(async () => {
+      setIsRevolverSpinning(false);
+
+      setCurrentChamber(chamberToFire);
+      setFiredChambers((prev) => [...prev, chamberToFire]);
+
+      if (chamberToFire === bulletChamber) {
+        sound.playGunshot();
+        setRouletteState('dead');
+        setRouletteMessage(`💥 槍響中彈！在第 ${roundNow} 輪（第 ${chamberToFire} 號彈巢）擊發！遺憾出局！`);
+      } else {
+        sound.playDryFire();
+        if (roundNow === 5) {
+          const jackpotBonus = Math.floor(globalJackpot * 0.3);
+          const totalWin = rouletteBet * 20 + jackpotBonus;
+          sound.playJackpot();
+          setRouletteState('cashed');
+          setRouletteMessage(`🏆 傳奇誕生！極限生還 5 輪！狂攬 20 倍 + 瓜分獎池 30% 🪙 +${totalWin}！`);
+          await updateCoins(totalWin, 'casino_win', `俄羅斯輪盤極限生還 🪙+${totalWin}`);
+          setGlobalJackpot((prev) => {
+            const next = Math.max(5000, prev - jackpotBonus);
+            localStorage.setItem('gameroom_casino_jackpot', next.toString());
+            return next;
+          });
+        } else {
+          setRouletteState('survived');
+          setRouletteRound(roundNow);
+          const currentWin = Math.floor(rouletteBet * ROULETTE_MULTIPLIERS[roundNow - 1]);
+          setRouletteMessage(`💨 喀嚓！第 ${roundNow} 輪安全！當前獲利 🪙 ${currentWin}（${ROULETTE_MULTIPLIERS[roundNow - 1]}x）！`);
+        }
+      }
+    }, 850);
+  };
+
+  const handleCashOutRoulette = async () => {
+    if (rouletteState !== 'survived') return;
+    const mult = ROULETTE_MULTIPLIERS[rouletteRound - 1] || 1;
+    const winnings = Math.floor(rouletteBet * mult);
+    sound.playSlotWin();
+    setRouletteState('cashed');
+    setRouletteMessage(`💰 見好就收！成功帶走 🪙 +${winnings} 金幣！`);
+    await updateCoins(winnings, 'casino_win', `俄羅斯輪盤見好就收 🪙+${winnings}`);
+  };
+
   if (!isOpen || !currentUser) return null;
 
   const currentCoins = currentUser.coins ?? 0;
@@ -152,6 +254,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
 
     // Deduct bet immediately
     await updateCoins(-slotBet, 'casino_bet', `拉霸機下注 🪙${slotBet}`);
+    contributeJackpot(slotBet);
 
     // Spin reel ticking audio
     sound.playClick();
@@ -268,6 +371,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
 
     // Deduct ticket cost
     await updateCoins(-tier.price, 'casino_bet', `購買【${tier.name}】刮刮樂`);
+    contributeJackpot(tier.price);
 
     // Generate random prizes based on tier (drastically lower win rate & lower prize amounts)
     if (tier.id === 'fortune_20') {
@@ -492,6 +596,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
 
     // Deduct bet
     await updateCoins(-diceBet, 'casino_bet', `骰寶下注 🪙${diceBet}`);
+    contributeJackpot(diceBet);
 
     // Dice cup shake audio
     sound.playDiceShake();
@@ -614,21 +719,43 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
             </div>
           )}
 
-          {/* Navigation Tabs */}
-          <div className="flex items-center gap-2 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
+          {/* Progressive Global Jackpot Banner */}
+          <div className="relative mb-3.5 p-3 rounded-2xl bg-gradient-to-r from-[#20120B] via-[#3D2314] to-[#20120B] border-2 border-[#D4AF37] shadow-xl flex items-center justify-between overflow-hidden">
+            <div className="flex items-center gap-2.5 z-10">
+              <span className="text-2xl animate-bounce">👑</span>
+              <div>
+                <div className="text-[10px] font-black text-[#FFD700] tracking-widest uppercase flex items-center gap-1.5">
+                  <span>IMPERIAL GRAND JACKPOT</span>
+                  <span className="px-1.5 py-0.2 rounded-full bg-[#A82323] text-white text-[9px] font-black">
+                    帝國累積大獎池
+                  </span>
+                </div>
+                <div className="text-xl sm:text-2xl font-black font-mono text-[#FDF6C7] tracking-wider drop-shadow-md">
+                  🪙 {globalJackpot.toLocaleString()}
+                </div>
+              </div>
+            </div>
+            <div className="text-right z-10">
+              <div className="text-[10px] text-[#D4AF37] font-bold">每局注額 3% 自動累加</div>
+              <div className="text-[10px] text-amber-200 font-extrabold">輪盤通關第5輪／拉霸特獎即瓜分！</div>
+            </div>
+          </div>
+
+          {/* Navigation Tabs (4 Games: Slots, Scratch, Dice, Roulette) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
             <button
               onClick={() => {
                 sound.playClick();
                 setActiveTab('slot');
               }}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'slot'
                   ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
                   : 'text-[#C5A028] hover:bg-white/5'
               }`}
             >
               <span>🎰</span>
-              <span>幸運拉霸機</span>
+              <span>幸運拉霸</span>
             </button>
 
             <button
@@ -636,7 +763,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                 sound.playClick();
                 setActiveTab('scratch');
               }}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'scratch'
                   ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
                   : 'text-[#C5A028] hover:bg-white/5'
@@ -651,7 +778,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                 sound.playClick();
                 setActiveTab('dice');
               }}
-              className={`flex-1 py-2 px-3 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
                 activeTab === 'dice'
                   ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
                   : 'text-[#C5A028] hover:bg-white/5'
@@ -659,6 +786,21 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
             >
               <span>🎲</span>
               <span>地下骰寶</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sound.playClick();
+                setActiveTab('roulette');
+              }}
+              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'roulette'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
+                  : 'text-[#C5A028] hover:bg-white/5'
+              }`}
+            >
+              <span>🎯</span>
+              <span>俄羅斯輪盤</span>
             </button>
           </div>
 
@@ -1183,6 +1325,240 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                   <Trophy className="w-5 h-5 fill-current" />
                   <span>{isDiceRolling ? '搖盅中...' : `搖盅擲骰 (🪙 ${diceBet})`}</span>
                 </button>
+              </div>
+            </div>
+          )}
+
+          {/* ========================================================
+              TAB 4: 🎯 俄羅斯輪盤 (RUSSIAN ROULETTE)
+              ======================================================== */}
+          {activeTab === 'roulette' && (
+            <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
+              {/* Revolver Chamber Stage Cabinet */}
+              <div className="relative p-4 sm:p-5 rounded-3xl bg-[#1A0E08] border-3 border-[#D4AF37] shadow-2xl flex flex-col items-center">
+                {/* Header Neon / Gold Badge */}
+                <div className="w-full flex items-center justify-between px-3.5 py-1.5 rounded-full bg-black/60 border border-[#D4AF37]/50 mb-3">
+                  <div className="flex items-center gap-1.5">
+                    <span className="w-2.5 h-2.5 rounded-full bg-rose-500 animate-ping" />
+                    <span className="text-[11px] font-black text-[#FDF6C7] tracking-wider">
+                      RUSSIAN ROULETTE・命運轉輪
+                    </span>
+                  </div>
+                  <div className="text-[11px] font-black text-[#FFD700]">
+                    ★ 6孔1彈・極限 20x 奪獎池 ★
+                  </div>
+                </div>
+
+                {/* 5-Stage Multiplier Ladder Progress Bar */}
+                <div className="w-full grid grid-cols-5 gap-1 sm:gap-2 mb-4">
+                  {ROULETTE_MULTIPLIERS.map((mult, idx) => {
+                    const stepNum = idx + 1;
+                    const isCurrent = rouletteRound === stepNum && rouletteState === 'survived';
+                    const isPassed = rouletteRound > stepNum || (rouletteRound === 5 && rouletteState === 'cashed');
+
+                    return (
+                      <div
+                        key={`roulette-step-${stepNum}`}
+                        className={`p-2 rounded-xl border text-center transition-all ${
+                          isPassed
+                            ? 'bg-emerald-950/80 border-emerald-500 text-emerald-300'
+                            : isCurrent
+                            ? 'bg-amber-500/20 border-[#FFD700] text-[#FFD700] shadow-md scale-105 animate-pulse'
+                            : 'bg-black/40 border-neutral-700 text-neutral-400'
+                        }`}
+                      >
+                        <div className="text-[10px] font-bold">第 {stepNum} 發</div>
+                        <div className="text-xs sm:text-sm font-black font-mono">
+                          {mult}x
+                        </div>
+                        {stepNum === 5 && (
+                          <div className="text-[8px] text-amber-300 font-extrabold mt-0.5">
+                            +30%獎池
+                          </div>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+
+                {/* Revolver 6-Chamber Cylinder SVG */}
+                <div className="relative w-44 h-44 sm:w-52 sm:h-52 flex items-center justify-center my-2">
+                  <motion.svg
+                    viewBox="0 0 200 200"
+                    className="w-full h-full filter drop-shadow-xl"
+                    animate={isRevolverSpinning ? { rotate: [0, 720] } : {}}
+                    transition={{ duration: 0.8, ease: 'easeOut' }}
+                  >
+                    {/* Outer Steel Cylinder */}
+                    <circle cx="100" cy="100" r="90" fill="#2E2018" stroke="#D4AF37" strokeWidth="4" />
+                    <circle cx="100" cy="100" r="82" fill="#1A100A" stroke="#5D3A1A" strokeWidth="2" />
+                    {/* Flutes (Cylinder Cuts) */}
+                    {[0, 60, 120, 180, 240, 300].map((deg) => (
+                      <rect
+                        key={`flute-${deg}`}
+                        x="96"
+                        y="12"
+                        width="8"
+                        height="26"
+                        rx="4"
+                        fill="#0E0805"
+                        transform={`rotate(${deg} 100 100)`}
+                      />
+                    ))}
+
+                    {/* Center Ratchet / Ejector Rod Hub */}
+                    <circle cx="100" cy="100" r="28" fill="#5D3A1A" stroke="#D4AF37" strokeWidth="2" />
+                    <circle cx="100" cy="100" r="14" fill="#0E0805" />
+
+                    {/* 6 Chambers */}
+                    {[1, 2, 3, 4, 5, 6].map((ch) => {
+                      const angle = (ch - 1) * 60 - 90; // Top is chamber 1
+                      const rad = (angle * Math.PI) / 180;
+                      const cx = 100 + 52 * Math.cos(rad);
+                      const cy = 100 + 52 * Math.sin(rad);
+
+                      const isFired = firedChambers.includes(ch);
+                      const isBulletHere = ch === bulletChamber && rouletteState === 'dead';
+                      const isAiming = ch === (rouletteState === 'survived' ? currentChamber + 1 : currentChamber);
+
+                      return (
+                        <g key={`chamber-${ch}`}>
+                          {/* Chamber Hole */}
+                          <circle
+                            cx={cx}
+                            cy={cy}
+                            r="19"
+                            fill={isBulletHere ? '#A82323' : isFired ? '#120A06' : '#3E2A1E'}
+                            stroke={isAiming && !isRevolverSpinning ? '#FFD700' : '#8D5B4C'}
+                            strokeWidth={isAiming ? 3 : 1.5}
+                          />
+
+                          {/* Bullet Primer or Empty Chamber Mark */}
+                          {isBulletHere ? (
+                            <text
+                              x={cx}
+                              y={cy + 6}
+                              fontSize="18"
+                              textAnchor="middle"
+                              fill="#FFFFFF"
+                            >
+                              💥
+                            </text>
+                          ) : isFired ? (
+                            <circle cx={cx} cy={cy} r="6" fill="#0A0503" />
+                          ) : (
+                            <g>
+                              {/* Brass Cartridge Case */}
+                              <circle cx={cx} cy={cy} r="14" fill="#B8860B" />
+                              <circle cx={cx} cy={cy} r="6" fill="#D4AF37" />
+                              <text
+                                x={cx}
+                                y={cy + 3.5}
+                                fontSize="9"
+                                fontWeight="bold"
+                                textAnchor="middle"
+                                fill="#2B1E16"
+                              >
+                                {ch}
+                              </text>
+                            </g>
+                          )}
+                        </g>
+                      );
+                    })}
+                  </motion.svg>
+
+                  {/* Top Hammer / Firing Pin Indicator */}
+                  <div className="absolute -top-3 left-1/2 -translate-x-1/2 flex flex-col items-center pointer-events-none">
+                    <Crosshair className="w-6 h-6 text-[#FFD700] animate-pulse" />
+                  </div>
+                </div>
+
+                {/* Announcement Banner */}
+                <div className="w-full mt-2 min-h-[36px] flex items-center justify-center">
+                  {rouletteMessage ? (
+                    <motion.div
+                      initial={{ scale: 0.9, opacity: 0 }}
+                      animate={{ scale: 1, opacity: 1 }}
+                      className={`px-4 py-1.5 rounded-xl text-center font-black text-xs sm:text-sm shadow-md ${
+                        rouletteState === 'dead'
+                          ? 'bg-rose-950 border border-rose-500 text-rose-200'
+                          : rouletteState === 'survived'
+                          ? 'bg-gradient-to-r from-emerald-600 to-teal-600 text-white animate-pulse'
+                          : 'bg-gradient-to-r from-[#D4AF37] to-[#FFD700] text-[#231710]'
+                      }`}
+                    >
+                      {rouletteMessage}
+                    </motion.div>
+                  ) : (
+                    <span className="text-xs text-[#A8884A] font-bold">
+                      選擇下注額，點擊「扣動扳機」開始對決命運！
+                    </span>
+                  )}
+                </div>
+              </div>
+
+              {/* Bottom Controls */}
+              <div className="mt-4 pt-3 border-t border-[#D4AF37]/30 flex flex-col sm:flex-row items-center justify-between gap-3">
+                {/* Bet Selectors */}
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-xs font-bold text-[#C5A028]">下注額：</span>
+                  {BET_OPTIONS.map((amt) => (
+                    <button
+                      key={`roulette-bet-${amt}`}
+                      disabled={isRevolverSpinning || rouletteState === 'survived'}
+                      onClick={() => {
+                        sound.playClick();
+                        setRouletteBet(amt);
+                      }}
+                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                        rouletteBet === amt
+                          ? 'bg-[#D4AF37] text-[#231710] shadow-md scale-105'
+                          : 'bg-black/50 text-[#FFE8D6] hover:bg-white/10'
+                      }`}
+                    >
+                      🪙 {amt}
+                    </button>
+                  ))}
+                </div>
+
+                {/* Dual Action Buttons when survived OR Single trigger button */}
+                <div className="w-full sm:w-auto flex items-center gap-2">
+                  {rouletteState === 'survived' ? (
+                    <>
+                      <button
+                        disabled={isRevolverSpinning}
+                        onClick={handleCashOutRoulette}
+                        className="flex-1 sm:flex-initial px-5 py-3 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-emerald-600 to-emerald-700 hover:brightness-110 text-white shadow-xl flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                      >
+                        <Coins className="w-4 h-4" />
+                        <span>見好就收 (🪙 {Math.floor(rouletteBet * ROULETTE_MULTIPLIERS[rouletteRound - 1])})</span>
+                      </button>
+
+                      <button
+                        disabled={isRevolverSpinning}
+                        onClick={handlePullTrigger}
+                        className="flex-1 sm:flex-initial px-6 py-3 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-[#A82323] via-rose-600 to-[#831818] hover:brightness-110 text-white shadow-xl flex items-center justify-center gap-1.5 cursor-pointer active:scale-95 transition-all animate-pulse"
+                      >
+                        <Crosshair className="w-4 h-4" />
+                        <span>扣動第 {rouletteRound + 1} 發 ({ROULETTE_MULTIPLIERS[rouletteRound]}x)</span>
+                      </button>
+                    </>
+                  ) : (
+                    <button
+                      disabled={isRevolverSpinning || currentCoins < rouletteBet}
+                      onClick={handlePullTrigger}
+                      className={`w-full sm:w-auto px-8 py-3 rounded-2xl font-black text-base transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
+                        isRevolverSpinning
+                          ? 'bg-neutral-600 text-neutral-300 cursor-not-allowed'
+                          : 'bg-gradient-to-r from-[#D4AF37] via-[#FFD700] to-[#B8860B] hover:brightness-110 text-[#231710] active:scale-95'
+                      }`}
+                    >
+                      <Crosshair className="w-5 h-5 fill-current" />
+                      <span>{isRevolverSpinning ? '轉輪旋轉中...' : `扣動扳機 🎲 (🪙 ${rouletteBet})`}</span>
+                    </button>
+                  )}
+                </div>
               </div>
             </div>
           )}

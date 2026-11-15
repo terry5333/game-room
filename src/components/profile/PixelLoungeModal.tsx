@@ -19,6 +19,7 @@ import { sound } from '../../services/soundService';
 import {
   CHAIR_CATALOG,
   PET_CATALOG,
+  OUTFIT_CATALOG,
   DEFAULT_PET_PROFILE
 } from '../../data/petAndChairCatalog';
 import { PixelStage } from './PixelStage';
@@ -36,14 +37,18 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
     updatePetProfile,
     feedPet,
     petThePet,
+    playWithPet,
+    bathePet,
     purchaseChair,
-    purchasePet
+    purchasePet,
+    purchaseOutfit
   } = useAuth();
 
-  const [activeTab, setActiveTab] = useState<'pet' | 'chair' | 'character'>('pet');
+  const [activeTab, setActiveTab] = useState<'pet' | 'outfit' | 'chair' | 'character'>('pet');
   const [editingName, setEditingName] = useState(false);
   const [newName, setNewName] = useState('');
   const [feedbackNotice, setFeedbackNotice] = useState<string | null>(null);
+  const [actionEffect, setActionEffect] = useState<'feed' | 'pet' | 'ball' | 'bath' | null>(null);
 
   if (!isOpen || !currentUser) return null;
 
@@ -51,6 +56,7 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
   const currentCharacter = petProfile.character || DEFAULT_PET_PROFILE.character;
   const unlockedChairs = petProfile.unlockedChairs || ['wooden_chair'];
   const unlockedPets = petProfile.unlockedPets || ['shiba'];
+  const unlockedOutfits = petProfile.unlockedOutfits || ['gakuran'];
 
   const petSpecies =
     PET_CATALOG.find((p) => p.id === currentPetData.id) || PET_CATALOG[0];
@@ -60,6 +66,11 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
   const showToast = (msg: string) => {
     setFeedbackNotice(msg);
     setTimeout(() => setFeedbackNotice(null), 2500);
+  };
+
+  const triggerEffect = (eff: 'feed' | 'pet' | 'ball' | 'bath') => {
+    setActionEffect(eff);
+    setTimeout(() => setActionEffect(null), 1500);
   };
 
   // Feed pet handler
@@ -72,6 +83,7 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
     const success = await feedPet();
     if (success) {
       sound.playSuccess();
+      triggerEffect('feed');
       showToast(`餵食了【${petSpecies.favoriteFood}】！飽食度+30，親密度+10，EXP+25！`);
     }
   };
@@ -81,7 +93,58 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
     const success = await petThePet();
     if (success) {
       sound.playPop();
+      triggerEffect('pet');
       showToast(`輕輕撫摸了【${currentPetData.name}】～心情無比幸福！親密度+5！`);
+    }
+  };
+
+  // Play ball handler
+  const handlePlayBall = async () => {
+    const success = await playWithPet();
+    if (success) {
+      sound.playBallBounce();
+      triggerEffect('ball');
+      showToast(`和【${currentPetData.name}】開心地玩了拋球遊戲！心情值+25，EXP+15！`);
+    }
+  };
+
+  // Bathe pet handler
+  const handleBath = async () => {
+    const success = await bathePet();
+    if (success) {
+      sound.playBubbleWash();
+      triggerEffect('bath');
+      showToast(`為【${currentPetData.name}】進行了溫暖的泡泡沐浴！整潔度 100%，親密度+10！`);
+    }
+  };
+
+  // Select or buy outfit handler
+  const handleSelectOutfit = async (outfitId: string) => {
+    const outfit = OUTFIT_CATALOG.find((o) => o.id === outfitId);
+    if (!outfit) return;
+
+    if (unlockedOutfits.includes(outfitId)) {
+      sound.playPop();
+      const updated: UserPetProfile = {
+        ...petProfile,
+        character: {
+          ...currentCharacter,
+          outfitStyle: outfitId
+        }
+      };
+      await updatePetProfile(updated);
+      showToast(`已成功換裝【${outfit.name}】！`);
+    } else {
+      if (currentUser.coins < outfit.price) {
+        sound.playError();
+        showToast(`金幣不足！購買【${outfit.name}】需要 🪙 ${outfit.price} 枚！`);
+        return;
+      }
+      sound.playSuccess();
+      const ok = await purchaseOutfit(outfitId, outfit.price, outfit.name);
+      if (ok) {
+        showToast(`成功解鎖並換裝【${outfit.name}】！消耗 🪙 ${outfit.price} 枚金幣！`);
+      }
     }
   };
 
@@ -248,7 +311,7 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
 
         {/* Live Pixel Preview Center Stage */}
         <div className="my-3 p-3 rounded-2xl bg-gradient-to-b from-[#F7EBD2] to-[#EFE1C3] border-2 border-[#D5C0A1] shadow-inner flex flex-col items-center justify-center relative shrink-0">
-          <PixelStage profile={petProfile} size="md" interactive={true} />
+          <PixelStage profile={petProfile} size="md" interactive={true} actionEffect={actionEffect} />
 
           {/* Quick Info Bar below preview */}
           <div className="w-full flex items-center justify-between px-3 py-1.5 mt-1 rounded-xl bg-white/70 border border-[#D5C0A1]/60 text-xs font-bold text-[#5D3A1A]">
@@ -264,20 +327,34 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
           </div>
         </div>
 
-        {/* Tab Switcher */}
-        <div className="flex items-center gap-2 mb-3 shrink-0">
+        {/* Tab Switcher (4 Tabs: Pet Care, Outfits, Chairs, Avatar) */}
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 sm:gap-2 mb-3 shrink-0">
           <button
             onClick={() => {
               sound.playPop();
               setActiveTab('pet');
             }}
-            className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
               activeTab === 'pet'
                 ? 'bg-[#8D5B4C] text-white shadow-xs'
                 : 'bg-white/70 text-[#96897B] hover:text-[#2E2925] border border-[#96897B]/20'
             }`}
           >
-            <span>🐾 萌寵養成與領養</span>
+            <span>🐾 萌寵互動</span>
+          </button>
+
+          <button
+            onClick={() => {
+              sound.playPop();
+              setActiveTab('outfit');
+            }}
+            className={`py-2 px-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
+              activeTab === 'outfit'
+                ? 'bg-[#8D5B4C] text-white shadow-xs'
+                : 'bg-white/70 text-[#96897B] hover:text-[#2E2925] border border-[#96897B]/20'
+            }`}
+          >
+            <span>👗 人物換裝</span>
           </button>
 
           <button
@@ -285,13 +362,13 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
               sound.playPop();
               setActiveTab('chair');
             }}
-            className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
               activeTab === 'chair'
                 ? 'bg-[#8D5B4C] text-white shadow-xs'
                 : 'bg-white/70 text-[#96897B] hover:text-[#2E2925] border border-[#96897B]/20'
             }`}
           >
-            <span>🪑 座椅家具工坊</span>
+            <span>🪑 座椅家具</span>
           </button>
 
           <button
@@ -299,13 +376,13 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
               sound.playPop();
               setActiveTab('character');
             }}
-            className={`flex-1 py-2 px-3 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1.5 ${
+            className={`py-2 px-2 rounded-xl font-black text-xs transition-all cursor-pointer flex items-center justify-center gap-1 ${
               activeTab === 'character'
                 ? 'bg-[#8D5B4C] text-white shadow-xs'
                 : 'bg-white/70 text-[#96897B] hover:text-[#2E2925] border border-[#96897B]/20'
             }`}
           >
-            <span>👤 像素形象裝扮</span>
+            <span>👤 外觀微調</span>
           </button>
         </div>
 
@@ -367,8 +444,8 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
                   </div>
                 </div>
 
-                {/* Status Gauges: Hunger & Intimacy */}
-                <div className="grid grid-cols-2 gap-2 w-full sm:w-64">
+                {/* 4 Status Gauges: Hunger, Intimacy, Mood, Cleanliness */}
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 w-full">
                   {/* Hunger */}
                   <div className="p-2 rounded-xl bg-neutral-50 border border-neutral-200">
                     <div className="flex items-center justify-between text-[10px] font-black text-[#5D3A1A] mb-1">
@@ -396,25 +473,69 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
                       />
                     </div>
                   </div>
+
+                  {/* Mood */}
+                  <div className="p-2 rounded-xl bg-sky-50 border border-sky-200">
+                    <div className="flex items-center justify-between text-[10px] font-black text-sky-800 mb-1">
+                      <span>心情值 🎾</span>
+                      <span>{currentPetData.mood || 90}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-sky-100 overflow-hidden">
+                      <div
+                        className="h-full bg-sky-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, currentPetData.mood || 90)}%` }}
+                      />
+                    </div>
+                  </div>
+
+                  {/* Cleanliness */}
+                  <div className="p-2 rounded-xl bg-emerald-50 border border-emerald-200">
+                    <div className="flex items-center justify-between text-[10px] font-black text-emerald-800 mb-1">
+                      <span>整潔度 🫧</span>
+                      <span>{currentPetData.cleanliness || 95}%</span>
+                    </div>
+                    <div className="w-full h-1.5 rounded-full bg-emerald-100 overflow-hidden">
+                      <div
+                        className="h-full bg-emerald-500 rounded-full transition-all duration-500"
+                        style={{ width: `${Math.min(100, currentPetData.cleanliness || 95)}%` }}
+                      />
+                    </div>
+                  </div>
                 </div>
               </div>
 
-              {/* Action Buttons: Feed & Pet */}
-              <div className="grid grid-cols-2 gap-3">
+              {/* 4 Interactive Pet Care Actions: Feed, Pet, Play Ball, Bath */}
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
                 <button
                   onClick={handleFeed}
-                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xs shadow-md shadow-amber-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <Utensils className="w-4 h-4" />
-                  <span>餵食點心（消耗 10 金幣）</span>
+                  <Utensils className="w-3.5 h-3.5" />
+                  <span>🍖 餵食 (10幣)</span>
                 </button>
 
                 <button
                   onClick={handlePet}
-                  className="py-3 px-4 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-black text-xs shadow-md shadow-rose-500/25 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                 >
-                  <Heart className="w-4 h-4 fill-white" />
-                  <span>溫柔撫摸（親密 +5）</span>
+                  <Heart className="w-3.5 h-3.5 fill-white" />
+                  <span>❤️ 摸摸 (+5親密)</span>
+                </button>
+
+                <button
+                  onClick={handlePlayBall}
+                  className="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-sky-500 to-blue-600 hover:from-sky-600 hover:to-blue-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="text-sm">🎾</span>
+                  <span>拋球玩耍 (+25心情)</span>
+                </button>
+
+                <button
+                  onClick={handleBath}
+                  className="py-2.5 px-3 rounded-2xl bg-gradient-to-r from-emerald-500 to-teal-600 hover:from-emerald-600 hover:to-teal-700 text-white font-black text-xs shadow-sm flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span className="text-sm">🫧</span>
+                  <span>泡泡沐浴 (潔淨100%)</span>
                 </button>
               </div>
 
@@ -492,7 +613,86 @@ export const PixelLoungeModal: React.FC<PixelLoungeModalProps> = ({ isOpen, onCl
             </div>
           )}
 
-          {/* TAB 2: 座椅家具工坊 */}
+          {/* TAB 2: 👗 角色服裝衣櫥 */}
+          {activeTab === 'outfit' && (
+            <div className="space-y-4">
+              <div className="flex items-center justify-between">
+                <h4 className="text-xs font-black text-[#2E2925] flex items-center gap-1.5">
+                  <Sparkles className="w-3.5 h-3.5 text-[#8D5B4C]" />
+                  <span>受驗生制服衣櫥（更換穿搭即時改變像素小人外觀）</span>
+                </h4>
+                <span className="text-[10px] text-[#96897B] font-bold">
+                  已解鎖 {unlockedOutfits.length} / {OUTFIT_CATALOG.length} 件
+                </span>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2.5">
+                {OUTFIT_CATALOG.map((o) => {
+                  const isUnlocked = unlockedOutfits.includes(o.id);
+                  const isEquipped = (currentCharacter.outfitStyle || 'gakuran') === o.id;
+
+                  return (
+                    <div
+                      key={o.id}
+                      className={`p-3 rounded-2xl border transition-all flex items-center justify-between gap-2.5 ${
+                        isEquipped
+                          ? 'bg-[#8D5B4C]/10 border-[#8D5B4C] shadow-xs'
+                          : isUnlocked
+                          ? 'bg-white border-[#96897B]/25 hover:border-[#8D5B4C]/50'
+                          : 'bg-neutral-50 border-neutral-200 opacity-90'
+                      }`}
+                    >
+                      <div className="flex items-center gap-2.5 min-w-0">
+                        <div className="w-10 h-10 rounded-xl bg-amber-50 flex items-center justify-center text-xl shrink-0 border border-amber-200">
+                          {o.icon}
+                        </div>
+                        <div className="min-w-0">
+                          <div className="flex items-center gap-1.5">
+                            <span className="font-extrabold text-xs text-[#2E2925] truncate">
+                              {o.name}
+                            </span>
+                            {isEquipped && (
+                              <span className="text-[9px] font-black px-1.5 py-0.2 rounded bg-[#8D5B4C] text-white">
+                                穿著中
+                              </span>
+                            )}
+                          </div>
+                          <p className="text-[10px] text-[#96897B] truncate max-w-[150px]">
+                            {o.description}
+                          </p>
+                        </div>
+                      </div>
+
+                      <div>
+                        {isEquipped ? (
+                          <span className="text-xs font-bold text-[#8D5B4C] flex items-center gap-1">
+                            <Check className="w-3.5 h-3.5" /> 穿著中
+                          </span>
+                        ) : isUnlocked ? (
+                          <button
+                            onClick={() => handleSelectOutfit(o.id)}
+                            className="px-3 py-1.5 rounded-xl bg-[#8D5B4C] hover:bg-[#6e463b] text-white text-xs font-bold transition-all cursor-pointer shadow-2xs"
+                          >
+                            更換穿著
+                          </button>
+                        ) : (
+                          <button
+                            onClick={() => handleSelectOutfit(o.id)}
+                            className="px-3 py-1.5 rounded-xl bg-amber-500 hover:bg-amber-600 text-white text-xs font-bold transition-all cursor-pointer flex items-center gap-1 shadow-2xs"
+                          >
+                            <Coins className="w-3 h-3" />
+                            <span>{o.price} 幣解鎖</span>
+                          </button>
+                        )}
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            </div>
+          )}
+
+          {/* TAB 3: 座椅家具工坊 */}
           {activeTab === 'chair' && (
             <div className="space-y-4">
               <h4 className="text-xs font-black text-[#2E2925] mb-2 flex items-center gap-1.5">

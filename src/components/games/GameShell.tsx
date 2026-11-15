@@ -23,6 +23,8 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
 import { ExamCardModal } from '../profile/ExamCardModal';
+import { PixelStage } from '../profile/PixelStage';
+import { DEFAULT_PET_PROFILE } from '../../data/petAndChairCatalog';
 import { sound } from '../../services/soundService';
 import type { PlayerSlot, RoomCreationOptions } from '../../types';
 
@@ -316,11 +318,23 @@ export const GameShell: React.FC<GameShellProps> = ({
                   : 'bg-white/60 border-white/70 shadow-2xs'
               }`}
             >
-              <img
-                src={p.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid || idx}`}
-                alt={p.displayName}
-                className="w-7 h-7 rounded-lg object-cover border border-[#96897B]/20 shrink-0"
-              />
+              <div
+                onClick={() => {
+                  sound.playClick();
+                  setInspectUser(p);
+                }}
+                className="w-8 h-8 rounded-lg bg-[#FAF3E0] border border-[#8D5B4C]/30 flex items-center justify-center shrink-0 overflow-hidden relative cursor-pointer hover:scale-105 transition-transform"
+                title="點擊查看受驗准考證名片"
+              >
+                <div className="scale-[0.45] origin-center">
+                  <PixelStage
+                    profile={p.petProfile || (p.uid === currentUser.uid ? currentUser.petProfile : DEFAULT_PET_PROFILE)}
+                    size="sm"
+                    interactive={false}
+                    showFloor={false}
+                  />
+                </div>
+              </div>
               <div className="min-w-0 flex-1">
                 <div className="text-[11px] font-extrabold text-[#2E2925] truncate">
                   {p.displayName}
@@ -377,6 +391,55 @@ export const GameShell: React.FC<GameShellProps> = ({
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
               </button>
+            </div>
+
+            {/* Seated Battle Lounge Seats (受驗對戰座席) */}
+            <div className="my-3 p-2 rounded-2xl bg-gradient-to-b from-[#F7EBD2] to-[#EFE1C3] border border-[#D5C0A1] shadow-inner flex items-center justify-around overflow-hidden">
+              {/* Player 1 */}
+              <div className="flex flex-col items-center">
+                <div className="scale-75 origin-center my-[-8px]">
+                  <PixelStage
+                    profile={displayPlayers[0]?.petProfile || (displayPlayers[0]?.uid === currentUser.uid ? currentUser.petProfile : DEFAULT_PET_PROFILE)}
+                    size="sm"
+                    interactive={true}
+                    showFloor={true}
+                  />
+                </div>
+                <span className="text-[10px] font-black text-[#5D3A1A] mt-0.5">
+                  {displayPlayers[0]?.displayName || '玩家1'}
+                </span>
+              </div>
+
+              {/* VS Divider */}
+              <div className="flex flex-col items-center">
+                <span className="text-xs font-black font-serif text-[#A82323] px-2 py-0.5 rounded-full bg-[#A82323]/10 border border-[#A82323]/25">
+                  VS
+                </span>
+              </div>
+
+              {/* Player 2 */}
+              <div className="flex flex-col items-center">
+                {displayPlayers[1] ? (
+                  <>
+                    <div className="scale-75 origin-center my-[-8px]">
+                      <PixelStage
+                        profile={displayPlayers[1]?.petProfile || (displayPlayers[1]?.uid === currentUser.uid ? currentUser.petProfile : DEFAULT_PET_PROFILE)}
+                        size="sm"
+                        interactive={true}
+                        showFloor={true}
+                      />
+                    </div>
+                    <span className="text-[10px] font-black text-[#5D3A1A] mt-0.5">
+                      {displayPlayers[1]?.displayName || '玩家2'}
+                    </span>
+                  </>
+                ) : (
+                  <div className="w-24 h-20 rounded-xl border-2 border-dashed border-[#8D5B4C]/40 flex flex-col items-center justify-center text-center p-2 text-[#8D5B4C]">
+                    <span className="text-lg">🪑</span>
+                    <span className="text-[9px] font-bold mt-1">等待入座...</span>
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Action Buttons: Invite Friends, Custom Rules & Wardrobe Shop */}

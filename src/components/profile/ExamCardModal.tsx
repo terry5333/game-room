@@ -8,6 +8,7 @@ import {
   PET_CATALOG,
   DEFAULT_PET_PROFILE
 } from '../../data/petAndChairCatalog';
+import { PixelStage } from './PixelStage';
 import { sound } from '../../services/soundService';
 
 interface ExamCardModalProps {
@@ -117,11 +118,9 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                 <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#5D3A1A]" />
                 <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#5D3A1A]" />
 
-                <img
-                  src={photoUrl}
-                  alt={user.displayName}
-                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-md object-cover border border-[#8D5B4C]/30 shadow-inner"
-                />
+                <div className="scale-85 origin-center my-[-4px]">
+                  <PixelStage profile={petProf} size="sm" interactive={false} showFloor={true} />
+                </div>
 
                 {/* Corner Embossed School Stamp */}
                 <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-[#A83232]/90 text-white text-[8px] font-black font-serif tracking-tighter shadow-xs border border-white/80 rotate-[-12deg]">

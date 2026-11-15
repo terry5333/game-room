@@ -102,7 +102,7 @@ export const Lobby: React.FC<LobbyProps> = ({
     {
       id: '1a2b' as const,
       title: '1A2B 數字密碼戰',
-      desc: '雙人即時競速！推理解析 4 位神秘密碼，搶先破譯 4A0B 者獲勝。（限定 2 人）',
+      desc: '支援 2-5 人對戰！雙人即時攻防或多人同台競猜，率先破解 4A0B 者獲勝。（2-5 人）',
       icon: Hash,
       color: '#628395'
     },
