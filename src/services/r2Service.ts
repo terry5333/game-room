@@ -153,6 +153,23 @@ class R2Service {
     return this.getPresignedUrl(key, R2_CONFIG.bucket, 604800);
   }
 
+  // Upload a base64 data URI to R2 directly
+  public async uploadBase64Avatar(base64Data: string, uid: string): Promise<string> {
+    const matches = base64Data.match(/^data:([^;]+);base64,(.+)$/);
+    if (!matches) {
+      throw new Error('Invalid base64 data URI');
+    }
+    const contentType = matches[1];
+    const byteCharacters = atob(matches[2]);
+    const byteNumbers = new Array(byteCharacters.length);
+    for (let i = 0; i < byteCharacters.length; i++) {
+      byteNumbers[i] = byteCharacters.charCodeAt(i);
+    }
+    const byteArray = new Uint8Array(byteNumbers);
+    const blob = new Blob([byteArray], { type: contentType });
+    return this.uploadAvatar(blob, uid);
+  }
+
   // Ensures an avatar URL is signed if it's an R2 reference
   public async ensureSignedAvatarUrl(photoURL: string): Promise<string> {
     if (!photoURL) return '';

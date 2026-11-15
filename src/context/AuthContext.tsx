@@ -16,6 +16,7 @@ import {
   onValue
 } from '../services/firebase';
 import { matchService } from '../services/matchService';
+import { r2Service } from '../services/r2Service';
 
 export const ADMIN_EMAIL = 'terrylie0215@gmail.com';
 
@@ -90,6 +91,31 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       return () => unsub();
     }
   }, []);
+
+  // Auto-migrate legacy base64 avatar to Cloudflare R2 to eliminate network lag
+  useEffect(() => {
+    if (currentUser?.photoURL && currentUser.photoURL.startsWith('data:')) {
+      const base64 = currentUser.photoURL;
+      const uid = currentUser.uid;
+      // Immediately set temporary lightweight avatar in local storage to stop sending 2.6MB packets
+      const safeTemp = `https://api.dicebear.com/7.x/bottts/svg?seed=${uid}`;
+      const updated = { ...currentUser, photoURL: safeTemp };
+      setCurrentUser(updated);
+      localStorage.setItem('duo_current_user', JSON.stringify(updated));
+
+      // Asynchronously upload to Cloudflare R2
+      r2Service
+        .uploadBase64Avatar(base64, uid)
+        .then((signedUrl) => {
+          updateUserProfile({
+            displayName: currentUser.displayName,
+            photoURL: signedUrl,
+            userTag: currentUser.userTag
+          });
+        })
+        .catch(console.warn);
+    }
+  }, [currentUser?.photoURL, currentUser?.uid]);
 
   const handleFirebaseUser = async (fbUser: any) => {
     const isAdmin = fbUser.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();

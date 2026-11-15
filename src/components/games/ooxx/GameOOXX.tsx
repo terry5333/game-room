@@ -11,9 +11,10 @@ import type { StateOOXX } from '../../../types';
 function checkWinningLine(grid: (string | null)[][]): { winner: string; line: { r: number; c: number }[] } | null {
   // Check rows
   for (let r = 0; r < 3; r++) {
-    if (grid[r][0] && grid[r][0] === grid[r][1] && grid[r][0] === grid[r][2]) {
+    const row = grid[r] || [];
+    if (row[0] && row[0] === row[1] && row[0] === row[2]) {
       return {
-        winner: grid[r][0]!,
+        winner: row[0],
         line: [
           { r, c: 0 },
           { r, c: 1 },
@@ -25,7 +26,7 @@ function checkWinningLine(grid: (string | null)[][]): { winner: string; line: { 
 
   // Check cols
   for (let c = 0; c < 3; c++) {
-    if (grid[0][c] && grid[0][c] === grid[1][c] && grid[0][c] === grid[2][c]) {
+    if (grid[0]?.[c] && grid[0][c] === grid[1]?.[c] && grid[0][c] === grid[2]?.[c]) {
       return {
         winner: grid[0][c]!,
         line: [
@@ -38,7 +39,7 @@ function checkWinningLine(grid: (string | null)[][]): { winner: string; line: { 
   }
 
   // Diagonals
-  if (grid[0][0] && grid[0][0] === grid[1][1] && grid[0][0] === grid[2][2]) {
+  if (grid[0]?.[0] && grid[0][0] === grid[1]?.[1] && grid[0][0] === grid[2]?.[2]) {
     return {
       winner: grid[0][0]!,
       line: [
@@ -49,7 +50,7 @@ function checkWinningLine(grid: (string | null)[][]): { winner: string; line: { 
     };
   }
 
-  if (grid[0][2] && grid[0][2] === grid[1][1] && grid[0][2] === grid[2][0]) {
+  if (grid[0]?.[2] && grid[0][2] === grid[1]?.[1] && grid[0][2] === grid[2]?.[0]) {
     return {
       winner: grid[0][2]!,
       line: [
@@ -90,14 +91,28 @@ export const GameOOXX: React.FC = () => {
   const p1 = currentRoom?.player1;
   const p2 = currentRoom?.player2;
   const myUid = currentUser?.uid || '';
-  const opponentUid = myRole === 'player1' ? p2?.uid || '' : p1?.uid || '';
+  const players = currentRoom?.players || [p1, p2].filter(Boolean);
+  const otherPlayer = players.find((p) => p && p.uid !== myUid);
+  const opponentUid = otherPlayer?.uid || (myRole === 'player1' ? p2?.uid || '' : p1?.uid || '');
 
   const isMyTurn = state.currentTurnUid === myUid && currentRoom?.status !== 'settled';
-  const currentTurnPlayer = state.currentTurnUid === p1?.uid ? p1 : p2;
+  const currentTurnPlayer =
+    state.currentTurnUid === p1?.uid
+      ? p1
+      : state.currentTurnUid === p2?.uid
+      ? p2
+      : otherPlayer;
 
   // Place a piece at (r, c)
   const handleCellClick = async (r: number, c: number) => {
-    if (!isMyTurn || grid[r]?.[c] || currentRoom?.status === 'settled') return;
+    const existing = grid[r]?.[c];
+    if (
+      !isMyTurn ||
+      Boolean(existing && existing.trim() !== '') ||
+      currentRoom?.status === 'settled'
+    ) {
+      return;
+    }
     sound.playPop();
 
     const newGrid = grid.map((row) => [...row]);
@@ -117,7 +132,9 @@ export const GameOOXX: React.FC = () => {
     const winResult = checkWinningLine(newGrid);
 
     // Check draw in classic mode (all 9 cells filled)
-    const isGridFull = newGrid.every((row) => row.every((cell) => cell !== null));
+    const isGridFull = newGrid.every((row) =>
+      row.every((cell) => Boolean(cell && cell.trim() !== ''))
+    );
 
     if (winResult) {
       sound.playVictory();
@@ -126,9 +143,17 @@ export const GameOOXX: React.FC = () => {
     }
 
     await updateRoomState((draft) => {
-      if (!draft.stateOOXX) return;
-      draft.stateOOXX.grid = newGrid;
-      draft.stateOOXX.movesHistory = newHistory;
+      if (!draft.stateOOXX) {
+        draft.stateOOXX = {
+          grid: newGrid,
+          movesHistory: newHistory,
+          currentTurnUid: opponentUid,
+          infiniteMode: false
+        };
+      } else {
+        draft.stateOOXX.grid = newGrid;
+        draft.stateOOXX.movesHistory = newHistory;
+      }
 
       if (winResult) {
         draft.status = 'settled';
@@ -165,7 +190,7 @@ export const GameOOXX: React.FC = () => {
           <span className="w-5 h-5 rounded-full bg-[#CF995F] text-white flex items-center justify-center font-black text-xs">
             X
           </span>
-          <span>{p2?.displayName || '玩家2'} (P2)</span>
+          <span>{p2?.displayName || otherPlayer?.displayName || '玩家2'} (P2)</span>
         </div>
       </div>
 
@@ -174,20 +199,21 @@ export const GameOOXX: React.FC = () => {
         <div className="grid grid-cols-3 gap-3 w-full h-full">
           {grid.map((row, r) =>
             row.map((cellUid, c) => {
+              const isFilled = Boolean(cellUid && cellUid.trim() !== '');
               const isP1 = cellUid === p1?.uid;
               const isWinningCell = state.winningLine?.some((pt) => pt.r === r && pt.c === c);
 
               return (
                 <motion.button
                   key={`${r}-${c}`}
-                  whileHover={isMyTurn && !cellUid ? { scale: 1.08, y: -2 } : {}}
-                  whileTap={isMyTurn && !cellUid ? { scale: 0.92 } : {}}
-                  disabled={!isMyTurn || Boolean(cellUid)}
+                  whileHover={isMyTurn && !isFilled ? { scale: 1.08, y: -2 } : {}}
+                  whileTap={isMyTurn && !isFilled ? { scale: 0.92 } : {}}
+                  disabled={!isMyTurn || isFilled}
                   onClick={() => handleCellClick(r, c)}
                   className={`relative rounded-2xl flex items-center justify-center transition-all ${
                     isWinningCell
                       ? 'bg-[#DBAD6A] text-white shadow-lg shadow-[#DBAD6A]/40 border-2 border-white ring-2 ring-[#DBAD6A] animate-pulse'
-                      : cellUid
+                      : isFilled
                       ? isP1
                         ? 'bg-[#628395] text-white shadow-md shadow-[#628395]/20'
                         : 'bg-[#CF995F] text-white shadow-md shadow-[#CF995F]/20'
@@ -197,7 +223,7 @@ export const GameOOXX: React.FC = () => {
                   }`}
                 >
                   <AnimatePresence>
-                    {cellUid && (
+                    {isFilled && (
                       <motion.div
                         initial={{ scale: 0, rotate: -45 }}
                         animate={{ scale: [0, 1.25, 1], rotate: [-45, 10, 0] }}

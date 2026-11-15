@@ -112,16 +112,17 @@ class MatchService {
                 }
               }
               Object.entries<any>(val).forEach(([id, r]) => {
-                const norm = this.normalizeRoom(r);
-                this.localRooms.set(id, norm);
-                this.notifyRoomListeners(norm);
+                if (r && r.status !== 'closed') {
+                  const norm = this.normalizeRoom(r);
+                  this.localRooms.set(id, norm);
+                } else {
+                  this.localRooms.delete(id);
+                }
               });
               this.notifyAllRoomsListeners();
-              this.notifyPresenceListeners();
             } else {
               this.localRooms.clear();
               this.notifyAllRoomsListeners();
-              this.notifyPresenceListeners();
             }
           });
         } catch (e) {
@@ -148,25 +149,30 @@ class MatchService {
 
   // --- PRESENCE SYSTEM (Realtime Database) ---
   public updatePresence(presence: UserPresence) {
-    this.localPresence.set(presence.uid, presence);
+    let safePhotoURL = presence.photoURL;
+    if (safePhotoURL && (safePhotoURL.startsWith('data:') || safePhotoURL.length > 500)) {
+      safePhotoURL = `https://api.dicebear.com/7.x/bottts/svg?seed=${presence.uid}`;
+    }
+    const safePresence: UserPresence = { ...presence, photoURL: safePhotoURL };
+    this.localPresence.set(safePresence.uid, safePresence);
     this.notifyPresenceListeners();
 
     if (syncChannel) {
-      syncChannel.postMessage({ type: 'PRESENCE_UPDATE', payload: presence });
+      syncChannel.postMessage({ type: 'PRESENCE_UPDATE', payload: safePresence });
     }
 
     if (rtdb) {
       try {
-        const presenceRef = ref(rtdb, `presence/${presence.uid}`);
+        const presenceRef = ref(rtdb, `presence/${safePresence.uid}`);
         const cleaned = this.cleanForRTDB({
-          ...presence,
+          ...safePresence,
           lastActive: Date.now()
         });
         set(presenceRef, cleaned).catch(console.warn);
 
         const disconnectRef = onDisconnect(presenceRef);
         disconnectRef.set(this.cleanForRTDB({
-          ...presence,
+          ...safePresence,
           status: 'offline',
           lastActive: Date.now(),
           currentRoomId: null,
@@ -475,7 +481,30 @@ class MatchService {
 
     if (rtdb) {
       try {
-        set(ref(rtdb, `rooms/${normalized.id}`), this.cleanForRTDB(normalized)).catch(console.warn);
+        const payload = this.cleanForRTDB(normalized);
+        if (payload?.gameId === 'ooxx' && payload?.stateOOXX) {
+          const rawGrid = payload.stateOOXX.grid;
+          if (rawGrid && typeof rawGrid === 'object') {
+            const safeGrid = [
+              ['', '', ''],
+              ['', '', ''],
+              ['', '', '']
+            ];
+            for (let r = 0; r < 3; r++) {
+              const row = (rawGrid as any)[r];
+              if (row && typeof row === 'object') {
+                for (let c = 0; c < 3; c++) {
+                  const cell = (row as any)[c];
+                  if (cell && typeof cell === 'string' && cell.trim() !== '') {
+                    safeGrid[r][c] = cell;
+                  }
+                }
+              }
+            }
+            payload.stateOOXX.grid = safeGrid;
+          }
+        }
+        set(ref(rtdb, `rooms/${normalized.id}`), payload).catch(console.warn);
       } catch (err) {
         console.warn('RTDB update room error:', err);
       }
@@ -589,17 +618,26 @@ class MatchService {
     }
   }
 
-  // --- CLEAN DATA FOR RTDB (strips undefined to prevent Firebase crashes) ---
+  // --- CLEAN DATA FOR RTDB (strips undefined and huge payloads to prevent lag) ---
   private cleanForRTDB(data: any): any {
     if (data === undefined) return null;
-    if (data === null || typeof data !== 'object') return data;
+    if (data === null || typeof data !== 'object') {
+      if (typeof data === 'string' && (data.startsWith('data:') || data.length > 1000)) {
+        return null;
+      }
+      return data;
+    }
     if (Array.isArray(data)) {
       return data.map((item) => this.cleanForRTDB(item));
     }
     const clean: Record<string, any> = {};
     for (const [key, val] of Object.entries(data)) {
       if (val !== undefined) {
-        clean[key] = this.cleanForRTDB(val);
+        if (key === 'photoURL' && typeof val === 'string' && (val.startsWith('data:') || val.length > 500)) {
+          clean[key] = `https://api.dicebear.com/7.x/bottts/svg?seed=${data.uid || 'player'}`;
+        } else {
+          clean[key] = this.cleanForRTDB(val);
+        }
       }
     }
     return clean;
@@ -719,17 +757,24 @@ class MatchService {
         gridSize: room.stateDots?.gridSize || 4
       };
     } else if (room.gameId === 'ooxx') {
-      let grid = room.stateOOXX?.grid;
-      if (!Array.isArray(grid)) {
-        grid = [
-          [null, null, null],
-          [null, null, null],
-          [null, null, null]
-        ];
-      } else {
-        grid = grid.map((row: any) =>
-          Array.isArray(row) ? row.map((c: any) => c ?? null) : [null, null, null]
-        );
+      const normalizedGrid: (string | null)[][] = [
+        [null, null, null],
+        [null, null, null],
+        [null, null, null]
+      ];
+      const rawGrid = room.stateOOXX?.grid;
+      if (rawGrid && typeof rawGrid === 'object') {
+        for (let r = 0; r < 3; r++) {
+          const row = (rawGrid as any)[r];
+          if (row && typeof row === 'object') {
+            for (let c = 0; c < 3; c++) {
+              const cell = (row as any)[c];
+              if (cell && typeof cell === 'string' && cell.trim() !== '') {
+                normalizedGrid[r][c] = cell;
+              }
+            }
+          }
+        }
       }
       const rawHistory = room.stateOOXX?.movesHistory;
       const movesHistory = Array.isArray(rawHistory)
@@ -738,12 +783,19 @@ class MatchService {
         ? (Object.values(rawHistory) as any[])
         : [];
 
+      const rawWinningLine = room.stateOOXX?.winningLine;
+      const winningLine = Array.isArray(rawWinningLine)
+        ? rawWinningLine
+        : rawWinningLine && typeof rawWinningLine === 'object'
+        ? Object.values(rawWinningLine)
+        : undefined;
+
       room.stateOOXX = {
-        grid,
+        grid: normalizedGrid,
         movesHistory,
         currentTurnUid: room.stateOOXX?.currentTurnUid || room.hostUid,
-        infiniteMode: room.stateOOXX?.infiniteMode ?? false,
-        winningLine: room.stateOOXX?.winningLine
+        infiniteMode: Boolean(room.stateOOXX?.infiniteMode),
+        winningLine: winningLine as any
       };
     }
 
