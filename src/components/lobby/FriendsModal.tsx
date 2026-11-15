@@ -177,13 +177,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     setFeedbackMsg({ text: '已婉拒該好友邀請。', type: 'success' });
   };
 
-  // Follow friend into their active room (Restricted to 2-player rooms)
+  // Follow friend into their active room (Supports 2-5 player rooms seamlessly)
   const handleFollowFriend = async (friend: UserPresence) => {
-    if (friend.currentRoomMaxPlayers && friend.currentRoomMaxPlayers > 2) {
-      sound.playError();
-      alert('該房間為 2 人以上的多人派對房間，不開放好友直接跟房，請向房主索取 6 碼房號加入！');
-      return;
-    }
     if (!friend.currentRoomId && !friend.currentRoomCode) return;
     sound.playJoin();
     onClose();
@@ -467,6 +462,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                               <Gamepad2 className="w-3.5 h-3.5 shrink-0 animate-pulse" />
                               <span className="truncate">
                                 正在房間《{f.currentGameName || '對戰'}》#{f.currentRoomCode}
+                                {f.currentRoomMaxPlayers ? ` (${f.currentRoomPlayerCount || 1}/${f.currentRoomMaxPlayers}人)` : ''}
                               </span>
                             </div>
                           ) : (
@@ -477,27 +473,17 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                         </div>
                       </div>
 
-                      {/* Actions: Follow into room (Disabled if >2 player room) or Send Battle Invite */}
+                      {/* Actions: Follow into room (Supports 2-5 player rooms) or Send Battle Invite */}
                       <div className="shrink-0 flex items-center gap-1.5">
                         {isInGame ? (
-                          (f.currentRoomMaxPlayers && f.currentRoomMaxPlayers > 2) ? (
-                            <div
-                              className="px-2.5 py-1.5 rounded-xl bg-neutral-100 text-[#96897B] text-[11px] font-bold border border-neutral-200 cursor-not-allowed flex items-center gap-1 select-none"
-                              title="該房間為多人派對房間，不開放好友直接跟房，請輸入 6 碼房號進入"
-                            >
-                              <Lock className="w-3 h-3 text-[#96897B]" />
-                              <span>多人房不可跟</span>
-                            </div>
-                          ) : (
-                            <button
-                              onClick={() => handleFollowFriend(f)}
-                              className="px-2.5 py-1.5 rounded-xl bg-[#CF995F] hover:bg-[#b8854f] text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
-                              title="跟隨進入該對戰房間"
-                            >
-                              <Eye className="w-3.5 h-3.5" />
-                              <span>跟隨進房</span>
-                            </button>
-                          )
+                          <button
+                            onClick={() => handleFollowFriend(f)}
+                            className="px-2.5 py-1.5 rounded-xl bg-[#CF995F] hover:bg-[#b8854f] text-white text-xs font-bold shadow-xs flex items-center gap-1 cursor-pointer transition-colors"
+                            title="跟隨進入該對戰房間"
+                          >
+                            <Eye className="w-3.5 h-3.5" />
+                            <span>跟隨進房</span>
+                          </button>
                         ) : (
                           <button
                             disabled={!isOnline}

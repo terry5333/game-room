@@ -884,30 +884,49 @@ class MatchService {
           r.player2?.uid === f.uid
       );
 
-      if (presence && (presence.status === 'in_game' || presence.status === 'lobby' || presence.status === 'online')) {
-        return {
-          ...presence,
-          userTag: f.userTag,
-          displayName: f.displayName || presence.displayName,
-          photoURL: f.photoURL || presence.photoURL,
-          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined,
-          currentRoomMaxPlayers: activeRoom?.maxPlayers || presence.currentRoomMaxPlayers || 2
-        };
-      }
-
+      // 1. Direct active room ground truth takes priority
       if (activeRoom) {
+        const pCount =
+          (activeRoom.players && activeRoom.players.length) ||
+          (activeRoom.player2 ? 2 : 1);
+        const maxLimit = activeRoom.maxPlayers || 2;
+
         return {
           uid: f.uid,
-          displayName: f.displayName,
-          photoURL: f.photoURL,
-          userTag: f.userTag,
+          displayName: f.displayName || presence?.displayName || '好友',
+          photoURL: f.photoURL || presence?.photoURL || '',
+          userTag: f.userTag || presence?.userTag,
           status: 'in_game',
           lastActive: Date.now(),
           currentRoomId: activeRoom.id,
           currentRoomCode: activeRoom.code,
           currentGameId: activeRoom.gameId,
           currentGameName: gameNames[activeRoom.gameId] || activeRoom.gameId.toUpperCase(),
-          currentRoomMaxPlayers: activeRoom.maxPlayers || 2
+          currentRoomMaxPlayers: maxLimit,
+          currentRoomPlayerCount: pCount
+        };
+      }
+
+      // 2. Presence in_game fallback
+      if (presence && presence.status === 'in_game') {
+        return {
+          ...presence,
+          userTag: f.userTag,
+          displayName: f.displayName || presence.displayName,
+          photoURL: f.photoURL || presence.photoURL,
+          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined,
+          currentRoomMaxPlayers: presence.currentRoomMaxPlayers || 2,
+          currentRoomPlayerCount: presence.currentRoomPlayerCount || 1
+        };
+      }
+
+      // 3. Online in lobby
+      if (presence && (presence.status === 'lobby' || presence.status === 'online')) {
+        return {
+          ...presence,
+          userTag: f.userTag,
+          displayName: f.displayName || presence.displayName,
+          photoURL: f.photoURL || presence.photoURL
         };
       }
 
@@ -922,7 +941,8 @@ class MatchService {
         currentRoomCode: presence?.currentRoomCode,
         currentGameId: presence?.currentGameId,
         currentGameName: presence?.currentGameName,
-        currentRoomMaxPlayers: presence?.currentRoomMaxPlayers || 2
+        currentRoomMaxPlayers: presence?.currentRoomMaxPlayers || 2,
+        currentRoomPlayerCount: presence?.currentRoomPlayerCount || 1
       };
     });
   }

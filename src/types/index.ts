@@ -31,6 +31,7 @@ export interface UserPresence {
   currentGameId?: GameId;
   currentGameName?: string;
   currentRoomMaxPlayers?: number;
+  currentRoomPlayerCount?: number;
 }
 
 export interface CoinTransaction {

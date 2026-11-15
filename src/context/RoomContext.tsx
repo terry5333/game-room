@@ -132,6 +132,10 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
   useEffect(() => {
     if (!currentUser) return;
     const sendPresence = () => {
+      const pCount =
+        (currentRoom?.players && currentRoom.players.length) ||
+        (currentRoom?.player2 ? 2 : 1);
+
       matchService.updatePresence({
         uid: currentUser.uid,
         displayName: currentUser.displayName,
@@ -142,14 +146,15 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         currentRoomId: currentRoom?.id,
         currentRoomCode: currentRoom?.code,
         currentGameId: currentRoom?.gameId,
-        currentRoomMaxPlayers: currentRoom?.maxPlayers || 2
+        currentRoomMaxPlayers: currentRoom?.maxPlayers || 2,
+        currentRoomPlayerCount: pCount
       });
     };
 
     sendPresence();
     const interval = setInterval(sendPresence, 8000);
     return () => clearInterval(interval);
-  }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code, currentRoom?.maxPlayers]);
+  }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code, currentRoom?.maxPlayers, currentRoom?.players]);
 
   const isHost = Boolean(currentUser && currentRoom && currentRoom.hostUid === currentUser.uid);
 
