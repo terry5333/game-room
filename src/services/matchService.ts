@@ -29,7 +29,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
     'bingo': 1,
     'dots': 1,
     'ooxx': 1,
-    'connect4': 1
+    'connect4': 1,
+    'blackjack': 1
   }
 };
 
@@ -870,6 +871,36 @@ class MatchService {
         winningLine: winningLine as any,
         lastDrop: room.stateConnect4?.lastDrop || undefined
       };
+    } else if (room.gameId === 'blackjack') {
+      const rawPlayers = room.stateBlackjack?.players || {};
+      const normalizedPlayers: Record<string, any> = {};
+      Object.entries(rawPlayers).forEach(([uid, pState]: [string, any]) => {
+        if (pState) {
+          normalizedPlayers[uid] = {
+            uid,
+            chips: pState.chips ?? room.stateBlackjack?.entryFee ?? 100,
+            bet: pState.bet ?? 0,
+            hand: Array.isArray(pState.hand) ? pState.hand : [],
+            status: pState.status || 'betting',
+            score: pState.score || { total: 0, isSoft: false, isBlackjack: false, isBust: false }
+          };
+        }
+      });
+
+      room.stateBlackjack = {
+        entryFee: room.stateBlackjack?.entryFee || 100,
+        totalRounds: room.stateBlackjack?.totalRounds || 5,
+        currentRound: room.stateBlackjack?.currentRound || 1,
+        phase: room.stateBlackjack?.phase || 'betting',
+        dealerHand: Array.isArray(room.stateBlackjack?.dealerHand) ? room.stateBlackjack.dealerHand : [],
+        dealerScore: room.stateBlackjack?.dealerScore || { total: 0, isSoft: false, isBlackjack: false, isBust: false },
+        deck: Array.isArray(room.stateBlackjack?.deck) ? room.stateBlackjack.deck : [],
+        players: normalizedPlayers,
+        currentTurnUid: room.stateBlackjack?.currentTurnUid || undefined,
+        eliminatedUids: Array.isArray(room.stateBlackjack?.eliminatedUids) ? room.stateBlackjack.eliminatedUids : [],
+        pot: room.stateBlackjack?.pot || 0,
+        roundMessage: room.stateBlackjack?.roundMessage || undefined
+      };
     }
 
     return room;
@@ -1074,7 +1105,8 @@ class MatchService {
       'bingo': '賓果',
       'dots': '點線棋',
       'ooxx': '經典 OOXX',
-      'connect4': '四子棋'
+      'connect4': '四子棋',
+      'blackjack': '21點 莊家對決'
     };
 
     const PRESENCE_TTL_MS = 30 * 1000; // 30 seconds: if no heartbeat received, friend is offline
@@ -1220,6 +1252,22 @@ class MatchService {
       room.stateConnect4 = {
         grid: Array(6).fill(null).map(() => Array(7).fill(null)),
         currentTurnUid: room.hostUid
+      };
+    } else if (room.gameId === 'blackjack') {
+      const fee = (options?.entryFee || 100) as 100 | 300 | 500 | 1000;
+      const rounds = (options?.blackjackRounds || 5) as 3 | 5 | 10;
+      room.maxPlayers = options?.maxPlayers || 2;
+      room.stateBlackjack = {
+        entryFee: fee,
+        totalRounds: rounds,
+        currentRound: 1,
+        phase: 'betting',
+        dealerHand: [],
+        dealerScore: { total: 0, isSoft: false, isBlackjack: false, isBust: false },
+        deck: [],
+        players: {},
+        eliminatedUids: [],
+        pot: 0
       };
     }
   }

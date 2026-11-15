@@ -503,31 +503,11 @@ export const Lobby: React.FC<LobbyProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={isBusy}
-                onClick={() => {
-                  if ((game.id as string) === 'blackjack') {
-                    sound.playClick();
-                    if (onOpenCasino) onOpenCasino('blackjack');
-                  } else {
-                    handleCreateGame(game.id as GameId);
-                  }
-                }}
-                className={`w-full py-2.5 px-4 rounded-xl border font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
-                  (game.id as string) === 'blackjack'
-                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-[#231710] border-[#FDF6C7]/50 font-black shadow-md'
-                    : 'bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border-[#96897B]/20'
-                }`}
+                onClick={() => handleCreateGame(game.id as GameId)}
+                className="w-full py-2.5 px-4 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
-                {(game.id as string) === 'blackjack' ? (
-                  <>
-                    <span>🪙</span>
-                    <span>進入 21點 牌桌</span>
-                  </>
-                ) : (
-                  <>
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>{isBusy ? '建立中...' : '開房對戰'}</span>
-                  </>
-                )}
+                <Plus className="w-3.5 h-3.5" />
+                <span>{isBusy ? '建立中...' : '開房對戰'}</span>
               </motion.button>
             </motion.div>
           );

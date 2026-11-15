@@ -1,4 +1,4 @@
-export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx' | 'connect4';
+export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx' | 'connect4' | 'blackjack';
 
 export interface UserWardrobe {
   gender?: 'male' | 'female';
@@ -245,6 +245,45 @@ export interface StateConnect4 {
   lastDrop?: { r: number; c: number; uid: string };
 }
 
+// Multiplayer Blackjack (21點多人對決) Types
+export interface PlayingCard {
+  suit: '♠' | '♥' | '♦' | '♣';
+  rank: 'A' | '2' | '3' | '4' | '5' | '6' | '7' | '8' | '9' | '10' | 'J' | 'Q' | 'K';
+  value: number;
+  color: 'red' | 'black';
+}
+
+export interface HandScore {
+  total: number;
+  isSoft: boolean;
+  isBlackjack: boolean;
+  isBust: boolean;
+}
+
+export interface BlackjackPlayerState {
+  uid: string;
+  chips: number; // 該玩家目前籌碼餘額
+  bet: number; // 本局注額
+  hand: PlayingCard[];
+  status: 'betting' | 'playing' | 'stand' | 'bust' | 'blackjack';
+  score: HandScore;
+}
+
+export interface StateBlackjack {
+  entryFee: 100 | 300 | 500 | 1000;
+  totalRounds: 3 | 5 | 10;
+  currentRound: number;
+  phase: 'betting' | 'player_turns' | 'dealer_turn' | 'round_settled' | 'game_over';
+  dealerHand: PlayingCard[];
+  dealerScore: HandScore;
+  deck: PlayingCard[];
+  players: Record<string, BlackjackPlayerState>;
+  currentTurnUid?: string;
+  eliminatedUids: string[];
+  pot: number;
+  roundMessage?: string;
+}
+
 // Unified Game Room
 export interface GameRoom {
   id: string;
@@ -254,7 +293,7 @@ export interface GameRoom {
   status: 'waiting' | 'in_progress' | 'settled' | 'closed';
   player1: PlayerSlot;
   player2?: PlayerSlot;
-  players?: PlayerSlot[]; // 多人玩家列表 (2 至 4 人)
+  players?: PlayerSlot[]; // 多人玩家列表 (2 至 5 人)
   maxPlayers?: number;
   winnerUid?: string | 'draw';
   createdAt: number;
@@ -268,6 +307,7 @@ export interface GameRoom {
   stateDots?: StateDots;
   stateOOXX?: StateOOXX;
   stateConnect4?: StateConnect4;
+  stateBlackjack?: StateBlackjack;
 }
 
 export interface RoomCreationOptions {
@@ -282,6 +322,9 @@ export interface RoomCreationOptions {
   gridSize?: number;
   // Dots options
   dotsGridSize?: number;
+  // Blackjack options
+  blackjackRounds?: 3 | 5 | 10;
+  entryFee?: 100 | 300 | 500 | 1000;
 }
 
 export interface GameSettings {

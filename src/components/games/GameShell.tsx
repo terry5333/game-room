@@ -82,6 +82,10 @@ export const GameShell: React.FC<GameShellProps> = ({
         } else if (draft.gameId === 'dots' && draft.stateDots) {
           if (options.dotsGridSize !== undefined) draft.stateDots.gridSize = options.dotsGridSize as 3 | 4 | 5;
           if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
+        } else if (draft.gameId === 'blackjack' && draft.stateBlackjack) {
+          if (options.blackjackRounds !== undefined) draft.stateBlackjack.totalRounds = options.blackjackRounds;
+          if (options.entryFee !== undefined) draft.stateBlackjack.entryFee = options.entryFee;
+          if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
         }
       });
       setConfigRulesOpen(false);

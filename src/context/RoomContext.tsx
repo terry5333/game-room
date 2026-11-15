@@ -312,6 +312,38 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           };
         }
       }
+
+      if (draft.gameId === 'blackjack') {
+        const activePlayers = draft.players && draft.players.length > 0
+          ? draft.players
+          : ([draft.player1, draft.player2].filter(Boolean) as PlayerSlot[]);
+        const fee = draft.stateBlackjack?.entryFee || 100;
+        const rounds = draft.stateBlackjack?.totalRounds || 5;
+        const playerMap: Record<string, any> = {};
+        activePlayers.forEach((p) => {
+          playerMap[p.uid] = {
+            uid: p.uid,
+            chips: fee,
+            bet: Math.max(10, Math.floor(fee / 10)),
+            hand: [],
+            status: 'betting',
+            score: { total: 0, isSoft: false, isBlackjack: false, isBust: false }
+          };
+        });
+        draft.stateBlackjack = {
+          entryFee: fee,
+          totalRounds: rounds,
+          currentRound: 1,
+          phase: 'betting',
+          dealerHand: [],
+          dealerScore: { total: 0, isSoft: false, isBlackjack: false, isBust: false },
+          deck: [],
+          players: playerMap,
+          eliminatedUids: [],
+          pot: activePlayers.length * fee,
+          currentTurnUid: draft.hostUid
+        };
+      }
     });
   };
 
@@ -412,6 +444,36 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } else if (draft.gameId === 'connect4') {
         draft.stateConnect4 = {
           grid: Array(6).fill(null).map(() => Array(7).fill(null)),
+          currentTurnUid: draft.hostUid
+        };
+      } else if (draft.gameId === 'blackjack') {
+        const fee = draft.stateBlackjack?.entryFee || 100;
+        const rounds = draft.stateBlackjack?.totalRounds || 5;
+        const activePlayers = draft.players && draft.players.length > 0
+          ? draft.players
+          : ([draft.player1, draft.player2].filter(Boolean) as PlayerSlot[]);
+        const playerMap: Record<string, any> = {};
+        activePlayers.forEach((p) => {
+          playerMap[p.uid] = {
+            uid: p.uid,
+            chips: fee,
+            bet: Math.max(10, Math.floor(fee / 10)),
+            hand: [],
+            status: 'betting',
+            score: { total: 0, isSoft: false, isBlackjack: false, isBust: false }
+          };
+        });
+        draft.stateBlackjack = {
+          entryFee: fee,
+          totalRounds: rounds,
+          currentRound: 1,
+          phase: 'betting',
+          dealerHand: [],
+          dealerScore: { total: 0, isSoft: false, isBlackjack: false, isBust: false },
+          deck: [],
+          players: playerMap,
+          eliminatedUids: [],
+          pot: activePlayers.length * fee,
           currentTurnUid: draft.hostUid
         };
       }

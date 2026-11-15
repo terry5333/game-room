@@ -29,7 +29,8 @@ const GAME_NAMES: Record<GameId, string> = {
   'bingo': '賓果 5x5',
   'dots': '點線棋',
   'ooxx': '經典 OOXX',
-  'connect4': '四子棋 連線爭霸'
+  'connect4': '四子棋 連線爭霸',
+  'blackjack': '21點 莊家對決'
 };
 
 export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({

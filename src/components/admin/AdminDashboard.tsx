@@ -115,7 +115,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       'bingo': '賓果 5x5 連線 bingo',
       'dots': '點線棋 圍地方格 dots',
       'ooxx': '經典 ooxx',
-      'connect4': '四子棋 connect4'
+      'connect4': '四子棋 connect4',
+      'blackjack': '21點 莊家對決 blackjack'
     };
     const gameName = (gameNames[r.gameId] || r.gameId).toLowerCase();
     const matchesCode = String(r.code || '').includes(q);
@@ -359,7 +360,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     'bingo': '賓果 5x5 連線',
                     'dots': '點線棋 圍地方格',
                     'ooxx': '經典 OOXX',
-                    'connect4': '四子棋 連線爭霸'
+                    'connect4': '四子棋 連線爭霸',
+                    'blackjack': '21點 莊家對決'
                   };
                   const roomPlayers = room.players && room.players.length > 0
                     ? room.players
@@ -686,7 +688,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   { id: 'bingo', name: '賓果 5x5 連線', color: '#DBAD6A' },
                   { id: 'dots', name: '點線棋 圍地方格', color: '#CF995F' },
                   { id: 'ooxx', name: '經典 OOXX', color: '#628395' },
-                  { id: 'connect4', name: '四子棋 連線爭霸', color: '#C85A32' }
+                  { id: 'connect4', name: '四子棋 連線爭霸', color: '#C85A32' },
+                  { id: 'blackjack', name: '21點 莊家對決', color: '#0D4A2D' }
                 ].map((game) => {
                   const count = liveRooms.filter((r) => r.gameId === game.id).length;
                   const percent = liveRooms.length > 0 ? (count / liveRooms.length) * 100 : 0;

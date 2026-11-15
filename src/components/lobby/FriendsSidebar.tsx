@@ -26,7 +26,8 @@ const GAME_NAMES: Record<GameId, string> = {
   'bingo': '賓果',
   'dots': '點線棋',
   'ooxx': '無限三子棋',
-  'connect4': '四子棋'
+  'connect4': '四子棋',
+  'blackjack': '21點'
 };
 
 export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
