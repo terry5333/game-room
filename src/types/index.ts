@@ -49,7 +49,7 @@ export interface CoinTransaction {
   id: string;
   uid: string;
   amount: number;
-  type: 'win_reward' | 'consolation' | 'admin_grant' | 'admin_deduct' | 'shop_purchase';
+  type: 'win_reward' | 'consolation' | 'admin_grant' | 'admin_deduct' | 'shop_purchase' | 'casino_bet' | 'casino_win';
   description: string;
   timestamp: number;
   gameId?: GameId;

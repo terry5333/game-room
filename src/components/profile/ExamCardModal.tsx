@@ -1,9 +1,8 @@
 import React from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Award, Coins, Flame, Sparkles, Shirt, Edit3, ShieldCheck } from 'lucide-react';
+import { X, Award, Coins, Flame, Sparkles, Edit3, ShieldCheck } from 'lucide-react';
 import type { UserProfile, UserPresence, PlayerSlot, FriendRecord } from '../../types';
 import { STAMP_DETAILS, DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
-import { ShowaAvatar } from '../common/ShowaAvatar';
 import { sound } from '../../services/soundService';
 
 interface ExamCardModalProps {
@@ -11,7 +10,6 @@ interface ExamCardModalProps {
   onClose: () => void;
   user: UserProfile | UserPresence | PlayerSlot | FriendRecord | null;
   isSelf?: boolean;
-  onOpenWardrobe?: () => void;
   onOpenEditProfile?: () => void;
 }
 
@@ -20,7 +18,6 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   onClose,
   user,
   isSelf = false,
-  onOpenWardrobe,
   onOpenEditProfile
 }) => {
   if (!isOpen || !user) return null;
@@ -38,6 +35,8 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
 
   const coins = (user as any).coins ?? 0;
   const userTag = (user as any).userTag || user.uid?.substring(0, 4) || '1000';
+  const photoUrl =
+    user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid || 'guest'}`;
 
   return (
     <AnimatePresence>
@@ -93,23 +92,33 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
 
           {/* Card Body Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
-            {/* Left: Standee Pedestal Avatar */}
-            <div className="sm:col-span-5 flex flex-col items-center justify-center p-3 rounded-xl bg-[#F7EBD2] border-2 border-[#D5C0A1] shadow-inner relative">
+            {/* Left: Classic ID Photo in Vintage Corner Mounts */}
+            <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 rounded-xl bg-[#F7EBD2] border-2 border-[#D5C0A1] shadow-inner relative">
               <span className="absolute top-1.5 left-2 text-[9px] font-bold text-[#8D5B4C]/70 tracking-wider">
-                【 受驗生立繪 】
+                【 受驗生肖像 】
               </span>
 
-              <div className="mt-2 mb-1">
-                <ShowaAvatar
-                  size="lg"
-                  wardrobe={wardrobe}
-                  photoURL={user.photoURL}
-                  showPedestal={true}
-                  animated={true}
+              {/* Vintage Photo Mounting Card */}
+              <div className="mt-3 mb-2 relative p-1.5 bg-[#FAF3E0] rounded-lg border border-[#D5C0A1] shadow-sm">
+                {/* 4 Decorative Corner Photo Brackets */}
+                <div className="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#5D3A1A]" />
+                <div className="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#5D3A1A]" />
+                <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#5D3A1A]" />
+                <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#5D3A1A]" />
+
+                <img
+                  src={photoUrl}
+                  alt={user.displayName}
+                  className="w-24 h-24 sm:w-28 sm:h-28 rounded-md object-cover border border-[#8D5B4C]/30 shadow-inner"
                 />
+
+                {/* Corner Embossed School Stamp */}
+                <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-[#A83232]/90 text-white text-[8px] font-black font-serif tracking-tighter shadow-xs border border-white/80 rotate-[-12deg]">
+                  對弈認可
+                </div>
               </div>
 
-              {/* Pedestal Tag */}
+              {/* Registration Tag */}
               <div className="mt-1 px-3 py-0.5 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[11px] font-black tracking-wider shadow-xs">
                 #{userTag}
               </div>
@@ -198,20 +207,6 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
           <div className="mt-5 pt-3.5 border-t-2 border-[#8D5B4C]/30 flex flex-wrap items-center justify-between gap-2">
             {isSelf ? (
               <div className="flex items-center gap-2 w-full sm:w-auto">
-                {onOpenWardrobe && (
-                  <button
-                    onClick={() => {
-                      sound.playClick();
-                      onClose();
-                      onOpenWardrobe();
-                    }}
-                    className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-[#8D5B4C] hover:bg-[#724538] text-[#FFE8D6] font-black text-xs transition-colors flex items-center justify-center gap-1.5 shadow-sm cursor-pointer"
-                  >
-                    <Shirt className="w-4 h-4 text-[#FFE8D6]" />
-                    <span>前往服飾舖換裝</span>
-                  </button>
-                )}
-
                 {onOpenEditProfile && (
                   <button
                     onClick={() => {
@@ -219,10 +214,10 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                       onClose();
                       onOpenEditProfile();
                     }}
-                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-white hover:bg-neutral-100 text-[#5D3A1A] border border-[#8D5B4C]/40 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                    className="flex-1 sm:flex-none px-4 py-2 rounded-xl bg-white hover:bg-neutral-100 text-[#5D3A1A] border border-[#8D5B4C]/40 font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
                   >
                     <Edit3 className="w-3.5 h-3.5" />
-                    <span>編輯暱稱</span>
+                    <span>編輯暱稱與資料</span>
                   </button>
                 )}
               </div>

@@ -11,7 +11,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
 import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
-import { WardrobeModal } from './components/profile/WardrobeModal';
+import { CasinoModal } from './components/casino/CasinoModal';
 import { ExamCardModal } from './components/profile/ExamCardModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
@@ -32,7 +32,7 @@ export const AppContent: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
-  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [casinoOpen, setCasinoOpen] = useState(false);
   const [examCardUser, setExamCardUser] = useState<any>(null);
 
   if (loading) {
@@ -57,7 +57,7 @@ export const AppContent: React.FC = () => {
         onOpenAdmin={() => setAdminOpen(true)}
         onOpenFriends={() => setFriendsOpen(true)}
         onOpenEditProfile={() => setEditProfileOpen(true)}
-        onOpenWardrobe={() => setWardrobeOpen(true)}
+        onOpenCasino={() => setCasinoOpen(true)}
         onOpenExamCard={() => setExamCardUser(currentUser)}
         inGame={Boolean(currentRoom)}
       />
@@ -92,7 +92,7 @@ export const AppContent: React.FC = () => {
               <Lobby
                 onOpenRulesForGame={(gid) => handleOpenRules(gid)}
                 onOpenFriends={() => setFriendsOpen(true)}
-                onOpenWardrobe={() => setWardrobeOpen(true)}
+                onOpenCasino={() => setCasinoOpen(true)}
                 onOpenExamCard={() => setExamCardUser(currentUser)}
               />
             </div>
@@ -138,22 +138,18 @@ export const AppContent: React.FC = () => {
         onClose={() => setAdminOpen(false)}
       />
 
-      {/* Showa Wardrobe Fitting Modal */}
-      <WardrobeModal
-        isOpen={wardrobeOpen}
-        onClose={() => setWardrobeOpen(false)}
+      {/* Imperial Underground Casino (Slots, Scratch-off, Dice) */}
+      <CasinoModal
+        isOpen={casinoOpen}
+        onClose={() => setCasinoOpen(false)}
       />
 
-      {/* Showa Imperial Examinee Student ID Card Modal */}
+      {/* Showa Imperial Examinee Student ID Card Modal (Business Card) */}
       <ExamCardModal
         isOpen={Boolean(examCardUser)}
         onClose={() => setExamCardUser(null)}
         user={examCardUser}
         isSelf={examCardUser?.uid === currentUser?.uid}
-        onOpenWardrobe={() => {
-          setExamCardUser(null);
-          setWardrobeOpen(true);
-        }}
         onOpenEditProfile={() => {
           setExamCardUser(null);
           setEditProfileOpen(true);

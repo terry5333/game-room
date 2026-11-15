@@ -14,7 +14,7 @@ import {
   RotateCcw,
   Sparkles,
   Sliders,
-  Shirt
+  Award
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -22,10 +22,7 @@ import { VictoryCelebration } from '../common/VictoryCelebration';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
-import { ShowaAvatar } from '../common/ShowaAvatar';
 import { ExamCardModal } from '../profile/ExamCardModal';
-import { WardrobeModal } from '../profile/WardrobeModal';
-import { DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
 import { sound } from '../../services/soundService';
 import type { PlayerSlot, RoomCreationOptions } from '../../types';
 
@@ -62,7 +59,6 @@ export const GameShell: React.FC<GameShellProps> = ({
   const [inviteFriendsOpen, setInviteFriendsOpen] = useState(false);
   const [configRulesOpen, setConfigRulesOpen] = useState(false);
   const [inspectUser, setInspectUser] = useState<any>(null);
-  const [wardrobeOpen, setWardrobeOpen] = useState(false);
 
   if (!currentRoom || !currentUser) return null;
 
@@ -399,13 +395,13 @@ export const GameShell: React.FC<GameShellProps> = ({
               <button
                 onClick={() => {
                   sound.playClick();
-                  setWardrobeOpen(true);
+                  setInspectUser(currentUser);
                 }}
                 className="py-2 px-3 rounded-2xl bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-                title="進入昭和町服飾舖試衣間"
+                title="檢視個人帝國准考證名片"
               >
-                <Shirt className="w-4 h-4 text-[#FFE8D6]" />
-                <span>服飾舖換裝</span>
+                <Award className="w-4 h-4 text-[#FFE8D6]" />
+                <span>准考證名片</span>
               </button>
 
               {isHost && (
@@ -441,21 +437,24 @@ export const GameShell: React.FC<GameShellProps> = ({
                         setInspectUser(players[0]);
                       }}
                       className="cursor-pointer group flex flex-col items-center"
-                      title="點擊檢視帝國准考證"
+                      title="點擊檢視帝國准考證（名片）"
                     >
-                      <div className="relative transform group-hover:scale-105 transition-transform">
-                        <ShowaAvatar
-                          size="lg"
-                          wardrobe={players[0]?.wardrobe || DEFAULT_WARDROBE}
-                          photoURL={players[0]?.photoURL}
-                          showPedestal={true}
-                          animated={true}
-                        />
-                        <div className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[9px] font-black shadow-xs">
-                          房主
+                      <div className="relative transform group-hover:scale-105 transition-transform flex flex-col items-center">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#FAF3E0] p-1.5 border-3 border-[#5D3A1A] shadow-md relative flex items-center justify-center">
+                          <img
+                            src={players[0]?.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${players[0]?.uid}`}
+                            alt={players[0]?.displayName}
+                            className="w-full h-full rounded-xl object-cover border border-[#8D5B4C]/30 shadow-inner"
+                          />
+                          <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[10px] font-black shadow-xs">
+                            房主
+                          </div>
+                          <div className="absolute -bottom-2 px-2 py-0.5 rounded-full bg-[#A83232] text-white text-[9px] font-serif font-black shadow-xs">
+                            受驗名片
+                          </div>
                         </div>
                       </div>
-                      <div className="mt-1 text-center">
+                      <div className="mt-2.5 text-center">
                         <div className="text-xs font-black text-[#3B2211] max-w-[100px] truncate">
                           {players[0]?.displayName}
                         </div>
@@ -492,21 +491,24 @@ export const GameShell: React.FC<GameShellProps> = ({
                           setInspectUser(players[1]);
                         }}
                         className="cursor-pointer group flex flex-col items-center"
-                        title="點擊檢視帝國准考證"
+                        title="點擊檢視帝國准考證（名片）"
                       >
-                        <div className="relative transform group-hover:scale-105 transition-transform">
-                          <ShowaAvatar
-                            size="lg"
-                            wardrobe={players[1]?.wardrobe || DEFAULT_WARDROBE}
-                            photoURL={players[1]?.photoURL}
-                            showPedestal={true}
-                            animated={true}
-                          />
-                          <div className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-md bg-[#628395] text-white text-[9px] font-black shadow-xs">
-                            挑戰者
+                        <div className="relative transform group-hover:scale-105 transition-transform flex flex-col items-center">
+                          <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl bg-[#FAF3E0] p-1.5 border-3 border-[#628395] shadow-md relative flex items-center justify-center">
+                            <img
+                              src={players[1]?.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${players[1]?.uid}`}
+                              alt={players[1]?.displayName}
+                              className="w-full h-full rounded-xl object-cover border border-[#628395]/30 shadow-inner"
+                            />
+                            <div className="absolute -top-2 -right-2 px-2 py-0.5 rounded-md bg-[#628395] text-white text-[10px] font-black shadow-xs">
+                              挑戰者
+                            </div>
+                            <div className="absolute -bottom-2 px-2 py-0.5 rounded-full bg-[#2E7D32] text-white text-[9px] font-serif font-black shadow-xs">
+                              受驗名片
+                            </div>
                           </div>
                         </div>
-                        <div className="mt-1 text-center">
+                        <div className="mt-2.5 text-center">
                           <div className="text-xs font-black text-[#3B2211] max-w-[100px] truncate">
                             {players[1]?.displayName}
                           </div>
@@ -574,13 +576,13 @@ export const GameShell: React.FC<GameShellProps> = ({
                         className="p-2.5 rounded-2xl bg-white/70 border border-[#D5C0A1] flex flex-col items-center text-center cursor-pointer hover:bg-white hover:border-[#8D5B4C] transition-all"
                         title="點擊檢視帝國准考證"
                       >
-                        <ShowaAvatar
-                          size="md"
-                          wardrobe={slotPlayer.wardrobe || DEFAULT_WARDROBE}
-                          photoURL={slotPlayer.photoURL}
-                          showPedestal={true}
-                          animated={true}
-                        />
+                        <div className="w-12 h-12 rounded-xl bg-[#FAF3E0] p-1 border-2 border-[#5D3A1A] shadow-xs relative flex items-center justify-center">
+                          <img
+                            src={slotPlayer.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid}`}
+                            alt={slotPlayer.displayName}
+                            className="w-full h-full rounded-lg object-cover"
+                          />
+                        </div>
                         <div className="text-xs font-black text-[#3B2211] truncate max-w-[90px] mt-1">
                           {slotPlayer.displayName}
                         </div>
@@ -682,22 +684,12 @@ export const GameShell: React.FC<GameShellProps> = ({
         />
       )}
 
-      {/* Showa Exam Card Modal */}
+      {/* Showa Exam Card Modal (Business Card) */}
       <ExamCardModal
         isOpen={Boolean(inspectUser)}
         onClose={() => setInspectUser(null)}
         user={inspectUser}
         isSelf={inspectUser?.uid === currentUser?.uid}
-        onOpenWardrobe={() => {
-          setInspectUser(null);
-          setWardrobeOpen(true);
-        }}
-      />
-
-      {/* Showa Wardrobe Fitting Modal */}
-      <WardrobeModal
-        isOpen={wardrobeOpen}
-        onClose={() => setWardrobeOpen(false)}
       />
     </motion.div>
   );

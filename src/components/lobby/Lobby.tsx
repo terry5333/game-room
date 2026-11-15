@@ -14,7 +14,6 @@ import {
   RotateCcw,
   Sparkles,
   Keyboard,
-  Shirt,
   Award
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
@@ -24,19 +23,18 @@ import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
 import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
-import { ShowaAvatar } from '../common/ShowaAvatar';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
   onOpenFriends: () => void;
-  onOpenWardrobe?: () => void;
+  onOpenCasino?: () => void;
   onOpenExamCard?: () => void;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
   onOpenRulesForGame,
   onOpenFriends,
-  onOpenWardrobe,
+  onOpenCasino,
   onOpenExamCard
 }) => {
   const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
@@ -204,25 +202,25 @@ export const Lobby: React.FC<LobbyProps> = ({
             <span className="truncate">輸入房號</span>
           </motion.button>
 
-          {/* Button 3: 昭和町服飾舖 */}
+          {/* Button 3: 帝國遊技場 (賭場: 拉霸機・刮刮樂) */}
           <motion.button
             whileHover={{ scale: 1.02 }}
             whileTap={{ scale: 0.97 }}
             onClick={() => {
               sound.playClick();
-              if (onOpenWardrobe) onOpenWardrobe();
+              if (onOpenCasino) onOpenCasino();
             }}
-            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-[#231710] font-black text-xs shadow-xs hover:shadow-md transition-all cursor-pointer border border-[#FDF6C7]/50"
           >
-            <div className="w-6 h-6 rounded-lg bg-[#FFE8D6]/20 text-[#FFE8D6] flex items-center justify-center shrink-0">
-              <Shirt className="w-3.5 h-3.5 text-[#FFE8D6]" />
+            <div className="w-6 h-6 rounded-lg bg-black/15 text-[#231710] flex items-center justify-center shrink-0">
+              <span className="text-sm">🎰</span>
             </div>
-            <span className="truncate">服飾舖</span>
+            <span className="truncate">帝國遊技場</span>
           </motion.button>
         </div>
       </div>
 
-      {/* Showa Examinee Passport Banner (Option 3 preview) */}
+      {/* Showa Examinee Passport Banner (Exam Card / 名片) */}
       {currentUser && (
         <div
           onClick={() => {
@@ -230,17 +228,18 @@ export const Lobby: React.FC<LobbyProps> = ({
             if (onOpenExamCard) onOpenExamCard();
           }}
           className="p-2.5 sm:p-3 rounded-2xl bg-[#F7EBD2]/90 hover:bg-[#F7EBD2] border-2 border-double border-[#8D5B4C]/50 shadow-xs flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01]"
-          title="點擊翻閱個人《帝國受驗准考證》"
+          title="點擊翻閱個人《帝國受驗准考證》（名片）"
         >
           <div className="flex items-center gap-2.5 min-w-0">
-            <div className="shrink-0">
-              <ShowaAvatar
-                size="sm"
-                wardrobe={currentUser.wardrobe}
-                photoURL={currentUser.photoURL}
-                showPedestal={false}
-                animated={false}
+            <div className="shrink-0 relative">
+              <img
+                src={currentUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${currentUser.uid}`}
+                alt={currentUser.displayName}
+                className="w-10 h-10 rounded-xl object-cover border-2 border-[#8D5B4C]/40 shadow-xs"
               />
+              <div className="absolute -bottom-1 -right-1 px-1 rounded-full bg-[#A83232] text-white text-[7px] font-black">
+                認可
+              </div>
             </div>
             <div className="min-w-0">
               <div className="flex items-center gap-1.5">
@@ -255,14 +254,14 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </span>
               </div>
               <p className="text-[10px] text-[#8D5B4C] font-bold mt-0.5">
-                已認證准考資格・點擊檢視勝率戰績與准考印章
+                已認證准考名片資格・點擊檢視勝率戰績與准考朱印
               </p>
             </div>
           </div>
 
           <div className="shrink-0 flex items-center gap-1 text-[11px] font-black text-[#5D3A1A] bg-[#FFE8D6] px-2.5 py-1 rounded-xl border border-[#D5C0A1]">
             <Award className="w-3.5 h-3.5 text-[#8D5B4C]" />
-            <span className="hidden sm:inline">准考證</span>
+            <span className="hidden sm:inline">受驗名片</span>
             <span>→</span>
           </div>
         </div>
