@@ -217,6 +217,19 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       profileCompleted: true
     };
     saveUser(updated);
+
+    // Immediately propagate updated avatar & name to live presence
+    matchService.updatePresence({
+      uid: updated.uid,
+      displayName: updated.displayName,
+      photoURL: updated.photoURL,
+      userTag: updated.userTag,
+      status: 'lobby',
+      lastActive: Date.now()
+    });
+
+    // Sync updated avatar & name to all mutual friends' friend lists in RTDB
+    matchService.syncProfileToFriends(updated);
   };
 
   const logout = async () => {

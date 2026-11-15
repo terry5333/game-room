@@ -915,6 +915,32 @@ class MatchService {
     }
   }
 
+  // Update profile info (photoURL, displayName) across all mutual friends' lists
+  public async syncProfileToFriends(user: UserProfile): Promise<void> {
+    if (!rtdb) return;
+    try {
+      const myFriendsSnap = await get(child(ref(rtdb), `friends/${user.uid}`));
+      if (myFriendsSnap.exists()) {
+        const val = myFriendsSnap.val();
+        if (val) {
+          const friendUids = Object.keys(val);
+          for (const fUid of friendUids) {
+            const friendNodeRef = ref(rtdb, `friends/${fUid}/${user.uid}`);
+            await set(friendNodeRef, this.cleanForRTDB({
+              uid: user.uid,
+              displayName: user.displayName,
+              photoURL: user.photoURL,
+              userTag: user.userTag,
+              addedAt: val[fUid]?.addedAt || Date.now()
+            })).catch(() => {});
+          }
+        }
+      }
+    } catch (e) {
+      console.warn('syncProfileToFriends error:', e);
+    }
+  }
+
   // --- REAL-TIME ZERO-LATENCY FRIENDS PRESENCE ---
   public getFriendsLiveStatus(friends: FriendRecord[]): UserPresence[] {
     const gameNames: Record<string, string> = {
@@ -940,9 +966,9 @@ class MatchService {
       if (!presence || !isPresenceFresh || presence.status === 'offline') {
         return {
           uid: f.uid,
-          displayName: f.displayName || presence?.displayName || '好友',
-          photoURL: f.photoURL || presence?.photoURL || '',
-          userTag: f.userTag || presence?.userTag,
+          displayName: presence?.displayName || f.displayName || '好友',
+          photoURL: presence?.photoURL || f.photoURL || '',
+          userTag: presence?.userTag || f.userTag,
           status: 'offline',
           lastActive: presence?.lastActive || 0
         };
@@ -964,9 +990,9 @@ class MatchService {
 
         return {
           uid: f.uid,
-          displayName: f.displayName || presence.displayName || '好友',
-          photoURL: f.photoURL || presence.photoURL || '',
-          userTag: f.userTag || presence.userTag,
+          displayName: presence.displayName || f.displayName || '好友',
+          photoURL: presence.photoURL || f.photoURL || '',
+          userTag: presence.userTag || f.userTag,
           status: 'in_game',
           lastActive: presence.lastActive,
           currentRoomId: activeRoom.id,
@@ -982,9 +1008,9 @@ class MatchService {
       if (presence.status === 'in_game' && presence.currentRoomId) {
         return {
           ...presence,
-          userTag: f.userTag || presence.userTag,
-          displayName: f.displayName || presence.displayName,
-          photoURL: f.photoURL || presence.photoURL,
+          userTag: presence.userTag || f.userTag,
+          displayName: presence.displayName || f.displayName,
+          photoURL: presence.photoURL || f.photoURL,
           currentGameName: presence.currentGameId ? (gameNames[presence.currentGameId] || presence.currentGameId) : undefined,
           currentRoomMaxPlayers: presence.currentRoomMaxPlayers || 2,
           currentRoomPlayerCount: presence.currentRoomPlayerCount || 1
@@ -994,9 +1020,9 @@ class MatchService {
       // 4. Online in lobby
       return {
         ...presence,
-        userTag: f.userTag || presence.userTag,
-        displayName: f.displayName || presence.displayName,
-        photoURL: f.photoURL || presence.photoURL,
+        userTag: presence.userTag || f.userTag,
+        displayName: presence.displayName || f.displayName,
+        photoURL: presence.photoURL || f.photoURL,
         status: 'lobby'
       };
     });

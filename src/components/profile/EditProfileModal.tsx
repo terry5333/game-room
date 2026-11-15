@@ -6,10 +6,12 @@ import {
   X,
   Check,
   Shuffle,
-  Save
+  Save,
+  Loader2
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
+import { r2Service } from '../../services/r2Service';
 
 const PRESET_AVATARS = [
   'https://images.unsplash.com/photo-1534528741775-53994a69daeb?w=150&auto=format&fit=crop&q=80',
@@ -31,6 +33,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const [name, setName] = useState(currentUser?.displayName || '');
   const [photoURL, setPhotoURL] = useState(currentUser?.photoURL || PRESET_AVATARS[0]);
   const [userTag, setUserTag] = useState(currentUser?.userTag || '1000');
+  const [uploading, setUploading] = useState(false);
 
   if (!isOpen || !currentUser) return null;
 
@@ -39,18 +42,29 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     setUserTag(Math.floor(1000 + Math.random() * 9000).toString());
   };
 
-  const handleImageUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
-    if (!file) return;
+    if (!file || !currentUser) return;
 
     sound.playClick();
-    const reader = new FileReader();
-    reader.onload = (event) => {
-      if (event.target?.result) {
-        setPhotoURL(event.target.result as string);
-      }
-    };
-    reader.readAsDataURL(file);
+    setUploading(true);
+    try {
+      // Direct upload to Cloudflare R2 S3 storage
+      const r2Url = await r2Service.uploadAvatar(file, currentUser.uid);
+      setPhotoURL(r2Url);
+      sound.playSuccess();
+    } catch (err) {
+      console.warn('R2 upload fallback to data URL:', err);
+      const reader = new FileReader();
+      reader.onload = (event) => {
+        if (event.target?.result) {
+          setPhotoURL(event.target.result as string);
+        }
+      };
+      reader.readAsDataURL(file);
+    } finally {
+      setUploading(false);
+    }
   };
 
   const handleSave = async (e: React.FormEvent) => {
@@ -112,15 +126,22 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                   alt="Avatar"
                   className="w-16 h-16 rounded-2xl object-cover border-2 border-[#628395] shadow-xs"
                 />
-                <label className="absolute inset-0 bg-black/40 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
-                  <Upload className="w-5 h-5 text-white" />
-                  <input
-                    type="file"
-                    accept="image/*"
-                    onChange={handleImageUpload}
-                    className="hidden"
-                  />
-                </label>
+                {uploading ? (
+                  <div className="absolute inset-0 bg-black/60 text-white rounded-2xl flex flex-col items-center justify-center gap-1 text-[10px] font-bold">
+                    <Loader2 className="w-5 h-5 animate-spin text-[#DBAD6A]" />
+                    <span>上傳 R2...</span>
+                  </div>
+                ) : (
+                  <label className="absolute inset-0 bg-black/40 text-white rounded-2xl flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity cursor-pointer">
+                    <Upload className="w-5 h-5 text-white" />
+                    <input
+                      type="file"
+                      accept="image/*"
+                      onChange={handleImageUpload}
+                      className="hidden"
+                    />
+                  </label>
+                )}
               </div>
             </div>
 

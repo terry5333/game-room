@@ -20,29 +20,35 @@ interface RoomConfigModalProps {
   gameId: GameId;
   onClose: () => void;
   onConfirm: (options: RoomCreationOptions) => void;
+  initialOptions?: RoomCreationOptions;
+  confirmText?: string;
+  subTitle?: string;
 }
 
 export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
   gameId,
   onClose,
-  onConfirm
+  onConfirm,
+  initialOptions,
+  confirmText,
+  subTitle
 }) => {
   // Common
-  const [maxPlayers, setMaxPlayers] = useState<number>(2);
+  const [maxPlayers, setMaxPlayers] = useState<number>(initialOptions?.maxPlayers || 2);
 
   // 1A2B Options
-  const [hintEnabled, setHintEnabled] = useState<boolean>(true);
-  const [hintRound, setHintRound] = useState<number>(5);
-  const [maxRounds, setMaxRounds] = useState<number>(0); // 0 = unlimited
+  const [hintEnabled, setHintEnabled] = useState<boolean>(initialOptions?.hintEnabled ?? true);
+  const [hintRound, setHintRound] = useState<number>(initialOptions?.hintRound || 5);
+  const [maxRounds, setMaxRounds] = useState<number>(initialOptions?.maxRounds || 0); // 0 = unlimited
 
   // Bingo Options
-  const [targetLines, setTargetLines] = useState<number>(5);
+  const [targetLines, setTargetLines] = useState<number>(initialOptions?.targetLines || 5);
 
   // Battleship Options
-  const [gridSize, setGridSize] = useState<number>(8);
+  const [gridSize, setGridSize] = useState<number>(initialOptions?.gridSize || 8);
 
   // Dots Options
-  const [dotsGridSize, setDotsGridSize] = useState<number>(4);
+  const [dotsGridSize, setDotsGridSize] = useState<number>(initialOptions?.dotsGridSize || 4);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -96,7 +102,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
             </div>
             <div>
               <h2 className="text-lg font-black text-[#2E2925] tracking-tight">{info.title}</h2>
-              <p className="text-xs font-bold text-[#96897B]">自訂房間遊玩規則與對弈參數</p>
+              <p className="text-xs font-bold text-[#96897B]">{subTitle || '自訂房間遊玩規則與對弈參數'}</p>
             </div>
           </div>
           <button
@@ -471,7 +477,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
               className="px-6 py-2.5 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-black text-xs shadow-md shadow-[#628395]/20 flex items-center gap-1.5 transition-all cursor-pointer"
             >
               <Check className="w-4 h-4" />
-              <span>確定創建房間</span>
+              <span>{confirmText || '確定創建房間'}</span>
             </button>
           </div>
         </form>

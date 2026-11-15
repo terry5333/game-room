@@ -16,13 +16,15 @@ import {
   ShieldCheck,
   Sparkles,
   CheckCheck,
-  Lock
+  Lock,
+  Sliders
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { useRoom } from '../../context/RoomContext';
 import { matchService } from '../../services/matchService';
-import type { UserPresence, GameId, BattleInvite, FriendRequest, FriendRecord } from '../../types';
+import type { UserPresence, GameId, BattleInvite, FriendRequest, FriendRecord, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
+import { RoomConfigModal } from './RoomConfigModal';
 
 interface FriendsModalProps {
   isOpen: boolean;
@@ -50,6 +52,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
   const [selectedFriend, setSelectedFriend] = useState<UserPresence | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameId>('1a2b');
+  const [showConfigModal, setShowConfigModal] = useState(false);
   const [inviting, setInviting] = useState(false);
   const [requestSending, setRequestSending] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -185,14 +188,24 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     }
   };
 
-  // Send battle invite
-  const handleSendBattleInvite = async () => {
-    if (!selectedFriend) return;
+  // Send battle invite - directly or via room config options
+  const handleProceedToCreate = () => {
+    sound.playClick();
+    if (selectedGame === 'ooxx') {
+      // OOXX has no customizable parameters, create directly
+      handleCreateWithRules();
+    } else {
+      setShowConfigModal(true);
+    }
+  };
+
+  const handleCreateWithRules = async (options?: RoomCreationOptions) => {
+    if (!selectedFriend || !currentUser) return;
     setInviting(true);
     sound.playClick();
 
     try {
-      const room = await createRoom(selectedGame);
+      const room = await createRoom(selectedGame, options);
       const invite: BattleInvite = {
         id: 'inv_' + Math.random().toString(36).substring(2, 9),
         fromUid: currentUser.uid,
@@ -208,6 +221,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
       matchService.sendBattleInvite(invite);
       setSelectedFriend(null);
+      setShowConfigModal(false);
       onClose();
     } catch (e) {
       console.error(e);
@@ -581,14 +595,36 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
               <button
                 disabled={inviting}
-                onClick={handleSendBattleInvite}
+                onClick={handleProceedToCreate}
                 className="w-full py-2.5 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs transition-colors cursor-pointer flex items-center justify-center gap-1.5 shadow-sm"
               >
-                <Swords className="w-3.5 h-3.5" />
-                <span>{inviting ? '建立中...' : '送出邀請並開房'}</span>
+                {selectedGame === 'ooxx' ? (
+                  <>
+                    <Swords className="w-3.5 h-3.5" />
+                    <span>{inviting ? '建立中...' : '送出邀請並開房'}</span>
+                  </>
+                ) : (
+                  <>
+                    <Sliders className="w-3.5 h-3.5" />
+                    <span>{inviting ? '建立中...' : '下一步：自訂規則並開房'}</span>
+                  </>
+                )}
               </button>
             </motion.div>
           </div>
+        )}
+      </AnimatePresence>
+
+      {/* Room Rule Configuration Modal when Inviting Friend */}
+      <AnimatePresence>
+        {showConfigModal && selectedFriend && (
+          <RoomConfigModal
+            gameId={selectedGame}
+            subTitle={`與好友 ${selectedFriend.displayName} 對戰・自訂房間遊玩規則`}
+            confirmText="確定規則並送出邀請"
+            onClose={() => setShowConfigModal(false)}
+            onConfirm={(opts) => handleCreateWithRules(opts)}
+          />
         )}
       </AnimatePresence>
     </>

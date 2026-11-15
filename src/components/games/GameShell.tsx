@@ -12,15 +12,17 @@ import {
   Wifi,
   AlertTriangle,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Sliders
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
 import { VictoryCelebration } from '../common/VictoryCelebration';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
+import { RoomConfigModal } from '../lobby/RoomConfigModal';
 import { sound } from '../../services/soundService';
-import type { PlayerSlot } from '../../types';
+import type { PlayerSlot, RoomCreationOptions } from '../../types';
 
 interface GameShellProps {
   title: string;
@@ -41,6 +43,7 @@ export const GameShell: React.FC<GameShellProps> = ({
     surrender,
     restartGame,
     startGame,
+    updateRoomState,
     myRole,
     isHost,
     players,
@@ -52,8 +55,35 @@ export const GameShell: React.FC<GameShellProps> = ({
   const [copied, setCopied] = useState(false);
   const [recorded, setRecorded] = useState(false);
   const [inviteFriendsOpen, setInviteFriendsOpen] = useState(false);
+  const [configRulesOpen, setConfigRulesOpen] = useState(false);
 
   if (!currentRoom || !currentUser) return null;
+
+  const handleUpdateRoomConfig = async (options: RoomCreationOptions) => {
+    try {
+      await updateRoomState((draft) => {
+        if (options.maxPlayers) {
+          draft.maxPlayers = options.maxPlayers;
+        }
+        if (draft.gameId === '1a2b' && draft.state1a2b) {
+          if (options.hintEnabled !== undefined) draft.state1a2b.hintEnabled = options.hintEnabled;
+          if (options.hintRound !== undefined) draft.state1a2b.hintRound = options.hintRound;
+          if (options.maxRounds !== undefined) draft.state1a2b.maxRounds = options.maxRounds;
+        } else if (draft.gameId === 'bingo' && draft.stateBingo) {
+          if (options.targetLines !== undefined) draft.stateBingo.targetLines = options.targetLines;
+          if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
+        } else if (draft.gameId === 'battleship' && draft.stateBattleship) {
+          if (options.gridSize !== undefined) draft.stateBattleship.gridSize = options.gridSize as 6 | 8 | 10;
+        } else if (draft.gameId === 'dots' && draft.stateDots) {
+          if (options.dotsGridSize !== undefined) draft.stateDots.gridSize = options.dotsGridSize as 3 | 4 | 5;
+          if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
+        }
+      });
+      setConfigRulesOpen(false);
+    } catch (err) {
+      console.error('Failed to update room config:', err);
+    }
+  };
 
   const copyRoomCode = () => {
     navigator.clipboard.writeText(currentRoom.code);
@@ -346,18 +376,32 @@ export const GameShell: React.FC<GameShellProps> = ({
               </button>
             </div>
 
-            {/* Prominent Invite Friends to Room Button */}
-            <div className="mb-5">
+            {/* Prominent Invite Friends & Room Config Buttons */}
+            <div className="mb-5 flex flex-col sm:flex-row gap-2">
               <button
                 onClick={() => {
                   sound.playClick();
                   setInviteFriendsOpen(true);
                 }}
-                className="w-full py-2.5 px-4 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-md shadow-[#628395]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="flex-1 py-2.5 px-4 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-md shadow-[#628395]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
                 <span>邀請好友加入此房間</span>
               </button>
+
+              {isHost && (
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setConfigRulesOpen(true);
+                  }}
+                  className="py-2.5 px-4 rounded-2xl bg-[#DDBEAA]/30 hover:bg-[#DDBEAA]/50 text-[#5D4037] font-extrabold text-xs border border-[#5D4037]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  title="調整此房間遊戲規則"
+                >
+                  <Sliders className="w-4 h-4 text-[#5D4037]" />
+                  <span>調整規則</span>
+                </button>
+              )}
             </div>
 
             {/* Slots Grid */}
@@ -457,6 +501,26 @@ export const GameShell: React.FC<GameShellProps> = ({
         onClose={() => setInviteFriendsOpen(false)}
         currentRoom={currentRoom}
       />
+
+      {/* Room Rule Adjustment Modal */}
+      {configRulesOpen && (
+        <RoomConfigModal
+          gameId={currentRoom.gameId}
+          onClose={() => setConfigRulesOpen(false)}
+          onConfirm={handleUpdateRoomConfig}
+          confirmText="儲存房間規則"
+          subTitle="房主可在對戰開始前隨時自訂此房間各項進階規則與人數"
+          initialOptions={{
+            maxPlayers: currentRoom.maxPlayers || 2,
+            hintEnabled: currentRoom.state1a2b?.hintEnabled ?? true,
+            hintRound: currentRoom.state1a2b?.hintRound ?? 5,
+            maxRounds: currentRoom.state1a2b?.maxRounds ?? 0,
+            targetLines: currentRoom.stateBingo?.targetLines ?? 5,
+            gridSize: currentRoom.stateBattleship?.gridSize ?? 8,
+            dotsGridSize: currentRoom.stateDots?.gridSize ?? 4,
+          }}
+        />
+      )}
     </motion.div>
   );
 };
