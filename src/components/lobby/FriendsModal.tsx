@@ -25,6 +25,7 @@ import { matchService } from '../../services/matchService';
 import type { UserPresence, GameId, BattleInvite, FriendRequest, FriendRecord, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
+import { ExamCardModal } from '../profile/ExamCardModal';
 
 interface FriendsModalProps {
   isOpen: boolean;
@@ -51,6 +52,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
   const [incomingRequests, setIncomingRequests] = useState<FriendRequest[]>([]);
 
   const [selectedFriend, setSelectedFriend] = useState<UserPresence | null>(null);
+  const [inspectFriend, setInspectFriend] = useState<UserPresence | FriendRecord | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameId>('1a2b');
   const [showConfigModal, setShowConfigModal] = useState(false);
   const [inviting, setInviting] = useState(false);
@@ -400,7 +402,14 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                       className="glass-panel-subtle rounded-2xl p-3 border border-white/70 flex items-center justify-between gap-2.5 shadow-2xs"
                     >
                       <div className="flex items-center gap-2.5 min-w-0 flex-1">
-                        <div className="relative shrink-0">
+                        <div
+                          onClick={() => {
+                            sound.playClick();
+                            setInspectFriend(f);
+                          }}
+                          className="relative shrink-0 cursor-pointer hover:scale-105 transition-transform"
+                          title="點擊查看好友《帝國受驗准考證》"
+                        >
                           <img
                             src={f.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${f.uid}`}
                             alt={f.displayName}
@@ -556,7 +565,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
       {/* Battle Invite Sub-modal */}
       <AnimatePresence>
-        {selectedFriend && (
+        {selectedFriend && !showConfigModal && (
           <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs">
             <motion.div
               initial={{ scale: 0.9, opacity: 0 }}
@@ -627,6 +636,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
           />
         )}
       </AnimatePresence>
+      {/* Inspect Friend Exam Card Modal */}
+      <ExamCardModal
+        isOpen={Boolean(inspectFriend)}
+        onClose={() => setInspectFriend(null)}
+        user={inspectFriend}
+        isSelf={inspectFriend?.uid === currentUser?.uid}
+      />
     </>
   );
 };

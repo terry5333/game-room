@@ -606,8 +606,14 @@ class MatchService {
     const clean: Record<string, any> = {};
     for (const [key, val] of Object.entries(data)) {
       if (val !== undefined) {
-        if (key === 'photoURL' && typeof val === 'string' && (val.startsWith('data:') || val.length > 500)) {
-          clean[key] = `https://api.dicebear.com/7.x/bottts/svg?seed=${data.uid || 'player'}`;
+        if (key === 'photoURL' && typeof val === 'string') {
+          if (val.startsWith('data:')) {
+            clean[key] = `https://api.dicebear.com/7.x/bottts/svg?seed=${data.uid || 'player'}`;
+          } else if (val.length > 2000) {
+            clean[key] = `https://api.dicebear.com/7.x/bottts/svg?seed=${data.uid || 'player'}`;
+          } else {
+            clean[key] = val;
+          }
         } else {
           clean[key] = this.cleanForRTDB(val);
         }

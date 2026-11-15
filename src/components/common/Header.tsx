@@ -10,7 +10,9 @@ import {
   Shield,
   Gamepad2,
   ChevronDown,
-  User
+  User,
+  Shirt,
+  Award
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
@@ -20,6 +22,8 @@ interface HeaderProps {
   onOpenAdmin: () => void;
   onOpenFriends?: () => void;
   onOpenEditProfile: () => void;
+  onOpenWardrobe?: () => void;
+  onOpenExamCard?: () => void;
   inGame?: boolean;
 }
 
@@ -27,6 +31,8 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onOpenAdmin,
   onOpenEditProfile,
+  onOpenWardrobe,
+  onOpenExamCard,
   inGame = false
 }) => {
   const { currentUser, logout } = useAuth();
@@ -81,6 +87,21 @@ export const Header: React.FC<HeaderProps> = ({
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />
             <span>{currentUser.coins.toLocaleString()}</span>
           </div>
+
+          {/* Wardrobe Shop Shortcut */}
+          {onOpenWardrobe && (
+            <button
+              onClick={() => {
+                sound.playClick();
+                onOpenWardrobe();
+              }}
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-bold text-xs shadow-2xs transition-colors cursor-pointer shrink-0"
+              title="前往昭和町服飾舖試衣間"
+            >
+              <Shirt className="w-3.5 h-3.5 text-[#FFE8D6]" />
+              <span className="hidden sm:inline">服飾舖</span>
+            </button>
+          )}
 
           {/* Sound Toggle */}
           <button
@@ -146,6 +167,34 @@ export const Header: React.FC<HeaderProps> = ({
                     </button>
                   </div>
                 </div>
+
+                {/* Showa Exam Card Option */}
+                {onOpenExamCard && (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenExamCard();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#5D3A1A] hover:bg-[#8D5B4C]/10 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Award className="w-3.5 h-3.5 text-[#8D5B4C]" />
+                    <span>帝國受驗准考證</span>
+                  </button>
+                )}
+
+                {/* Wardrobe Option */}
+                {onOpenWardrobe && (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenWardrobe();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#5D3A1A] hover:bg-[#8D5B4C]/10 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <Shirt className="w-3.5 h-3.5 text-[#8D5B4C]" />
+                    <span>昭和町服飾舖 (換裝)</span>
+                  </button>
+                )}
 
                 {/* Edit Profile Option */}
                 <button

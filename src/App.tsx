@@ -11,6 +11,8 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
 import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
+import { WardrobeModal } from './components/profile/WardrobeModal';
+import { ExamCardModal } from './components/profile/ExamCardModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
 import { Game1A2B } from './components/games/game1a2b/Game1A2B';
@@ -30,6 +32,8 @@ export const AppContent: React.FC = () => {
   const [adminOpen, setAdminOpen] = useState(false);
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
+  const [examCardUser, setExamCardUser] = useState<any>(null);
 
   if (loading) {
     return <LoadingScreen message="對戰平台載入中..." subMessage="正在與雲端伺服器建立加密連線並同步使用者資訊..." />;
@@ -53,6 +57,8 @@ export const AppContent: React.FC = () => {
         onOpenAdmin={() => setAdminOpen(true)}
         onOpenFriends={() => setFriendsOpen(true)}
         onOpenEditProfile={() => setEditProfileOpen(true)}
+        onOpenWardrobe={() => setWardrobeOpen(true)}
+        onOpenExamCard={() => setExamCardUser(currentUser)}
         inGame={Boolean(currentRoom)}
       />
 
@@ -86,6 +92,8 @@ export const AppContent: React.FC = () => {
               <Lobby
                 onOpenRulesForGame={(gid) => handleOpenRules(gid)}
                 onOpenFriends={() => setFriendsOpen(true)}
+                onOpenWardrobe={() => setWardrobeOpen(true)}
+                onOpenExamCard={() => setExamCardUser(currentUser)}
               />
             </div>
           )}
@@ -128,6 +136,28 @@ export const AppContent: React.FC = () => {
       <AdminDashboard
         isOpen={adminOpen}
         onClose={() => setAdminOpen(false)}
+      />
+
+      {/* Showa Wardrobe Fitting Modal */}
+      <WardrobeModal
+        isOpen={wardrobeOpen}
+        onClose={() => setWardrobeOpen(false)}
+      />
+
+      {/* Showa Imperial Examinee Student ID Card Modal */}
+      <ExamCardModal
+        isOpen={Boolean(examCardUser)}
+        onClose={() => setExamCardUser(null)}
+        user={examCardUser}
+        isSelf={examCardUser?.uid === currentUser?.uid}
+        onOpenWardrobe={() => {
+          setExamCardUser(null);
+          setWardrobeOpen(true);
+        }}
+        onOpenEditProfile={() => {
+          setExamCardUser(null);
+          setEditProfileOpen(true);
+        }}
       />
 
       {/* Interactive Onboarding Spotlight Tour (shows only after profile setup completed) */}

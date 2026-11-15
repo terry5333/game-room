@@ -1,5 +1,12 @@
 export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx';
 
+export interface UserWardrobe {
+  head: string;      // 'none' | 'student_cap' | 'hachimaki' | 'fox_mask' | 'ronin_band' | 'fedora' | 'ninja_mask'
+  outfit: string;    // 'default' | 'gakuran' | 'sailor' | 'haori' | 'jinbei' | 'dojo' | 'suit'
+  accessory: string; // 'none' | 'brush' | 'shinai' | 'abacus' | 'fan' | 'katana'
+  stamp: string;     // 'candidate' | 'passed' | 'master' | 'undefeated' | 'pro'
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -15,6 +22,8 @@ export interface UserProfile {
   role: 'user' | 'admin';
   friendCode: string;
   createdAt: number;
+  wardrobe?: UserWardrobe;
+  unlockedItems?: string[];
 }
 
 export type PresenceStatus = 'online' | 'lobby' | 'in_game' | 'offline';
@@ -32,6 +41,7 @@ export interface UserPresence {
   currentGameName?: string;
   currentRoomMaxPlayers?: number;
   currentRoomPlayerCount?: number;
+  wardrobe?: UserWardrobe;
 }
 
 export interface CoinTransaction {
@@ -74,6 +84,7 @@ export interface FriendRecord {
   photoURL: string;
   userTag: string;
   addedAt: number;
+  wardrobe?: UserWardrobe;
 }
 
 export type PlayerRole = 'player1' | 'player2' | 'player3' | 'player4' | 'player5' | 'spectator';
@@ -84,6 +95,7 @@ export interface PlayerSlot {
   photoURL: string;
   ready: boolean;
   score?: number;
+  wardrobe?: UserWardrobe;
 }
 
 // 1A2B Game Types

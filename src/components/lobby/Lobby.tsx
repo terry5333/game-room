@@ -13,7 +13,9 @@ import {
   BookOpen,
   RotateCcw,
   Sparkles,
-  Keyboard
+  Keyboard,
+  Shirt,
+  Award
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -22,15 +24,20 @@ import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
 import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
+import { ShowaAvatar } from '../common/ShowaAvatar';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
   onOpenFriends: () => void;
+  onOpenWardrobe?: () => void;
+  onOpenExamCard?: () => void;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
   onOpenRulesForGame,
-  onOpenFriends
+  onOpenFriends,
+  onOpenWardrobe,
+  onOpenExamCard
 }) => {
   const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
   const { currentUser } = useAuth();
@@ -157,9 +164,9 @@ export const Lobby: React.FC<LobbyProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Sleek Top Action Bar: Friends & Room Code Keypad in a Single Row */}
+      {/* Sleek Top Action Bar: Friends, Room Code Keypad & Wardrobe Shop */}
       <div className="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-xs border border-white/70">
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+        <div className="grid grid-cols-3 gap-2 sm:gap-3">
           {/* Button 1: 好友名單 */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -168,12 +175,12 @@ export const Lobby: React.FC<LobbyProps> = ({
               sound.playClick();
               onOpenFriends();
             }}
-            className="relative flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20 hover:border-[#628395]/40 font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer"
+            className="relative flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20 hover:border-[#628395]/40 font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer"
           >
             <div className="w-6 h-6 rounded-lg bg-[#628395]/15 text-[#628395] flex items-center justify-center shrink-0">
               <Users2 className="w-3.5 h-3.5 text-[#628395]" />
             </div>
-            <span className="truncate">好友名單</span>
+            <span className="truncate">好友</span>
             {pendingRequestsCount > 0 && (
               <span className="w-4 h-4 rounded-full bg-rose-500 text-white font-mono text-[10px] font-black flex items-center justify-center shadow-xs animate-bounce">
                 {pendingRequestsCount}
@@ -189,15 +196,77 @@ export const Lobby: React.FC<LobbyProps> = ({
               sound.playClick();
               setKeypadModalOpen(true);
             }}
-            className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
             <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
               <Hash className="w-3.5 h-3.5 text-white" />
             </div>
-            <span className="truncate">輸入房號進房</span>
+            <span className="truncate">輸入房號</span>
+          </motion.button>
+
+          {/* Button 3: 昭和町服飾舖 */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              sound.playClick();
+              if (onOpenWardrobe) onOpenWardrobe();
+            }}
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
+          >
+            <div className="w-6 h-6 rounded-lg bg-[#FFE8D6]/20 text-[#FFE8D6] flex items-center justify-center shrink-0">
+              <Shirt className="w-3.5 h-3.5 text-[#FFE8D6]" />
+            </div>
+            <span className="truncate">服飾舖</span>
           </motion.button>
         </div>
       </div>
+
+      {/* Showa Examinee Passport Banner (Option 3 preview) */}
+      {currentUser && (
+        <div
+          onClick={() => {
+            sound.playClick();
+            if (onOpenExamCard) onOpenExamCard();
+          }}
+          className="p-2.5 sm:p-3 rounded-2xl bg-[#F7EBD2]/90 hover:bg-[#F7EBD2] border-2 border-double border-[#8D5B4C]/50 shadow-xs flex items-center justify-between gap-3 cursor-pointer transition-all hover:scale-[1.01]"
+          title="點擊翻閱個人《帝國受驗准考證》"
+        >
+          <div className="flex items-center gap-2.5 min-w-0">
+            <div className="shrink-0">
+              <ShowaAvatar
+                size="sm"
+                wardrobe={currentUser.wardrobe}
+                photoURL={currentUser.photoURL}
+                showPedestal={false}
+                animated={false}
+              />
+            </div>
+            <div className="min-w-0">
+              <div className="flex items-center gap-1.5">
+                <span className="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-[#8D5B4C]/20 text-[#5D3A1A]">
+                  帝國受驗生
+                </span>
+                <span className="text-xs font-black text-[#3B2211] truncate">
+                  {currentUser.displayName}
+                </span>
+                <span className="font-mono text-[10px] text-[#8D5B4C] font-bold">
+                  #{currentUser.userTag}
+                </span>
+              </div>
+              <p className="text-[10px] text-[#8D5B4C] font-bold mt-0.5">
+                已認證准考資格・點擊檢視勝率戰績與准考印章
+              </p>
+            </div>
+          </div>
+
+          <div className="shrink-0 flex items-center gap-1 text-[11px] font-black text-[#5D3A1A] bg-[#FFE8D6] px-2.5 py-1 rounded-xl border border-[#D5C0A1]">
+            <Award className="w-3.5 h-3.5 text-[#8D5B4C]" />
+            <span className="hidden sm:inline">准考證</span>
+            <span>→</span>
+          </div>
+        </div>
+      )}
 
       {/* 5 Game Cards */}
       <motion.div

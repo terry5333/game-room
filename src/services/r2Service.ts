@@ -5,6 +5,7 @@ export const R2_CONFIG = {
   endpoint: 'https://d558bc3668f47cffacc35174026763ea.r2.cloudflarestorage.com',
   host: 'd558bc3668f47cffacc35174026763ea.r2.cloudflarestorage.com',
   bucket: 'rpg',
+  publicUrl: 'https://pub-07c6d3cdd65a45bb860edea4d63f3beb.r2.dev',
   accessKeyId: 'f6167ea2f77535b1274bae3145fb6eca',
   secretAccessKey: 'ba9e90aae22991dcc1a4cf3e7cd15866fbc12e92d8ae28d7a0edb6b860479a10',
   region: 'auto',
@@ -149,8 +150,8 @@ class R2Service {
       throw new Error(`R2 上傳失敗 (${response.status}): ${errText}`);
     }
 
-    // Return 7-day presigned URL
-    return this.getPresignedUrl(key, R2_CONFIG.bucket, 604800);
+    // Return permanent Cloudflare edge public CDN URL
+    return `${R2_CONFIG.publicUrl}/${key}`;
   }
 
   // Upload a base64 data URI to R2 directly
@@ -173,24 +174,26 @@ class R2Service {
   // Ensures an avatar URL is signed if it's an R2 reference
   public async ensureSignedAvatarUrl(photoURL: string): Promise<string> {
     if (!photoURL) return '';
-    if (photoURL.startsWith('data:') || photoURL.includes('googleusercontent.com') || photoURL.includes('dicebear.com') || photoURL.includes('unsplash.com')) {
+    if (
+      photoURL.startsWith('data:') ||
+      photoURL.includes('googleusercontent.com') ||
+      photoURL.includes('dicebear.com') ||
+      photoURL.includes('unsplash.com') ||
+      photoURL.includes('pub-07c6d3cdd65a45bb860edea4d63f3beb.r2.dev')
+    ) {
       return photoURL;
     }
 
-    // If it's an R2 URL or key
+    // If it's an R2 URL on the S3 endpoint, convert to the fast public domain
     if (photoURL.includes(R2_CONFIG.host)) {
       try {
-        const urlObj = new URL(photoURL);
-        const pathSegments = urlObj.pathname.split('/').filter(Boolean);
-        // /rpg/avatars/... -> bucket is pathSegments[0], key is remaining
-        if (pathSegments.length >= 2) {
-          const bucket = pathSegments[0];
-          const key = pathSegments.slice(1).join('/');
-          return this.getPresignedUrl(key, bucket);
+        const match = photoURL.match(/\/rpg\/(.+?)(\?|$)/);
+        if (match) {
+          return `${R2_CONFIG.publicUrl}/${match[1]}`;
         }
       } catch {}
     } else if (photoURL.startsWith('avatars/')) {
-      return this.getPresignedUrl(photoURL, R2_CONFIG.bucket);
+      return `${R2_CONFIG.publicUrl}/${photoURL}`;
     }
 
     return photoURL;

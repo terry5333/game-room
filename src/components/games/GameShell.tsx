@@ -13,7 +13,8 @@ import {
   AlertTriangle,
   RotateCcw,
   Sparkles,
-  Sliders
+  Sliders,
+  Shirt
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -21,6 +22,10 @@ import { VictoryCelebration } from '../common/VictoryCelebration';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
+import { ShowaAvatar } from '../common/ShowaAvatar';
+import { ExamCardModal } from '../profile/ExamCardModal';
+import { WardrobeModal } from '../profile/WardrobeModal';
+import { DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
 import { sound } from '../../services/soundService';
 import type { PlayerSlot, RoomCreationOptions } from '../../types';
 
@@ -56,6 +61,8 @@ export const GameShell: React.FC<GameShellProps> = ({
   const [recorded, setRecorded] = useState(false);
   const [inviteFriendsOpen, setInviteFriendsOpen] = useState(false);
   const [configRulesOpen, setConfigRulesOpen] = useState(false);
+  const [inspectUser, setInspectUser] = useState<any>(null);
+  const [wardrobeOpen, setWardrobeOpen] = useState(false);
 
   if (!currentRoom || !currentUser) return null;
 
@@ -376,17 +383,29 @@ export const GameShell: React.FC<GameShellProps> = ({
               </button>
             </div>
 
-            {/* Prominent Invite Friends & Room Config Buttons */}
-            <div className="mb-5 flex flex-col sm:flex-row gap-2">
+            {/* Action Buttons: Invite Friends, Custom Rules & Wardrobe Shop */}
+            <div className="mb-4 flex flex-wrap gap-2">
               <button
                 onClick={() => {
                   sound.playClick();
                   setInviteFriendsOpen(true);
                 }}
-                className="flex-1 py-2.5 px-4 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-md shadow-[#628395]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                className="flex-1 py-2 px-3 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-md shadow-[#628395]/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
               >
                 <UserPlus className="w-4 h-4" />
-                <span>邀請好友加入此房間</span>
+                <span>邀請好友</span>
+              </button>
+
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setWardrobeOpen(true);
+                }}
+                className="py-2 px-3 rounded-2xl bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-extrabold text-xs shadow-xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                title="進入昭和町服飾舖試衣間"
+              >
+                <Shirt className="w-4 h-4 text-[#FFE8D6]" />
+                <span>服飾舖換裝</span>
               </button>
 
               {isHost && (
@@ -395,7 +414,7 @@ export const GameShell: React.FC<GameShellProps> = ({
                     sound.playClick();
                     setConfigRulesOpen(true);
                   }}
-                  className="py-2.5 px-4 rounded-2xl bg-[#DDBEAA]/30 hover:bg-[#DDBEAA]/50 text-[#5D4037] font-extrabold text-xs border border-[#5D4037]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+                  className="py-2 px-3 rounded-2xl bg-[#DDBEAA]/30 hover:bg-[#DDBEAA]/50 text-[#5D4037] font-extrabold text-xs border border-[#5D4037]/20 flex items-center justify-center gap-1.5 transition-all cursor-pointer"
                   title="調整此房間遊戲規則"
                 >
                   <Sliders className="w-4 h-4 text-[#5D4037]" />
@@ -404,47 +423,188 @@ export const GameShell: React.FC<GameShellProps> = ({
               )}
             </div>
 
-            {/* Slots Grid */}
-            <div
-              className={`grid gap-2 mb-5 ${
-                (currentRoom.maxPlayers || 2) >= 5
-                  ? 'grid-cols-2 sm:grid-cols-3'
-                  : 'grid-cols-2'
-              }`}
-            >
-              {Array.from({ length: currentRoom.maxPlayers || 2 }).map((_, slotIdx) => {
-                const slotPlayer = players[slotIdx];
-                const theme = PLAYER_THEMES[slotIdx] || PLAYER_THEMES[0];
+            {/* Showa Duel Stage / 雙人對峙席 (Option 1) */}
+            {maxSlots <= 2 ? (
+              <div className="relative my-4 p-4 rounded-3xl bg-gradient-to-b from-[#F7EBD2] to-[#EFE1C3] border-2 border-[#D5C0A1] shadow-inner overflow-hidden">
+                <div className="text-center mb-2">
+                  <span className="text-[10px] font-black tracking-widest text-[#8D5B4C] px-2.5 py-0.5 rounded-full bg-[#8D5B4C]/10 border border-[#8D5B4C]/20">
+                    昭和對弈擂台・雙人對峙席
+                  </span>
+                </div>
 
-                return slotPlayer ? (
-                  <div
-                    key={slotPlayer.uid}
-                    className={`p-2.5 rounded-2xl border flex items-center gap-2.5 ${theme.bg} ${theme.border} text-left`}
-                  >
-                    <img
-                      src={slotPlayer.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid}`}
-                      alt={slotPlayer.displayName}
-                      className="w-7 h-7 rounded-lg object-cover"
-                    />
-                    <div className="min-w-0 flex-1">
-                      <div className="text-xs font-bold text-[#2E2925] truncate">
-                        {slotPlayer.displayName}
+                <div className="flex items-end justify-around relative pt-2">
+                  {/* Player 1 Pedestal (Host) */}
+                  <div className="flex flex-col items-center">
+                    <div
+                      onClick={() => {
+                        sound.playClick();
+                        setInspectUser(players[0]);
+                      }}
+                      className="cursor-pointer group flex flex-col items-center"
+                      title="點擊檢視帝國准考證"
+                    >
+                      <div className="relative transform group-hover:scale-105 transition-transform">
+                        <ShowaAvatar
+                          size="lg"
+                          wardrobe={players[0]?.wardrobe || DEFAULT_WARDROBE}
+                          photoURL={players[0]?.photoURL}
+                          showPedestal={true}
+                          animated={true}
+                        />
+                        <div className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[9px] font-black shadow-xs">
+                          房主
+                        </div>
                       </div>
-                      <span className={`text-[10px] font-black ${theme.text}`}>
-                        {theme.name} 已加入
-                      </span>
+                      <div className="mt-1 text-center">
+                        <div className="text-xs font-black text-[#3B2211] max-w-[100px] truncate">
+                          {players[0]?.displayName}
+                        </div>
+                        <div className="text-[10px] text-[#8D5B4C] font-mono font-bold">
+                          No.{(players[0] as any)?.userTag || players[0]?.uid?.substring(0, 4) || '1000'}
+                        </div>
+                      </div>
+                    </div>
+                    <span className="text-[9px] text-[#2E7D32] font-black mt-1 px-2 py-0.5 rounded-full bg-[#2E7D32]/10 border border-[#2E7D32]/30">
+                      ● 已就位
+                    </span>
+                  </div>
+
+                  {/* VS Vermilion Wax Seal Centerpiece */}
+                  <div className="flex flex-col items-center justify-center my-auto px-2">
+                    <div className="relative flex items-center justify-center">
+                      <div className="w-13 h-13 rounded-full border-3 border-double border-[#A83232] bg-[#A83232]/10 flex items-center justify-center shadow-md animate-pulse">
+                        <span className="text-lg font-black font-serif text-[#A83232] tracking-tighter">
+                          VS
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-[10px] font-black text-[#8D5B4C] mt-2 tracking-wider">
+                      {players.length >= 2 ? '⚔️ 雙雄對峙' : '等待入席'}
                     </div>
                   </div>
-                ) : (
-                  <div
-                    key={`empty-${slotIdx}`}
-                    className="p-2.5 rounded-2xl border-2 border-dashed border-[#96897B]/30 bg-white/30 flex items-center justify-center text-xs text-[#96897B] font-bold"
-                  >
-                    等待玩家 {slotIdx + 1} 加入...
+
+                  {/* Player 2 Pedestal (Challenger) */}
+                  <div className="flex flex-col items-center">
+                    {players[1] ? (
+                      <div
+                        onClick={() => {
+                          sound.playClick();
+                          setInspectUser(players[1]);
+                        }}
+                        className="cursor-pointer group flex flex-col items-center"
+                        title="點擊檢視帝國准考證"
+                      >
+                        <div className="relative transform group-hover:scale-105 transition-transform">
+                          <ShowaAvatar
+                            size="lg"
+                            wardrobe={players[1]?.wardrobe || DEFAULT_WARDROBE}
+                            photoURL={players[1]?.photoURL}
+                            showPedestal={true}
+                            animated={true}
+                          />
+                          <div className="absolute -top-1 -right-1 px-1.5 py-0.2 rounded-md bg-[#628395] text-white text-[9px] font-black shadow-xs">
+                            挑戰者
+                          </div>
+                        </div>
+                        <div className="mt-1 text-center">
+                          <div className="text-xs font-black text-[#3B2211] max-w-[100px] truncate">
+                            {players[1]?.displayName}
+                          </div>
+                          <div className="text-[10px] text-[#8D5B4C] font-mono font-bold">
+                            No.{(players[1] as any)?.userTag || players[1]?.uid?.substring(0, 4) || '2000'}
+                          </div>
+                        </div>
+                        <span className="text-[9px] text-[#2E7D32] font-black mt-1 px-2 py-0.5 rounded-full bg-[#2E7D32]/10 border border-[#2E7D32]/30">
+                          ● 已入席
+                        </span>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center justify-end" style={{ height: 160 }}>
+                        <div className="w-24 h-28 rounded-2xl border-2 border-dashed border-[#8D5B4C]/40 bg-white/40 flex flex-col items-center justify-center p-2 text-center">
+                          <div className="w-8 h-8 rounded-full bg-[#8D5B4C]/10 text-[#8D5B4C] flex items-center justify-center mb-1 animate-pulse">
+                            <UserPlus className="w-4 h-4" />
+                          </div>
+                          <span className="text-[11px] font-black text-[#5D3A1A]">
+                            席位空缺
+                          </span>
+                          <span className="text-[9px] text-[#8D5B4C] font-bold mt-0.5">
+                            等待加入...
+                          </span>
+                        </div>
+                        <button
+                          onClick={() => {
+                            sound.playClick();
+                            setInviteFriendsOpen(true);
+                          }}
+                          className="mt-2 text-[10px] text-[#628395] hover:underline font-bold flex items-center gap-0.5 cursor-pointer"
+                        >
+                          <UserPlus className="w-3 h-3" />
+                          <span>邀請好友</span>
+                        </button>
+                      </div>
+                    )}
                   </div>
-                );
-              })}
-            </div>
+                </div>
+
+                <div className="mt-3 text-center text-[10px] text-[#8D5B4C] font-bold">
+                  💡 點擊受驗生立繪可翻閱《帝國受驗准考證》
+                </div>
+              </div>
+            ) : (
+              /* Multi-player Pedestal Grid (Bingo / Dots 3-5 players) */
+              <div className="my-4 p-3 rounded-3xl bg-gradient-to-b from-[#F7EBD2] to-[#EFE1C3] border-2 border-[#D5C0A1] shadow-inner">
+                <div className="text-center mb-2.5">
+                  <span className="text-[10px] font-black tracking-widest text-[#8D5B4C] px-2.5 py-0.5 rounded-full bg-[#8D5B4C]/10 border border-[#8D5B4C]/20">
+                    多人同台受驗席（{players.length}/{maxSlots} 人）
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                  {Array.from({ length: maxSlots }).map((_, slotIdx) => {
+                    const slotPlayer = players[slotIdx];
+                    const theme = PLAYER_THEMES[slotIdx] || PLAYER_THEMES[0];
+
+                    return slotPlayer ? (
+                      <div
+                        key={slotPlayer.uid}
+                        onClick={() => {
+                          sound.playClick();
+                          setInspectUser(slotPlayer);
+                        }}
+                        className="p-2.5 rounded-2xl bg-white/70 border border-[#D5C0A1] flex flex-col items-center text-center cursor-pointer hover:bg-white hover:border-[#8D5B4C] transition-all"
+                        title="點擊檢視帝國准考證"
+                      >
+                        <ShowaAvatar
+                          size="md"
+                          wardrobe={slotPlayer.wardrobe || DEFAULT_WARDROBE}
+                          photoURL={slotPlayer.photoURL}
+                          showPedestal={true}
+                          animated={true}
+                        />
+                        <div className="text-xs font-black text-[#3B2211] truncate max-w-[90px] mt-1">
+                          {slotPlayer.displayName}
+                        </div>
+                        <span className={`text-[9px] font-black ${theme.text}`}>
+                          {slotIdx === 0 ? '★ 房主' : theme.name}
+                        </span>
+                      </div>
+                    ) : (
+                      <div
+                        key={`empty-${slotIdx}`}
+                        className="p-2.5 rounded-2xl border-2 border-dashed border-[#8D5B4C]/30 bg-white/30 flex flex-col items-center justify-center min-h-[110px] text-center"
+                      >
+                        <span className="text-[10px] text-[#8D5B4C] font-bold">
+                          席位 {slotIdx + 1}
+                        </span>
+                        <span className="text-[9px] text-[#96897B] mt-0.5">
+                          等待加入...
+                        </span>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
 
             {/* Host or Guest Status */}
             {isHost ? (
@@ -521,6 +681,24 @@ export const GameShell: React.FC<GameShellProps> = ({
           }}
         />
       )}
+
+      {/* Showa Exam Card Modal */}
+      <ExamCardModal
+        isOpen={Boolean(inspectUser)}
+        onClose={() => setInspectUser(null)}
+        user={inspectUser}
+        isSelf={inspectUser?.uid === currentUser?.uid}
+        onOpenWardrobe={() => {
+          setInspectUser(null);
+          setWardrobeOpen(true);
+        }}
+      />
+
+      {/* Showa Wardrobe Fitting Modal */}
+      <WardrobeModal
+        isOpen={wardrobeOpen}
+        onClose={() => setWardrobeOpen(false)}
+      />
     </motion.div>
   );
 };

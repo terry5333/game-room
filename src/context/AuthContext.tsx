@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { UserProfile, CoinTransaction } from '../types';
+import type { UserProfile, CoinTransaction, UserWardrobe } from '../types';
 import {
   auth,
   rtdb,
@@ -27,6 +27,7 @@ interface AuthContextType {
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
   updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
+  updateWardrobe: (newWardrobe: UserWardrobe, newUnlockedItem?: string) => Promise<void>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
@@ -258,6 +259,42 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     matchService.syncProfileToFriends(updated);
   };
 
+  // Update wardrobe equipment and optionally register a new unlocked wardrobe item
+  const updateWardrobe = async (newWardrobe: UserWardrobe, newUnlockedItem?: string) => {
+    if (!currentUser) return;
+    const existingUnlocked = currentUser.unlockedItems || ['none', 'default', 'candidate'];
+    const updatedUnlocked =
+      newUnlockedItem && !existingUnlocked.includes(newUnlockedItem)
+        ? [...existingUnlocked, newUnlockedItem]
+        : existingUnlocked;
+
+    const updated: UserProfile = {
+      ...currentUser,
+      wardrobe: newWardrobe,
+      unlockedItems: updatedUnlocked
+    };
+
+    saveUser(updated);
+
+    // Sync to live presence so room lobbies and friends see outfit immediately
+    matchService.updatePresence({
+      uid: updated.uid,
+      displayName: updated.displayName,
+      photoURL: updated.photoURL,
+      userTag: updated.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: newWardrobe
+    });
+
+    matchService.syncProfileToFriends(updated);
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updated.uid}/wardrobe`), newWardrobe).catch(console.warn);
+      set(ref(rtdb, `users/${updated.uid}/unlockedItems`), updatedUnlocked).catch(console.warn);
+    }
+  };
+
   const logout = async () => {
     if (currentUser) {
       matchService.updatePresence({
@@ -367,6 +404,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         loginWithGoogle,
         logout,
         updateUserProfile,
+        updateWardrobe,
         updateCoins,
         recordGameResult,
         completeTutorial,
