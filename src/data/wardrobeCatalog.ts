@@ -1,3 +1,5 @@
+import type { UserWardrobe } from '../types';
+
 export interface WardrobeItem {
   id: string;
   category: 'head' | 'outfit' | 'accessory' | 'stamp';
@@ -7,9 +9,11 @@ export interface WardrobeItem {
   icon: string;
   tag?: string;
   rarity?: 'common' | 'rare' | 'epic';
+  gender?: 'male' | 'female' | 'both';
 }
 
-export const DEFAULT_WARDROBE = {
+export const DEFAULT_WARDROBE: UserWardrobe = {
+  gender: 'male',
   head: 'none',
   outfit: 'default',
   accessory: 'none',
@@ -92,69 +96,76 @@ export const WARDROBE_CATALOG: WardrobeItem[] = [
     id: 'default',
     category: 'outfit',
     name: '初心受驗生白衫',
-    desc: '樸素乾淨的白襯衫，初入考場的初心象徵。',
+    desc: '樸素乾淨的學生白衫（男款白襯衫／女款海軍領衫），初心象徵。',
     price: 0,
     icon: '👕',
-    rarity: 'common'
+    rarity: 'common',
+    gender: 'both'
   },
   {
     id: 'gakuran',
     category: 'outfit',
-    name: '帝國黑學蘭高校服',
-    desc: '挺拔硬挺的黑色立領制服，金色鈕扣熠熠生輝，昭和青春靈魂。',
+    name: '帝國黑學蘭制服',
+    desc: '挺拔硬挺的黑色立領高校軍裝，雙排金色鈕扣，昭和男子青春標誌。',
     price: 120,
     icon: '🥋',
-    tag: '鎮館之寶',
-    rarity: 'rare'
+    tag: '男生首選',
+    rarity: 'rare',
+    gender: 'male'
   },
   {
     id: 'sailor',
     category: 'outfit',
-    name: '昭和經典海軍水手服',
-    desc: '藍白領襟搭配酒紅領巾，復古優雅的昭和校園經典裝束。',
+    name: '昭和深藍水手服',
+    desc: '深藍領襟雙白條紋搭配酒紅領巾與百褶裙，昭和女子經典裝束。',
     price: 120,
     icon: '🎀',
-    tag: '復古人氣',
-    rarity: 'rare'
+    tag: '女生首選',
+    rarity: 'rare',
+    gender: 'female'
   },
   {
     id: 'haori',
     category: 'outfit',
-    name: '大正浪漫黑金羽織',
-    desc: '墨黑底色織染金紋的典雅羽織，披在肩上自帶名門宗師氣派。',
+    name: '大正浪漫羽織和服',
+    desc: '男款松綠羽織配和服，女款櫻花振袖配酒紅緋袴，尊貴非凡。',
     price: 180,
     icon: '👘',
     tag: '傳奇外觀',
-    rarity: 'epic'
+    rarity: 'epic',
+    gender: 'both'
   },
   {
     id: 'jinbei',
     category: 'outfit',
     name: '夏日祭典甚平浴衣',
-    desc: '藏青條紋純棉甚平，穿著涼爽俐落，散發夏夜花火與彈珠汽水香氣。',
+    desc: '男款深藍十字紋甚平，女款花火粉紫祭典浴衣，隨性優雅。',
     price: 130,
     icon: '🎆',
-    rarity: 'common'
+    rarity: 'common',
+    gender: 'both'
   },
   {
     id: 'dojo',
     category: 'outfit',
-    name: '道場名譽黑帶武道服',
+    name: '道場修練黑帶道服',
     desc: '厚磅白帆布武道服繫上斑駁黑帶，一拳一子皆是不屈意志。',
     price: 150,
     icon: '🥋',
     tag: '極限實力',
-    rarity: 'rare'
+    rarity: 'rare',
+    gender: 'both'
   },
   {
     id: 'suit',
     category: 'outfit',
-    name: '昭和格紋名士西裝',
-    desc: '英倫毛呢剪裁復古西服，雙排扣搭配暗紅口袋巾，風度翩翩。',
+    name: '昭和名士洋風西服',
+    desc: '男款雙排扣毛呢紳士西裝，女款摩登女郎格紋珍珠洋裝，風度翩翩。',
     price: 200,
     icon: '👔',
     tag: '奢華名仕',
-    rarity: 'epic'
+    rarity: 'epic',
+    gender: 'both'
   },
 
   // --- 隨身手持 ACCESSORY ---

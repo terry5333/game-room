@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Sparkles, Check, Coins, ShoppingBag, RotateCcw, ShieldCheck } from 'lucide-react';
+import { X, Sparkles, Check, Coins, ShoppingBag, RotateCcw } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
 import type { UserWardrobe } from '../../types';
@@ -27,7 +27,7 @@ const TABS: { id: TabType; label: string; icon: string }[] = [
 ];
 
 export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose }) => {
-  const { currentUser, updateWardrobe, updateCoins } = useAuth();
+  const { currentUser, updateWardrobe, purchaseWardrobeItem } = useAuth();
 
   const currentEquipped: UserWardrobe = currentUser?.wardrobe || DEFAULT_WARDROBE;
   const unlockedItems: string[] = currentUser?.unlockedItems || [
@@ -44,11 +44,38 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
   if (!isOpen || !currentUser) return null;
 
   const currentCoins = currentUser.coins ?? 0;
-  const filteredCatalog = WARDROBE_CATALOG.filter((item) => item.category === activeTab);
+  const currentGender = preview.gender || 'male';
+
+  const filteredCatalog = WARDROBE_CATALOG.filter((item) => {
+    if (item.category !== activeTab) return false;
+    if (item.category === 'outfit' && item.gender && item.gender !== 'both') {
+      return item.gender === currentGender;
+    }
+    return true;
+  });
 
   const showToast = (text: string, type: 'success' | 'error' = 'success') => {
     setFeedbackMsg({ text, type });
     setTimeout(() => setFeedbackMsg(null), 3000);
+  };
+
+  // Toggle gender between Male and Female
+  const handleGenderToggle = async (newGender: 'male' | 'female') => {
+    sound.playClick();
+    let nextOutfit = preview.outfit;
+    if (newGender === 'female' && preview.outfit === 'gakuran') {
+      nextOutfit = 'sailor';
+    } else if (newGender === 'male' && preview.outfit === 'sailor') {
+      nextOutfit = 'gakuran';
+    }
+    const updated: UserWardrobe = {
+      ...preview,
+      gender: newGender,
+      outfit: nextOutfit
+    };
+    setPreview(updated);
+    await updateWardrobe(updated);
+    showToast(`受驗生性別已設定為【${newGender === 'male' ? '男生' : '女生'}】！`, 'success');
   };
 
   // Preview an item
@@ -63,7 +90,7 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
   // Equip already unlocked item directly
   const handleEquipUnlocked = async (item: WardrobeItem) => {
     sound.playClick();
-    const newWardrobe = {
+    const newWardrobe: UserWardrobe = {
       ...preview,
       [item.category]: item.id
     };
@@ -72,7 +99,7 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
     showToast(`已更換為【${item.name}】！`, 'success');
   };
 
-  // Purchase locked item
+  // Purchase locked item atomically (guarantees coin deduction and save)
   const handlePurchase = async (item: WardrobeItem) => {
     if (purchasing) return;
     if (currentCoins < item.price) {
@@ -83,20 +110,20 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
 
     setPurchasing(true);
     try {
-      // Deduct coins
-      if (item.price > 0) {
-        await updateCoins(-item.price, 'shop_purchase', `購買服飾：${item.name}`);
-      }
-
-      const newWardrobe = {
+      const newWardrobe: UserWardrobe = {
         ...preview,
         [item.category]: item.id
       };
       setPreview(newWardrobe);
-      await updateWardrobe(newWardrobe, item.id);
 
-      sound.playSuccess();
-      showToast(`成功解鎖並穿戴【${item.name}】！`, 'success');
+      const ok = await purchaseWardrobeItem(newWardrobe, item.id, item.price, item.name);
+      if (ok) {
+        sound.playSuccess();
+        showToast(`成功購買並穿戴【${item.name}】！扣除 🪙${item.price}`, 'success');
+      } else {
+        sound.playError();
+        showToast('購買失敗，金幣不足或連線異常。', 'error');
+      }
     } catch (e) {
       console.error(e);
       sound.playError();
@@ -116,7 +143,7 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
   const handleSavePreview = async () => {
     sound.playSuccess();
     await updateWardrobe(preview);
-    showToast('已保存穿搭！', 'success');
+    showToast('已保存穿搭與受驗生性別！', 'success');
   };
 
   const hasUnsavedChanges = JSON.stringify(preview) !== JSON.stringify(currentEquipped);
@@ -146,11 +173,11 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
                 <h2 className="text-lg sm:text-xl font-black text-[#5D3A1A] font-serif tracking-wider flex items-center gap-2">
                   <span>昭和町服飾舖・試衣間</span>
                   <span className="text-[11px] font-sans px-2 py-0.5 rounded-md bg-[#8D5B4C]/15 border border-[#8D5B4C]/30 text-[#8D5B4C]">
-                    對弈擂台換裝
+                    對弈木椅入席換裝
                   </span>
                 </h2>
                 <p className="text-[11px] text-[#8D5B4C] font-bold">
-                  打造專屬受驗生立繪，於房間等待對峙席與准考證威風亮相！
+                  可自訂男／女受驗生端坐對弈椅立繪，全套服飾資源直接載入自 Cloudflare R2！
                 </p>
               </div>
             </div>
@@ -198,7 +225,7 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
               <div className="w-full flex items-center justify-between text-[11px] font-bold text-[#8D5B4C]">
                 <span className="flex items-center gap-1">
                   <Sparkles className="w-3.5 h-3.5 text-[#D48800]" />
-                  姿見鏡（穿搭預覽）
+                  姿見鏡（端坐對弈椅預覽）
                 </span>
                 {hasUnsavedChanges && (
                   <button
@@ -211,18 +238,43 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
                 )}
               </div>
 
-              {/* Character Standee on Pedestal */}
-              <div className="my-auto py-2">
+              {/* Gender Toggle: 男生受驗生 vs 女生受驗生 */}
+              <div className="w-full flex items-center justify-center p-1 rounded-xl bg-[#E8DAC2] border border-[#D5C0A1] my-2">
+                <button
+                  onClick={() => handleGenderToggle('male')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    preview.gender !== 'female'
+                      ? 'bg-[#5D3A1A] text-[#FFE8D6] shadow-xs'
+                      : 'text-[#8D5B4C] hover:bg-white/40'
+                  }`}
+                >
+                  <span className="text-sm">♂</span>
+                  <span>男生受驗生</span>
+                </button>
+                <button
+                  onClick={() => handleGenderToggle('female')}
+                  className={`flex-1 py-1.5 px-2 rounded-lg text-xs font-black transition-all flex items-center justify-center gap-1 cursor-pointer ${
+                    preview.gender === 'female'
+                      ? 'bg-[#A82323] text-white shadow-xs'
+                      : 'text-[#8D5B4C] hover:bg-white/40'
+                  }`}
+                >
+                  <span className="text-sm">♀</span>
+                  <span>女生受驗生</span>
+                </button>
+              </div>
+
+              {/* Character Seated on Vintage Showa Duel Chair */}
+              <div className="my-auto py-1">
                 <ShowaAvatar
                   size="xl"
                   wardrobe={preview}
-                  photoURL={currentUser.photoURL}
-                  showPedestal={true}
+                  showChair={true}
                   animated={true}
                 />
               </div>
 
-              {/* Stamp preview badge */}
+              {/* Stamp preview badge & Save Changes */}
               <div className="w-full flex items-center justify-between p-2 rounded-xl bg-white/70 border border-[#D5C0A1] text-xs">
                 <div className="flex items-center gap-2">
                   <div className="w-7 h-7 rounded-md border border-[#A83232] bg-[#A83232]/10 flex items-center justify-center text-[10px] font-black text-[#A83232] font-serif">
@@ -239,7 +291,7 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
                 {hasUnsavedChanges && (
                   <button
                     onClick={handleSavePreview}
-                    className="px-3 py-1 rounded-lg bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-bold text-[11px] transition-colors cursor-pointer shadow-xs"
+                    className="px-3.5 py-1.5 rounded-lg bg-[#5D3A1A] hover:bg-[#432711] text-[#FFE8D6] font-bold text-xs transition-colors cursor-pointer shadow-xs"
                   >
                     保存更換
                   </button>
@@ -307,6 +359,17 @@ export const WardrobeModal: React.FC<WardrobeModalProps> = ({ isOpen, onClose })
                             <span className="text-sm font-black text-[#3B2211] truncate">
                               {item.name}
                             </span>
+                            {item.gender && item.gender !== 'both' && (
+                              <span
+                                className={`text-[9px] font-black px-1.5 py-0.2 rounded-md ${
+                                  item.gender === 'female'
+                                    ? 'bg-pink-100 text-pink-700 border border-pink-200'
+                                    : 'bg-blue-100 text-blue-700 border border-blue-200'
+                                }`}
+                              >
+                                {item.gender === 'female' ? '♀ 女款' : '♂ 男款'}
+                              </span>
+                            )}
                             {item.tag && (
                               <span className="text-[9px] font-black px-1.5 py-0.2 rounded-md bg-[#8D5B4C]/15 text-[#8D5B4C]">
                                 {item.tag}

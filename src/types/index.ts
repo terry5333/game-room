@@ -1,6 +1,7 @@
 export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx';
 
 export interface UserWardrobe {
+  gender?: 'male' | 'female';
   head: string;      // 'none' | 'student_cap' | 'hachimaki' | 'fox_mask' | 'ronin_band' | 'fedora' | 'ninja_mask'
   outfit: string;    // 'default' | 'gakuran' | 'sailor' | 'haori' | 'jinbei' | 'dojo' | 'suit'
   accessory: string; // 'none' | 'brush' | 'shinai' | 'abacus' | 'fan' | 'katana'

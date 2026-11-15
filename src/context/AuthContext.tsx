@@ -28,6 +28,7 @@ interface AuthContextType {
   logout: () => Promise<void>;
   updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
   updateWardrobe: (newWardrobe: UserWardrobe, newUnlockedItem?: string) => Promise<void>;
+  purchaseWardrobeItem: (newWardrobe: UserWardrobe, unlockedItemId: string, coinCost: number, itemName: string) => Promise<boolean>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
@@ -295,6 +296,67 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
+  // Atomic purchase of a wardrobe item: deducts coins, unlocks item, equips, records transaction, and syncs
+  const purchaseWardrobeItem = async (
+    newWardrobe: UserWardrobe,
+    unlockedItemId: string,
+    coinCost: number,
+    itemName: string
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (coinCost > 0 && currentUser.coins < coinCost) {
+      return false;
+    }
+
+    const newCoins = Math.max(0, currentUser.coins - coinCost);
+    const existingUnlocked = currentUser.unlockedItems || ['none', 'default', 'candidate'];
+    const updatedUnlocked =
+      unlockedItemId && !existingUnlocked.includes(unlockedItemId)
+        ? [...existingUnlocked, unlockedItemId]
+        : existingUnlocked;
+
+    const updated: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      wardrobe: newWardrobe,
+      unlockedItems: updatedUnlocked
+    };
+
+    saveUser(updated);
+
+    if (coinCost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -coinCost,
+        type: 'shop_purchase',
+        description: `購買服飾：${itemName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updated.uid,
+      displayName: updated.displayName,
+      photoURL: updated.photoURL,
+      userTag: updated.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: newWardrobe
+    });
+
+    matchService.syncProfileToFriends(updated);
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updated.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updated.uid}/wardrobe`), newWardrobe).catch(console.warn);
+      set(ref(rtdb, `users/${updated.uid}/unlockedItems`), updatedUnlocked).catch(console.warn);
+    }
+
+    return true;
+  };
+
   const logout = async () => {
     if (currentUser) {
       matchService.updatePresence({
@@ -405,6 +467,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         logout,
         updateUserProfile,
         updateWardrobe,
+        purchaseWardrobeItem,
         updateCoins,
         recordGameResult,
         completeTutorial,
