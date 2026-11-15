@@ -112,13 +112,12 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
       setCurrentRoom((prev) => {
         if (!prev) return updatedRoom;
-        // Ignore stale out-of-order packets if local state is already newer
+        // Monotonic version sequence protection: zero clock-skew delay, immune to device time differences
         if (
           prev.id === updatedRoom.id &&
-          prev.updatedAt &&
-          updatedRoom.updatedAt &&
-          updatedRoom.updatedAt < prev.updatedAt &&
-          updatedRoom.status === prev.status
+          prev.version &&
+          updatedRoom.version &&
+          updatedRoom.version < prev.version
         ) {
           return prev;
         }
@@ -142,14 +141,15 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         lastActive: Date.now(),
         currentRoomId: currentRoom?.id,
         currentRoomCode: currentRoom?.code,
-        currentGameId: currentRoom?.gameId
+        currentGameId: currentRoom?.gameId,
+        currentRoomMaxPlayers: currentRoom?.maxPlayers || 2
       });
     };
 
     sendPresence();
-    const interval = setInterval(sendPresence, 15000);
+    const interval = setInterval(sendPresence, 8000);
     return () => clearInterval(interval);
-  }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code]);
+  }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code, currentRoom?.maxPlayers]);
 
   const isHost = Boolean(currentUser && currentRoom && currentRoom.hostUid === currentUser.uid);
 
@@ -260,6 +260,8 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentRoom) return;
     const copy: GameRoom = JSON.parse(JSON.stringify(currentRoom));
     updater(copy);
+    copy.version = (copy.version || 0) + 1;
+    copy.updatedAt = Date.now();
     // Instantaneous local UI response for zero input lag
     setCurrentRoom(copy);
     matchService.updateRoom(copy).catch(console.warn);

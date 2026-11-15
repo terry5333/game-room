@@ -30,6 +30,7 @@ export interface UserPresence {
   currentRoomCode?: string;
   currentGameId?: GameId;
   currentGameName?: string;
+  currentRoomMaxPlayers?: number;
 }
 
 export interface CoinTransaction {

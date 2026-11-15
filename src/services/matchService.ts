@@ -42,6 +42,7 @@ class MatchService {
   private localInvites: Map<string, BattleInvite> = new Map();
   private roomListeners: Map<string, Set<(room: GameRoom) => void>> = new Map();
   private presenceListeners: Set<(presences: UserPresence[]) => void> = new Set();
+  private allRoomsListeners: Set<(rooms: GameRoom[]) => void> = new Set();
   private inviteListeners: Map<string, Set<(invite: BattleInvite) => void>> = new Map();
 
   constructor() {
@@ -61,6 +62,7 @@ class MatchService {
             const room = payload as GameRoom;
             this.localRooms.set(room.id, room);
             this.notifyRoomListeners(room);
+            this.notifyAllRoomsListeners();
           } else if (type === 'PRESENCE_UPDATE') {
             const presence = payload as UserPresence;
             this.localPresence.set(presence.uid, presence);
@@ -71,6 +73,40 @@ class MatchService {
             this.notifyInviteListeners(invite);
           }
         };
+      }
+
+      // Establish permanent zero-latency WebSocket stream from RTDB on startup
+      if (rtdb) {
+        try {
+          const presencesRef = ref(rtdb, 'presence');
+          onValue(presencesRef, (snapshot) => {
+            const val = snapshot.val();
+            if (val) {
+              const list: UserPresence[] = Object.values(val);
+              list.forEach((p) => this.localPresence.set(p.uid, p));
+              this.notifyPresenceListeners();
+            }
+          });
+        } catch (e) {
+          console.warn('Permanent presence stream init error:', e);
+        }
+
+        try {
+          const roomsRef = ref(rtdb, 'rooms');
+          onValue(roomsRef, (snapshot) => {
+            const val = snapshot.val();
+            if (val) {
+              Object.entries<any>(val).forEach(([id, r]) => {
+                const norm = this.normalizeRoom(r);
+                this.localRooms.set(id, norm);
+                this.notifyRoomListeners(norm);
+              });
+              this.notifyAllRoomsListeners();
+            }
+          });
+        } catch (e) {
+          console.warn('Permanent rooms stream init error:', e);
+        }
       }
     }
   }
@@ -128,28 +164,23 @@ class MatchService {
     this.presenceListeners.add(callback);
     callback(Array.from(this.localPresence.values()));
 
-    let unsubRtdb: (() => void) | null = null;
-    if (rtdb) {
-      try {
-        const presencesRef = ref(rtdb, 'presence');
-        const unsub = onValue(presencesRef, (snapshot) => {
-          const val = snapshot.val();
-          if (val) {
-            const list: UserPresence[] = Object.values(val);
-            list.forEach(p => this.localPresence.set(p.uid, p));
-            callback(Array.from(this.localPresence.values()));
-          }
-        });
-        unsubRtdb = () => unsub();
-      } catch (err) {
-        console.warn('Presence listen error:', err);
-      }
-    }
-
     return () => {
       this.presenceListeners.delete(callback);
-      if (unsubRtdb) unsubRtdb();
     };
+  }
+
+  public subscribeAllRooms(callback: (rooms: GameRoom[]) => void): () => void {
+    this.allRoomsListeners.add(callback);
+    callback(Array.from(this.localRooms.values()));
+
+    return () => {
+      this.allRoomsListeners.delete(callback);
+    };
+  }
+
+  private notifyAllRoomsListeners() {
+    const list = Array.from(this.localRooms.values());
+    this.allRoomsListeners.forEach(cb => cb(list));
   }
 
   private notifyPresenceListeners() {
@@ -859,7 +890,8 @@ class MatchService {
           userTag: f.userTag,
           displayName: f.displayName || presence.displayName,
           photoURL: f.photoURL || presence.photoURL,
-          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined
+          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined,
+          currentRoomMaxPlayers: activeRoom?.maxPlayers || presence.currentRoomMaxPlayers || 2
         };
       }
 
@@ -874,7 +906,8 @@ class MatchService {
           currentRoomId: activeRoom.id,
           currentRoomCode: activeRoom.code,
           currentGameId: activeRoom.gameId,
-          currentGameName: gameNames[activeRoom.gameId] || activeRoom.gameId.toUpperCase()
+          currentGameName: gameNames[activeRoom.gameId] || activeRoom.gameId.toUpperCase(),
+          currentRoomMaxPlayers: activeRoom.maxPlayers || 2
         };
       }
 
@@ -888,7 +921,8 @@ class MatchService {
         currentRoomId: presence?.currentRoomId,
         currentRoomCode: presence?.currentRoomCode,
         currentGameId: presence?.currentGameId,
-        currentGameName: presence?.currentGameName
+        currentGameName: presence?.currentGameName,
+        currentRoomMaxPlayers: presence?.currentRoomMaxPlayers || 2
       };
     });
   }

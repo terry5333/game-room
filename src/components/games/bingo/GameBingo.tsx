@@ -20,7 +20,7 @@ import type { StateBingo } from '../../../types';
 const BOARD_SIZE = 5;
 
 // Helper to calculate completed lines on a 5x5 board
-function calculateLines(board: number[][], calledNumbers: number[]): {
+export function calculateLines(board: number[][], calledNumbers: number[]): {
   count: number;
   rows: number[];
   cols: number[];
