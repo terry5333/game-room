@@ -172,9 +172,67 @@ class MatchService {
     this.allRoomsListeners.add(callback);
     callback(Array.from(this.localRooms.values()));
 
+    let unsubRtdb: (() => void) | null = null;
+    if (rtdb) {
+      try {
+        const roomsRef = ref(rtdb, 'rooms');
+        unsubRtdb = onValue(
+          roomsRef,
+          (snapshot) => {
+            const val = snapshot.val();
+            if (val && typeof val === 'object') {
+              const remoteIds = new Set(Object.keys(val));
+              Object.entries(val).forEach(([id, rData]: [string, any]) => {
+                if (rData && typeof rData === 'object') {
+                  const norm = this.normalizeRoom({ ...rData, id });
+                  this.localRooms.set(id, norm);
+                }
+              });
+              // Prune rooms that were permanently removed from RTDB
+              for (const localId of Array.from(this.localRooms.keys())) {
+                if (!remoteIds.has(localId)) {
+                  this.localRooms.delete(localId);
+                }
+              }
+            } else {
+              this.localRooms.clear();
+            }
+            this.notifyAllRoomsListeners();
+          },
+          (error) => {
+            console.warn('subscribeAllRooms RTDB error:', error);
+          }
+        );
+      } catch (err) {
+        console.warn('subscribeAllRooms error:', err);
+      }
+    }
+
     return () => {
       this.allRoomsListeners.delete(callback);
+      if (unsubRtdb) unsubRtdb();
     };
+  }
+
+  public async fetchAllRoomsFromRTDB(): Promise<GameRoom[]> {
+    if (rtdb) {
+      try {
+        const snap = await get(child(ref(rtdb), 'rooms'));
+        const val = snap.val();
+        if (val && typeof val === 'object') {
+          Object.entries(val).forEach(([id, rData]: [string, any]) => {
+            if (rData && typeof rData === 'object') {
+              const norm = this.normalizeRoom({ ...rData, id });
+              this.localRooms.set(id, norm);
+            }
+          });
+          this.notifyAllRoomsListeners();
+        }
+      } catch (err) {
+        console.warn('fetchAllRoomsFromRTDB error:', err);
+      }
+    }
+    return Array.from(this.localRooms.values());
   }
 
   private notifyAllRoomsListeners() {
@@ -519,22 +577,6 @@ class MatchService {
       this.roomListeners.get(roomId)?.delete(callback);
       if (unsubRtdb) unsubRtdb();
     };
-  }
-
-  public async fetchAllRoomsFromRTDB(): Promise<GameRoom[]> {
-    if (rtdb) {
-      try {
-        const snap = await get(child(ref(rtdb), 'rooms'));
-        if (snap.exists()) {
-          const val = snap.val();
-          return Object.values(val);
-        }
-        return [];
-      } catch (e) {
-        console.warn('fetchAllRoomsFromRTDB err:', e);
-      }
-    }
-    return Array.from(this.localRooms.values());
   }
 
   public async deleteRoom(roomId: string): Promise<void> {
@@ -1064,10 +1106,15 @@ class MatchService {
     if (room.gameId === '1a2b') {
       let targetSecret: string | undefined = undefined;
       const lockedIn: Record<string, boolean> = {};
-      if (room.maxPlayers && room.maxPlayers > 2) {
+      const isMulti = (room.maxPlayers && room.maxPlayers >= 3) || (room.players && room.players.length >= 3);
+      if (isMulti) {
         const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
         targetSecret = pool.slice(0, 4).join('');
-        lockedIn[room.hostUid] = true;
+        if (room.players && room.players.length > 0) {
+          room.players.forEach(p => { lockedIn[p.uid] = true; });
+        } else {
+          lockedIn[room.hostUid] = true;
+        }
       }
       room.state1a2b = {
         secrets: {},

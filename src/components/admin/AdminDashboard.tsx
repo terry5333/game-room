@@ -48,15 +48,21 @@ interface AdminDashboardProps {
 export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
   const { allUsers, adminUpdateUserCoins, currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
+  const [roomSearchQuery, setRoomSearchQuery] = useState('');
+  const [roomStatusFilter, setRoomStatusFilter] = useState<'all' | 'in_progress' | 'waiting' | 'settled' | 'closed'>('all');
+  const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
   const [activeTab, setActiveTab] = useState<'rooms' | 'users' | 'overview'>('rooms');
   const [userFilter, setUserFilter] = useState<'all' | 'online' | 'in_game' | 'admin'>('all');
   const [rooms, setRooms] = useState<GameRoom[]>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [inspectedRoom, setInspectedRoom] = useState<GameRoom | null>(null);
 
-  // 1. Real-time zero-latency room stream (WebSocket subscription, NO polling, 0ms delay!)
+  // 1. Real-time zero-latency room stream & immediate RTDB pull
   useEffect(() => {
     if (!isOpen) return;
+    matchService.fetchAllRoomsFromRTDB().then((all) => {
+      if (all && all.length > 0) setRooms(all);
+    });
     const unsubRooms = matchService.subscribeAllRooms((all) => {
       setRooms(all);
     });
@@ -79,6 +85,51 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   }, [rooms]);
 
   if (!isOpen || currentUser?.role !== 'admin') return null;
+
+  const handleRefreshRooms = async () => {
+    sound.playClick();
+    setIsRefreshingRooms(true);
+    try {
+      const all = await matchService.fetchAllRoomsFromRTDB();
+      setRooms(all);
+      sound.playSuccess();
+    } catch (e) {
+      console.warn('refresh rooms err:', e);
+    } finally {
+      setIsRefreshingRooms(false);
+    }
+  };
+
+  // Filtered rooms for Room Monitoring
+  const filteredRooms = rooms.filter((r) => {
+    if (roomStatusFilter === 'in_progress' && r.status !== 'in_progress') return false;
+    if (roomStatusFilter === 'waiting' && r.status !== 'waiting') return false;
+    if (roomStatusFilter === 'settled' && r.status !== 'settled') return false;
+    if (roomStatusFilter === 'closed' && r.status !== 'closed') return false;
+
+    if (!roomSearchQuery.trim()) return true;
+    const q = roomSearchQuery.toLowerCase().trim();
+    const gameNames: Record<string, string> = {
+      '1a2b': '1a2b 數字密碼戰',
+      'battleship': '海戰棋 艦隊對決 battleship',
+      'bingo': '賓果 5x5 連線 bingo',
+      'dots': '點線棋 圍地方格 dots',
+      'ooxx': '經典 ooxx'
+    };
+    const gameName = (gameNames[r.gameId] || r.gameId).toLowerCase();
+    const matchesCode = String(r.code || '').includes(q);
+    const matchesId = String(r.id || '').toLowerCase().includes(q);
+    const matchesGame = gameName.includes(q);
+    const playerList = r.players && r.players.length > 0
+      ? r.players
+      : [r.player1, r.player2].filter(Boolean);
+    const matchesPlayer = playerList.some(
+      (p: any) =>
+        p?.displayName?.toLowerCase().includes(q) ||
+        p?.uid?.toLowerCase().includes(q)
+    );
+    return matchesCode || matchesId || matchesGame || matchesPlayer;
+  });
 
   // Filtered users for User Management
   const filteredUsers = allUsers.filter((u) => {
@@ -196,7 +247,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
               }`}
             >
               <Radio className="w-3.5 h-3.5" />
-              <span>即時房間戰況 ({liveRooms.length})</span>
+              <span>即時房間戰況 ({rooms.length})</span>
             </button>
 
             <button
@@ -225,100 +276,186 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
           </div>
 
           {activeTab === 'rooms' && (
-            <button
-              onClick={handleCleanDeadRooms}
-              className="text-[11px] font-bold text-[#96897B] hover:text-rose-600 flex items-center gap-1 cursor-pointer transition-colors"
-            >
-              <Trash2 className="w-3.5 h-3.5" />
-              <span>清除無效房間</span>
-            </button>
+            <div className="flex items-center gap-2">
+              <button
+                onClick={handleRefreshRooms}
+                disabled={isRefreshingRooms}
+                className="text-[11px] font-bold text-[#628395] hover:text-[#526f7f] flex items-center gap-1 cursor-pointer transition-colors bg-white/70 px-2.5 py-1 rounded-lg border border-[#628395]/30 shadow-2xs"
+                title="強制向雲端 Firebase 重新整理全部房間"
+              >
+                <RotateCcw className={`w-3.5 h-3.5 ${isRefreshingRooms ? 'animate-spin' : ''}`} />
+                <span>{isRefreshingRooms ? '同步中...' : '同步雲端房間'}</span>
+              </button>
+
+              <button
+                onClick={handleCleanDeadRooms}
+                className="text-[11px] font-bold text-[#96897B] hover:text-rose-600 flex items-center gap-1 cursor-pointer transition-colors"
+              >
+                <Trash2 className="w-3.5 h-3.5" />
+                <span>清除無效房間</span>
+              </button>
+            </div>
           )}
         </div>
 
         {/* Tab 1: Live Rooms with Detailed Real-time Monitoring */}
         {activeTab === 'rooms' && (
-          <div className="flex-1 overflow-y-auto space-y-3 pr-1">
-            {liveRooms.length === 0 ? (
-              <div className="text-center py-20 text-xs text-[#96897B] font-medium">
-                目前尚無對戰中或等待中的房間。
+          <div className="flex-1 overflow-y-auto space-y-3 pr-1 flex flex-col">
+            {/* Room Search & Status Filters */}
+            <div className="flex flex-col sm:flex-row gap-2 shrink-0">
+              <div className="relative flex-1">
+                <input
+                  type="text"
+                  value={roomSearchQuery}
+                  onChange={(e) => setRoomSearchQuery(e.target.value)}
+                  placeholder="搜尋房號 #8291、遊戲名稱、玩家暱稱或 UID..."
+                  className="w-full pl-8 pr-3 py-2 rounded-xl bg-white/80 border border-[#96897B]/20 text-xs font-bold text-[#2E2925] focus:outline-none focus:border-[#628395]"
+                />
+                <Search className="w-3.5 h-3.5 text-[#96897B] absolute left-2.5 top-1/2 -translate-y-1/2" />
               </div>
-            ) : (
-              liveRooms.map((room) => {
-                const gameNames: Record<string, string> = {
-                  '1a2b': '1A2B 數字密碼戰',
-                  'battleship': '海戰棋 艦隊對決',
-                  'bingo': '賓果 5x5 連線',
-                  'dots': '點線棋 圍地方格',
-                  'ooxx': '經典 OOXX'
-                };
-                const roomPlayers = room.players && room.players.length > 0
-                  ? room.players
-                  : [room.player1, room.player2].filter(Boolean) as any[];
 
-                return (
-                  <div
-                    key={room.id}
-                    className="glass-panel-subtle rounded-2xl p-4 border border-white/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-shadow"
+              <div className="flex items-center gap-1 bg-white/60 p-1 rounded-xl border border-[#96897B]/20 shrink-0 overflow-x-auto">
+                {(
+                  [
+                    { id: 'all', label: `全部 (${rooms.length})` },
+                    { id: 'in_progress', label: `進行中 (${rooms.filter((r) => r.status === 'in_progress').length})` },
+                    { id: 'waiting', label: `等待中 (${rooms.filter((r) => r.status === 'waiting').length})` },
+                    { id: 'settled', label: `已結算 (${rooms.filter((r) => r.status === 'settled').length})` },
+                    { id: 'closed', label: `已關閉 (${rooms.filter((r) => r.status === 'closed').length})` }
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => {
+                      sound.playPop();
+                      setRoomStatusFilter(tab.id as any);
+                    }}
+                    className={`px-2.5 py-1 rounded-lg text-xs font-bold transition-all cursor-pointer whitespace-nowrap ${
+                      roomStatusFilter === tab.id
+                        ? 'bg-[#628395] text-white shadow-2xs'
+                        : 'text-[#96897B] hover:text-[#2E2925]'
+                    }`}
                   >
-                    <div>
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="font-mono font-bold text-xs bg-[#628395]/15 text-[#628395] px-2 py-0.5 rounded-md">
-                          #{room.code}
-                        </span>
-                        <span className="font-extrabold text-sm text-[#2E2925]">
-                          {gameNames[room.gameId] || room.gameId.toUpperCase()}
-                        </span>
-                        <span
-                          className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
-                            room.status === 'in_progress'
-                              ? 'bg-emerald-100 text-emerald-800'
-                              : 'bg-amber-100 text-amber-800'
-                          }`}
-                        >
-                          {room.status === 'in_progress' ? '對戰激戰中' : '等待玩家加入'}
-                        </span>
-                        <span className="text-[10px] font-mono text-[#96897B]">
-                          容納人數：{roomPlayers.length} / {room.maxPlayers || 2} 人
-                        </span>
-                      </div>
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+            </div>
 
-                      <div className="text-xs text-[#96897B] flex items-center gap-2 mt-1">
-                        <div className="flex items-center gap-1.5 flex-wrap">
-                          {roomPlayers.map((p, idx) => (
-                            <span key={p.uid} className="font-bold text-[#2E2925] flex items-center gap-1">
-                              <span className="text-[10px] text-[#628395]">P{idx + 1}:</span>
-                              <span>{p.displayName}</span>
-                            </span>
-                          ))}
-                          {roomPlayers.length === 1 && (
-                            <span className="text-neutral-400 italic text-[11px]">(等待對手)</span>
-                          )}
+            {/* Room List Content */}
+            <div className="flex-1 space-y-3">
+              {filteredRooms.length === 0 ? (
+                <div className="text-center py-20 text-xs text-[#96897B] font-medium">
+                  {roomSearchQuery || roomStatusFilter !== 'all'
+                    ? '查無符合搜尋條件的房間。'
+                    : '目前尚無房間紀錄。點擊上方「同步雲端房間」可強制重整。'}
+                </div>
+              ) : (
+                filteredRooms.map((room) => {
+                  const gameNames: Record<string, string> = {
+                    '1a2b': '1A2B 數字密碼戰',
+                    'battleship': '海戰棋 艦隊對決',
+                    'bingo': '賓果 5x5 連線',
+                    'dots': '點線棋 圍地方格',
+                    'ooxx': '經典 OOXX'
+                  };
+                  const roomPlayers = room.players && room.players.length > 0
+                    ? room.players
+                    : [room.player1, room.player2].filter(Boolean) as any[];
+
+                  return (
+                    <div
+                      key={room.id}
+                      className="glass-panel-subtle rounded-2xl p-4 border border-white/70 flex flex-col sm:flex-row items-start sm:items-center justify-between gap-3 shadow-2xs hover:shadow-xs transition-shadow"
+                    >
+                      <div>
+                        <div className="flex items-center gap-2 mb-1 flex-wrap">
+                          <span className="font-mono font-bold text-xs bg-[#628395]/15 text-[#628395] px-2 py-0.5 rounded-md">
+                            #{room.code}
+                          </span>
+                          <span className="font-extrabold text-sm text-[#2E2925]">
+                            {gameNames[room.gameId] || room.gameId.toUpperCase()}
+                          </span>
+                          <span
+                            className={`text-[10px] font-bold px-2 py-0.5 rounded-md ${
+                              room.status === 'in_progress'
+                                ? 'bg-emerald-100 text-emerald-800'
+                                : room.status === 'settled'
+                                ? 'bg-purple-100 text-purple-800'
+                                : room.status === 'closed'
+                                ? 'bg-neutral-200 text-neutral-600'
+                                : 'bg-amber-100 text-amber-800'
+                            }`}
+                          >
+                            {room.status === 'in_progress'
+                              ? '對戰激戰中'
+                              : room.status === 'settled'
+                              ? '對局已結算'
+                              : room.status === 'closed'
+                              ? '房間已關閉'
+                              : '等待玩家加入'}
+                          </span>
+                          <span className="text-[10px] font-mono text-[#96897B]">
+                            容納人數：{roomPlayers.length} / {room.maxPlayers || 2} 人
+                          </span>
+                          <span className="text-[10px] font-mono text-neutral-400">
+                            ID: {room.id.slice(0, 8)}...
+                          </span>
+                        </div>
+
+                        <div className="text-xs text-[#96897B] flex items-center gap-2 mt-1">
+                          <div className="flex items-center gap-1.5 flex-wrap">
+                            {roomPlayers.map((p, idx) => (
+                              <span key={p.uid} className="font-bold text-[#2E2925] flex items-center gap-1">
+                                <span className="text-[10px] text-[#628395]">P{idx + 1}:</span>
+                                <span>{p.displayName}</span>
+                              </span>
+                            ))}
+                            {roomPlayers.length === 1 && (
+                              <span className="text-neutral-400 italic text-[11px]">(等待對手)</span>
+                            )}
+                          </div>
                         </div>
                       </div>
-                    </div>
 
-                    <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
-                      <button
-                        onClick={() => setInspectedRoom(room)}
-                        className="px-3 py-1.5 rounded-xl bg-[#628395] text-white text-xs font-bold hover:bg-[#526f7f] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
-                      >
-                        <Eye className="w-3.5 h-3.5" />
-                        <span>即時監看完整棋局</span>
-                      </button>
+                      <div className="flex items-center gap-2 self-end sm:self-auto shrink-0">
+                        <button
+                          onClick={() => setInspectedRoom(room)}
+                          className="px-3 py-1.5 rounded-xl bg-[#628395] text-white text-xs font-bold hover:bg-[#526f7f] flex items-center gap-1 cursor-pointer transition-colors shadow-xs"
+                        >
+                          <Eye className="w-3.5 h-3.5" />
+                          <span>即時監看完整棋局</span>
+                        </button>
 
-                      <button
-                        onClick={() => handleForceClose(room.id)}
-                        className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
-                        title="強制關閉房間"
-                      >
-                        <Trash2 className="w-3.5 h-3.5" />
-                        <span>關閉</span>
-                      </button>
+                        {room.status !== 'closed' ? (
+                          <button
+                            onClick={() => handleForceClose(room.id)}
+                            className="px-2.5 py-1.5 rounded-xl bg-rose-50 hover:bg-rose-100 text-rose-700 border border-rose-200 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="強制關閉房間"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>關閉</span>
+                          </button>
+                        ) : (
+                          <button
+                            onClick={async () => {
+                              sound.playClick();
+                              await matchService.deleteRoom(room.id);
+                              setRooms((prev) => prev.filter((r) => r.id !== room.id));
+                            }}
+                            className="px-2.5 py-1.5 rounded-xl bg-neutral-100 hover:bg-neutral-200 text-neutral-700 border border-neutral-300 text-xs font-bold flex items-center gap-1 cursor-pointer transition-colors"
+                            title="從雲端徹底移除"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                            <span>徹底刪除</span>
+                          </button>
+                        )}
+                      </div>
                     </div>
-                  </div>
-                );
-              })
-            )}
+                  );
+                })
+              )}
+            </div>
           </div>
         )}
 

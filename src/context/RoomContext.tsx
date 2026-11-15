@@ -288,6 +288,30 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     await updateRoomState((draft) => {
       draft.status = 'in_progress';
       draft.updatedAt = Date.now();
+
+      // If 1A2B multiplayer, automatically assign target secret number from system pool
+      if (draft.gameId === '1a2b') {
+        const isMulti = (draft.players && draft.players.length >= 3) || (draft.maxPlayers && draft.maxPlayers >= 3);
+        if (isMulti) {
+          const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
+          const targetSecret = pool.slice(0, 4).join('');
+          const lockedIn: Record<string, boolean> = {};
+          draft.players?.forEach((p) => {
+            lockedIn[p.uid] = true;
+          });
+          draft.state1a2b = {
+            currentTurnUid: draft.state1a2b?.currentTurnUid || draft.hostUid || '',
+            turnDeadline: draft.state1a2b?.turnDeadline || Date.now() + 30000,
+            hintEnabled: draft.state1a2b?.hintEnabled !== undefined ? draft.state1a2b.hintEnabled : true,
+            hintRound: draft.state1a2b?.hintRound || 5,
+            maxRounds: draft.state1a2b?.maxRounds || 0,
+            targetSecret,
+            lockedIn,
+            secrets: {},
+            guesses: []
+          };
+        }
+      }
     });
   };
 
@@ -321,13 +345,19 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         const preservedHintRound = draft.state1a2b?.hintRound || 5;
         const preservedMaxRounds = draft.state1a2b?.maxRounds || 0;
         let targetSecret = draft.state1a2b?.targetSecret;
-        if ((draft.maxPlayers || 2) > 2) {
+        if ((draft.maxPlayers || 2) >= 3 || (draft.players && draft.players.length >= 3)) {
           const pool = [0, 1, 2, 3, 4, 5, 6, 7, 8, 9].sort(() => Math.random() - 0.5);
           targetSecret = pool.slice(0, 4).join('');
         }
+        const lockedIn: Record<string, boolean> = {};
+        if (targetSecret && draft.players) {
+          draft.players.forEach((p) => {
+            lockedIn[p.uid] = true;
+          });
+        }
         draft.state1a2b = {
           secrets: {},
-          lockedIn: targetSecret ? { [draft.hostUid]: true } : {},
+          lockedIn,
           guesses: [],
           currentTurnUid: draft.hostUid,
           turnDeadline: Date.now() + 30000,
