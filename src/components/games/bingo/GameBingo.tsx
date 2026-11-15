@@ -449,7 +449,7 @@ export const GameBingo: React.FC = () => {
 
       {/* 5x5 Bingo Board */}
       <div className="relative glass-panel rounded-3xl p-4 sm:p-5 border-2 border-white/80 shadow-lg max-w-sm sm:max-w-md w-full aspect-square flex items-center justify-center">
-        {/* Dynamic Glowing Lines overlays */}
+        {/* Dynamic Glowing Lines overlays (Placed at z-10 behind grid numbers z-20) */}
         {allReady && (
           <div className="absolute inset-4 sm:inset-5 pointer-events-none z-10">
             {/* Rows glowing lines */}
@@ -458,7 +458,7 @@ export const GameBingo: React.FC = () => {
                 key={`row-${r}`}
                 initial={{ scaleX: 0 }}
                 animate={{ scaleX: 1 }}
-                className="absolute left-0 right-0 h-1.5 bg-[#DBAD6A] rounded-full shadow-[0_0_12px_#DBAD6A]"
+                className="absolute left-0 right-0 h-1 bg-[#DBAD6A]/85 rounded-full shadow-[0_0_10px_#DBAD6A]"
                 style={{ top: `${(r + 0.5) * 20}%`, transform: 'translateY(-50%)' }}
               />
             ))}
@@ -469,7 +469,7 @@ export const GameBingo: React.FC = () => {
                 key={`col-${c}`}
                 initial={{ scaleY: 0 }}
                 animate={{ scaleY: 1 }}
-                className="absolute top-0 bottom-0 w-1.5 bg-[#DBAD6A] rounded-full shadow-[0_0_12px_#DBAD6A]"
+                className="absolute top-0 bottom-0 w-1 bg-[#DBAD6A]/85 rounded-full shadow-[0_0_10px_#DBAD6A]"
                 style={{ left: `${(c + 0.5) * 20}%`, transform: 'translateX(-50%)' }}
               />
             ))}
@@ -479,7 +479,7 @@ export const GameBingo: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="absolute top-0 left-0 w-[141%] h-1.5 bg-[#DBAD6A] origin-top-left rotate-45 shadow-[0_0_12px_#DBAD6A]"
+                className="absolute top-0 left-0 w-[141%] h-1 bg-[#DBAD6A]/85 origin-top-left rotate-45 shadow-[0_0_10px_#DBAD6A]"
               />
             )}
 
@@ -488,17 +488,22 @@ export const GameBingo: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0 }}
                 animate={{ opacity: 1 }}
-                className="absolute top-0 right-0 w-[141%] h-1.5 bg-[#DBAD6A] origin-top-right -rotate-45 shadow-[0_0_12px_#DBAD6A]"
+                className="absolute top-0 right-0 w-[141%] h-1 bg-[#DBAD6A]/85 origin-top-right -rotate-45 shadow-[0_0_10px_#DBAD6A]"
               />
             )}
           </div>
         )}
 
-        {/* 5x5 Grid Cells */}
-        <div className="grid grid-cols-5 gap-1.5 sm:gap-2 w-full h-full">
+        {/* 5x5 Grid Cells (z-20 so numbers are ALWAYS on top of lines and never blocked) */}
+        <div className="relative z-20 grid grid-cols-5 gap-1.5 sm:gap-2 w-full h-full">
           {myBoard.map((row, r) =>
             row.map((val, c) => {
               const isCalled = val > 0 && calledNumbers.includes(val);
+              const isLineCell =
+                myLines.rows.includes(r) ||
+                myLines.cols.includes(c) ||
+                (myLines.diag1 && r === c) ||
+                (myLines.diag2 && r + c === 4);
 
               return (
                 <motion.button
@@ -516,7 +521,9 @@ export const GameBingo: React.FC = () => {
                     }
                   }}
                   className={`relative rounded-2xl flex items-center justify-center font-mono font-black text-sm sm:text-lg transition-all shadow-sm ${
-                    isCalled
+                    isLineCell
+                      ? 'bg-gradient-to-br from-[#E5BE7E] to-[#DBAD6A] text-white shadow-lg shadow-[#DBAD6A]/40 border-2 border-white ring-2 ring-[#DBAD6A]'
+                      : isCalled
                       ? 'bg-[#DBAD6A] text-white shadow-md shadow-[#DBAD6A]/30 border-2 border-white ring-1 ring-[#DBAD6A]'
                       : val !== 0
                       ? 'bg-white/85 text-[#2E2925] border border-white hover:border-[#628395]'
@@ -524,18 +531,30 @@ export const GameBingo: React.FC = () => {
                   }`}
                 >
                   {val !== 0 ? (
-                    <span>{val}</span>
+                    <span className="relative z-30 font-mono font-black select-none drop-shadow-xs">
+                      {val}
+                    </span>
                   ) : (
-                    <span className="text-xs font-normal text-[#96897B]/60">空</span>
+                    <span className="relative z-30 text-xs font-normal text-[#96897B]/60">空</span>
                   )}
 
                   {isCalled && (
                     <motion.span
                       initial={{ scale: 0 }}
                       animate={{ scale: 1 }}
-                      className="absolute top-1 right-1"
+                      className="absolute top-1 right-1 z-30"
                     >
                       <Check className="w-3 h-3 text-white" />
+                    </motion.span>
+                  )}
+
+                  {isLineCell && (
+                    <motion.span
+                      initial={{ scale: 0 }}
+                      animate={{ scale: 1 }}
+                      className="absolute bottom-1 left-1 z-30 text-[9px] text-[#FAF7F2] font-black leading-none drop-shadow-xs"
+                    >
+                      ★
                     </motion.span>
                   )}
                 </motion.button>

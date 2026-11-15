@@ -113,7 +113,6 @@ export const Game1A2B: React.FC = () => {
   useEffect(() => {
     if (hintEnabled && bothLocked && myGuesses.length >= hintRound && !hintNotified && !isSettled) {
       setHintNotified(true);
-      setHintRevealed(true);
       setHintUnlockedNotice(true);
       sound.playSuccess();
     }
@@ -453,23 +452,51 @@ export const Game1A2B: React.FC = () => {
               <motion.div
                 initial={{ opacity: 0, scale: 0.95 }}
                 animate={{ opacity: 1, scale: 1 }}
-                className="mb-3 max-w-xs mx-auto p-2.5 rounded-2xl bg-[#DBAD6A]/20 border border-[#DBAD6A]/60 text-xs font-bold text-[#2E2925] flex items-center justify-between shadow-xs"
+                className="mb-3 max-w-xs mx-auto p-2.5 rounded-2xl bg-[#DBAD6A]/15 border border-[#DBAD6A]/50 text-xs font-bold text-[#2E2925] flex items-center justify-between shadow-xs"
               >
-                <div className="flex items-center gap-2">
-                  <span className="w-6 h-6 rounded-lg bg-[#DBAD6A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
-                    💡
-                  </span>
-                  <span>
-                    密碼線索：包含數字【
-                    <strong className="text-base font-black text-[#628395] underline">
-                      {targetSecret[1] || targetSecret[0] || '7'}
-                    </strong>
-                    】
-                  </span>
-                </div>
-                <span className="text-[10px] bg-white/90 px-2 py-0.5 rounded-md text-[#DBAD6A] font-extrabold border border-[#DBAD6A]/30">
-                  第 {hintRound} 輪情報
-                </span>
+                {hintRevealed ? (
+                  <>
+                    <div className="flex items-center gap-2">
+                      <span className="w-6 h-6 rounded-lg bg-[#DBAD6A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                        💡
+                      </span>
+                      <span>
+                        密碼線索：包含數字【
+                        <strong className="text-base font-black text-[#628395] underline">
+                          {targetSecret[1] || targetSecret[0] || '7'}
+                        </strong>
+                        】
+                      </span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        setHintRevealed(false);
+                      }}
+                      className="text-[10px] text-[#8C6D3B] hover:text-[#5D4037] underline cursor-pointer"
+                    >
+                      隱藏
+                    </button>
+                  </>
+                ) : (
+                  <>
+                    <div className="flex items-center gap-1.5">
+                      <span className="w-5 h-5 rounded-lg bg-[#DBAD6A] text-white flex items-center justify-center font-black text-xs shrink-0 animate-pulse">
+                        💡
+                      </span>
+                      <span className="text-[#8C6D3B]">提示已解鎖（尚未開啟）</span>
+                    </div>
+                    <button
+                      onClick={() => {
+                        sound.playSuccess();
+                        setHintRevealed(true);
+                      }}
+                      className="px-2.5 py-1 rounded-xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-[11px] shadow-xs cursor-pointer transition-all"
+                    >
+                      查看線索
+                    </button>
+                  </>
+                )}
               </motion.div>
             )}
 
@@ -841,33 +868,33 @@ export const Game1A2B: React.FC = () => {
                 密碼提示已解鎖！
               </h3>
 
-              <p className="text-xs text-[#5D4037] leading-relaxed mb-4">
-                受驗生已猜測滿 <strong>{hintRound}</strong> 回合，官方線索已為您開放！
+              <p className="text-xs text-[#5D4037] leading-relaxed mb-5">
+                受驗生已猜測滿 <strong>{hintRound}</strong> 回合，官方密碼線索已開放使用資格！您可以選擇現在立即查看，或保留到關鍵時刻再開啟。
               </p>
 
-              <div className="p-4 rounded-2xl bg-[#DBAD6A]/15 border-2 border-dashed border-[#DBAD6A]/60 mb-5">
-                <div className="text-xs text-[#8C6D3B] font-bold mb-1">
-                  🔍 對手 4 位密碼情報
-                </div>
-                <div className="text-base font-extrabold text-[#2E2925]">
-                  其中包含數字【
-                  <span className="text-2xl font-black text-[#628395] underline mx-1">
-                    {targetSecret[1] || targetSecret[0] || '7'}
-                  </span>
-                  】
-                </div>
-              </div>
+              <div className="flex flex-col gap-2.5">
+                <button
+                  onClick={() => {
+                    sound.playSuccess();
+                    setHintRevealed(true);
+                    setHintUnlockedNotice(false);
+                  }}
+                  className="w-full py-3 px-5 rounded-2xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-xs shadow-md shadow-[#DBAD6A]/30 transition-all cursor-pointer flex items-center justify-center gap-1.5"
+                >
+                  <Sparkles className="w-4 h-4" />
+                  <span>立即使用提示（查看線索）</span>
+                </button>
 
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  setHintRevealed(true);
-                  setHintUnlockedNotice(false);
-                }}
-                className="w-full py-3 px-5 rounded-2xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-sm shadow-md shadow-[#DBAD6A]/30 transition-all cursor-pointer"
-              >
-                我知道了，繼續解密
-              </button>
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    setHintUnlockedNotice(false);
+                  }}
+                  className="w-full py-2.5 px-4 rounded-2xl bg-white/80 hover:bg-white text-[#5D4037] font-bold text-xs border border-[#96897B]/20 transition-all cursor-pointer"
+                >
+                  保留提示，稍後再用
+                </button>
+              </div>
             </motion.div>
           </div>
         )}
