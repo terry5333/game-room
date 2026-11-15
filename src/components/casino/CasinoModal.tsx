@@ -5,12 +5,13 @@ import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
 import { rtdb, ref, onValue, runTransaction } from '../../services/firebase';
 
-interface CasinoModalProps {
+export interface CasinoModalProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: CasinoTab;
 }
 
-type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack';
+export type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack';
 
 // ==========================================
 // 0. PLAYING CARD INTERFACE FOR BLACKJACK
@@ -131,9 +132,15 @@ const SCRATCH_TIERS: ScratchTier[] = [
   }
 ];
 
-export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => {
+export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initialTab }) => {
   const { currentUser, updateCoins } = useAuth();
-  const [activeTab, setActiveTab] = useState<CasinoTab>('slot');
+  const [activeTab, setActiveTab] = useState<CasinoTab>(initialTab || 'slot');
+
+  useEffect(() => {
+    if (initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [initialTab, isOpen]);
   const [coinsNotice, setCoinsNotice] = useState<string | null>(null);
 
   // ------------------------------------------
@@ -544,6 +551,8 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
       let multiplier = 0;
       let winDesc = '';
 
+      const sevenCount = [target1.id, target2.id, target3.id].filter((id) => id === '7').length;
+
       if (target1.id === target2.id && target2.id === target3.id) {
         // Triple Match
         if (target1.id === '7') {
@@ -568,6 +577,10 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
           multiplier = 1.5;
           winDesc = '🍒 三顆紅櫻桃！獲得 1.5 倍！';
         }
+      } else if (sevenCount === 2) {
+        // Double 7 lucky match
+        multiplier = 5;
+        winDesc = '✨ 幸運雙星 77 連線！獲得 5 倍！';
       } else {
         // Partial Cherry rules (Only 2 cherries gives return, 1 cherry is miss)
         const cherryCount = [target1.id, target2.id, target3.id].filter((id) => id === 'cherry').length;
@@ -579,15 +592,27 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
 
       const winnings = Math.floor(slotBet * multiplier);
 
-      if (winnings > 0) {
-        if (multiplier >= 10) {
+      // Progressive Jackpot Award: 77 or 777 gets 50% of the jackpot!
+      let jackpotBonus = 0;
+      if (sevenCount >= 2) {
+        jackpotBonus = await claimJackpotFiftyPercent();
+      }
+
+      const totalSlotPayout = winnings + jackpotBonus;
+
+      if (totalSlotPayout > 0) {
+        if (sevenCount >= 2 || multiplier >= 10) {
           sound.playJackpot();
         } else {
           sound.playSlotWin();
         }
-        setSlotWinAmount(winnings);
-        setSlotWinMessage(`${winDesc} 獲得 🪙 +${winnings}！`);
-        await updateCoins(winnings, 'casino_win', `拉霸機中獎 🪙+${winnings}`);
+        setSlotWinAmount(totalSlotPayout);
+        if (jackpotBonus > 0) {
+          setSlotWinMessage(`👑 幸運拉霸狂中 ${sevenCount === 3 ? '777' : '77'}！獨攬 50% 大獎池 🪙 +${jackpotBonus.toLocaleString()} ＋ 連線 🪙 +${winnings}！`);
+        } else {
+          setSlotWinMessage(`${winDesc} 獲得 🪙 +${winnings}！`);
+        }
+        await updateCoins(totalSlotPayout, 'casino_win', `拉霸機中獎${jackpotBonus > 0 ? '(含大獎池50%)' : ''} 🪙+${totalSlotPayout}`);
       } else {
         setSlotWinMessage('差一點點就連線了，再試一手手氣！');
       }
@@ -981,13 +1006,18 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
               </div>
             </div>
             <div className="text-right z-10">
-              <div className="text-[10px] text-[#D4AF37] font-bold">每局注額 3% 自動累加</div>
-              <div className="text-[10px] text-amber-200 font-extrabold">輪盤通關第5輪／拉霸特獎即瓜分！</div>
+              <div className="text-[10px] text-[#FFD700] font-black tracking-wider flex items-center justify-end gap-1">
+                <span className="w-1.5 h-1.5 rounded-full bg-emerald-400 animate-ping" />
+                <span>下注 100% 全額注入總獎池</span>
+              </div>
+              <div className="text-[11px] text-amber-200 font-extrabold drop-shadow">
+                拉霸連線 77/777 或 輪盤通關第5發 獨得 50% 巨額大獎！
+              </div>
             </div>
           </div>
 
-          {/* Navigation Tabs (4 Games: Slots, Scratch, Dice, Roulette) */}
-          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
+          {/* Navigation Tabs (5 Games: Slots, Scratch, Dice, Roulette, Blackjack) */}
+          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
             <button
               onClick={() => {
                 sound.playClick();
@@ -1046,6 +1076,21 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
             >
               <span>🎯</span>
               <span>俄羅斯輪盤</span>
+            </button>
+
+            <button
+              onClick={() => {
+                sound.playClick();
+                setActiveTab('blackjack');
+              }}
+              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                activeTab === 'blackjack'
+                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
+                  : 'text-[#C5A028] hover:bg-white/5'
+              }`}
+            >
+              <span>🃏</span>
+              <span>21點決鬥</span>
             </button>
           </div>
 
@@ -1617,8 +1662,8 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                           {mult}x
                         </div>
                         {stepNum === 5 && (
-                          <div className="text-[8px] text-amber-300 font-extrabold mt-0.5">
-                            +30%獎池
+                          <div className="text-[8px] text-amber-300 font-extrabold mt-0.5 animate-pulse">
+                            +50%總獎池
                           </div>
                         )}
                       </div>

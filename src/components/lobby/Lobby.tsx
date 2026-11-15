@@ -36,7 +36,7 @@ import {
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
   onOpenFriends: () => void;
-  onOpenCasino?: () => void;
+  onOpenCasino?: (tab?: 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack') => void;
   onOpenExamCard?: () => void;
 }
 
@@ -141,6 +141,13 @@ export const Lobby: React.FC<LobbyProps> = ({
       desc: '7x6 垂直重力四子連線！預判對手落子，率先連成四顆一線者獲勝。（限定 2 人）',
       icon: Disc,
       color: '#C85A32'
+    },
+    {
+      id: 'blackjack' as const,
+      title: '21點 皇家牌桌',
+      desc: '使用遊戲金幣下注對決！要牌、停牌、加倍，天牌 Blackjack 享 3:2 高倍返還，注額 100% 累積至大獎池！',
+      icon: Sparkles,
+      color: '#0D4A2D'
     }
   ];
 
@@ -471,7 +478,11 @@ export const Lobby: React.FC<LobbyProps> = ({
                   <button
                     onClick={() => {
                       sound.playClick();
-                      onOpenRulesForGame(game.id);
+                      if ((game.id as string) === 'blackjack') {
+                        onOpenRulesForGame('1a2b');
+                      } else {
+                        onOpenRulesForGame(game.id as GameId);
+                      }
                     }}
                     title="玩法說明"
                     className="p-1.5 rounded-lg text-[#96897B] hover:text-[#628395] hover:bg-white/60 transition-colors cursor-pointer"
@@ -492,11 +503,31 @@ export const Lobby: React.FC<LobbyProps> = ({
                 whileHover={{ scale: 1.02 }}
                 whileTap={{ scale: 0.95 }}
                 disabled={isBusy}
-                onClick={() => handleCreateGame(game.id)}
-                className="w-full py-2.5 px-4 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                onClick={() => {
+                  if ((game.id as string) === 'blackjack') {
+                    sound.playClick();
+                    if (onOpenCasino) onOpenCasino('blackjack');
+                  } else {
+                    handleCreateGame(game.id as GameId);
+                  }
+                }}
+                className={`w-full py-2.5 px-4 rounded-xl border font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer ${
+                  (game.id as string) === 'blackjack'
+                    ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-[#231710] border-[#FDF6C7]/50 font-black shadow-md'
+                    : 'bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border-[#96897B]/20'
+                }`}
               >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isBusy ? '建立中...' : '開房對戰'}</span>
+                {(game.id as string) === 'blackjack' ? (
+                  <>
+                    <span>🪙</span>
+                    <span>進入 21點 牌桌</span>
+                  </>
+                ) : (
+                  <>
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isBusy ? '建立中...' : '開房對戰'}</span>
+                  </>
+                )}
               </motion.button>
             </motion.div>
           );

@@ -11,7 +11,7 @@ import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
 import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
-import { CasinoModal } from './components/casino/CasinoModal';
+import { CasinoModal, CasinoTab } from './components/casino/CasinoModal';
 import { ExamCardModal } from './components/profile/ExamCardModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
@@ -35,6 +35,7 @@ export const AppContent: React.FC = () => {
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [casinoOpen, setCasinoOpen] = useState(false);
+  const [casinoTab, setCasinoTab] = useState<CasinoTab>('slot');
   const [examCardUser, setExamCardUser] = useState<any>(null);
 
   if (loading) {
@@ -102,7 +103,10 @@ export const AppContent: React.FC = () => {
               <Lobby
                 onOpenRulesForGame={(gid) => handleOpenRules(gid)}
                 onOpenFriends={() => setFriendsOpen(true)}
-                onOpenCasino={() => setCasinoOpen(true)}
+                onOpenCasino={(tab) => {
+                  setCasinoTab(tab || 'slot');
+                  setCasinoOpen(true);
+                }}
                 onOpenExamCard={() => setExamCardUser(currentUser)}
               />
             </div>
@@ -148,10 +152,11 @@ export const AppContent: React.FC = () => {
         onClose={() => setAdminOpen(false)}
       />
 
-      {/* Imperial Underground Casino (Slots, Scratch-off, Dice) */}
+      {/* Imperial Underground Casino (Slots, Scratch-off, Dice, Blackjack) */}
       <CasinoModal
         isOpen={casinoOpen}
         onClose={() => setCasinoOpen(false)}
+        initialTab={casinoTab}
       />
 
       {/* Showa Imperial Examinee Student ID Card Modal (Business Card) */}

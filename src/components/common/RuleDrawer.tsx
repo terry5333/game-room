@@ -330,22 +330,36 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
                   <div className="glass-panel-subtle rounded-2xl p-4 border border-white/60">
                     <div className="flex items-center gap-2 font-bold text-base text-[#DBAD6A] mb-2">
                       <Coins className="w-4 h-4" />
-                      <span>金幣經濟與好友邀請系統</span>
+                      <span>金幣經濟、娛樂城與大獎池機制</span>
                     </div>
                     <p className="text-xs text-[#2E2925]/80 leading-relaxed mb-3">
-                      公平競技，局局有獎。金幣將可用於未來即將推出的自訂棋盤、專屬頭像框與擊沉特寫商城！
+                      公平競技，局局有獎。金幣可用於服裝飾品商城、寵物飼養，並可在帝國遊技場暢玩五大博弈遊戲！
                     </p>
                     <div className="space-y-2 text-xs">
                       <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#628395] mb-1">結算獎勵機制</div>
+                        <div className="font-bold text-[#D4AF37] mb-1">👑 帝國累積大獎池（100% 注入機制）</div>
                         <p className="text-[#2E2925]/80">
-                          勝方獲得 50 枚金幣（受管理員倍率加成），敗方獲得 10 枚金幣安慰獎。所有收支皆詳細記錄於個人交易歷程。
+                          所有玩家在幸運拉霸、黃金刮刮樂、地下骰寶、俄羅斯輪盤、21點決鬥中的下注金幣，<strong>100% 全額注入即時大獎池</strong>，雲端零延遲同步累加！
                         </p>
                       </div>
                       <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#CF995F] mb-1">好友邀請與 Presence 即時燈號</div>
+                        <div className="font-bold text-[#A82323] mb-1">🏆 50% 大獎池獨得唯二條件</div>
                         <p className="text-[#2E2925]/80">
-                          右側邊欄可輸入朋友的 6 位邀請碼互加好友。透過 Realtime Database 連線感測，隨時掌握好友是在「大廳閒晃」或「激戰中」，一鍵直接投送戰帖！
+                          大獎池絕不輕易落入凡人之手，僅限兩種情況能觸發 <strong>50% 大獎池提領</strong>：<br />
+                          1. <strong>幸運拉霸</strong>：轉出雙星 77 或特獎 777。<br />
+                          2. <strong>俄羅斯輪盤</strong>：頂住壓力勇闖第 5 發極限生還！
+                        </p>
+                      </div>
+                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
+                        <div className="font-bold text-[#628395] mb-1">🃏 21點決鬥（Blackjack）</div>
+                        <p className="text-[#2E2925]/80">
+                          以金幣為注碼與莊家一對一對決！支援要牌（Hit）、停牌（Stand）與加倍下注（Double Down）。起手天牌 Blackjack 享 3:2（2.5倍）高額返還！
+                        </p>
+                      </div>
+                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
+                        <div className="font-bold text-[#96897B] mb-1">結算獎勵與好友連線</div>
+                        <p className="text-[#2E2925]/80">
+                          大廳棋類對戰勝方獲得 50 枚金幣，敗方獲得 10 枚金幣安慰獎。右側邊欄可輸入朋友 6 碼邀請碼互加好友，即時掌握好友狀態並投送戰帖！
                         </p>
                       </div>
                     </div>
