@@ -23,13 +23,13 @@ export const TurnBanner: React.FC<TurnBannerProps> = ({
   }, [isMyTurn]);
   return (
     <div className="w-full flex justify-center py-1.5 px-4">
-      <AnimatePresence mode="wait">
+      <AnimatePresence>
         <motion.div
           key={isMyTurn ? 'my_turn' : 'opponent_turn'}
-          initial={{ opacity: 0, y: -8, scale: 0.98 }}
-          animate={{ opacity: 1, y: 0, scale: 1 }}
-          exit={{ opacity: 0, y: 8, scale: 0.98 }}
-          transition={{ duration: 0.2 }}
+          initial={{ opacity: 0, y: -4 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: 4 }}
+          transition={{ duration: 0.1 }}
           className={`flex items-center gap-2.5 px-4 py-1.5 rounded-full border shadow-xs backdrop-blur-md text-xs font-bold ${
             isMyTurn
               ? 'bg-[#628395]/15 border-[#628395]/40 text-[#628395]'

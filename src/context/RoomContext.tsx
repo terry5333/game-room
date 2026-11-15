@@ -152,7 +152,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     };
 
     sendPresence();
-    const interval = setInterval(sendPresence, 8000);
+    const interval = setInterval(sendPresence, 30000);
     return () => clearInterval(interval);
   }, [currentUser, currentRoom?.id, currentRoom?.gameId, currentRoom?.code, currentRoom?.maxPlayers, currentRoom?.players]);
 

@@ -100,34 +100,7 @@ class MatchService {
           console.warn('Permanent presence stream init error:', e);
         }
 
-        try {
-          const roomsRef = ref(rtdb, 'rooms');
-          onValue(roomsRef, (snapshot) => {
-            const val = snapshot.val();
-            if (val) {
-              const freshIds = new Set(Object.keys(val));
-              for (const id of Array.from(this.localRooms.keys())) {
-                if (!freshIds.has(id)) {
-                  this.localRooms.delete(id);
-                }
-              }
-              Object.entries<any>(val).forEach(([id, r]) => {
-                if (r && r.status !== 'closed') {
-                  const norm = this.normalizeRoom(r);
-                  this.localRooms.set(id, norm);
-                } else {
-                  this.localRooms.delete(id);
-                }
-              });
-              this.notifyAllRoomsListeners();
-            } else {
-              this.localRooms.clear();
-              this.notifyAllRoomsListeners();
-            }
-          });
-        } catch (e) {
-          console.warn('Permanent rooms stream init error:', e);
-        }
+
       }
     }
   }

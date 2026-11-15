@@ -25,6 +25,8 @@ export const Game1A2B: React.FC = () => {
 
   const [inputDigits, setInputDigits] = useState<string>('');
   const [hintRevealed, setHintRevealed] = useState<boolean>(false);
+  const [hintUnlockedNotice, setHintUnlockedNotice] = useState<boolean>(false);
+  const [hintNotified, setHintNotified] = useState<boolean>(false);
   const [historyTab, setHistoryTab] = useState<'all' | 'mine' | 'opponent'>('all');
 
   const state: State1A2B = currentRoom?.state1a2b || {
@@ -97,6 +99,25 @@ export const Game1A2B: React.FC = () => {
   const hasReachedMaxRounds = maxRounds > 0 && myGuesses.length >= maxRounds;
   const canGuess = bothLocked && !hasReachedMaxRounds && currentRoom?.status === 'in_progress';
   const isSettled = currentRoom?.status === 'settled';
+
+  // Reset hint state on rematch
+  useEffect(() => {
+    if (myGuesses.length === 0) {
+      setHintRevealed(false);
+      setHintNotified(false);
+      setHintUnlockedNotice(false);
+    }
+  }, [myGuesses.length]);
+
+  // When hint condition is met, trigger prominent screen pop-up and sound alert
+  useEffect(() => {
+    if (hintEnabled && bothLocked && myGuesses.length >= hintRound && !hintNotified && !isSettled) {
+      setHintNotified(true);
+      setHintRevealed(true);
+      setHintUnlockedNotice(true);
+      sound.playSuccess();
+    }
+  }, [hintEnabled, bothLocked, myGuesses.length, hintRound, hintNotified, isSettled]);
 
   // Keypad inputs
   const handleDigitPress = (d: number) => {
@@ -426,6 +447,31 @@ export const Game1A2B: React.FC = () => {
                 );
               })}
             </div>
+
+            {/* Active Unlocked Hint Clue Banner Above Keypad */}
+            {bothLocked && hintEnabled && myGuesses.length >= hintRound && (
+              <motion.div
+                initial={{ opacity: 0, scale: 0.95 }}
+                animate={{ opacity: 1, scale: 1 }}
+                className="mb-3 max-w-xs mx-auto p-2.5 rounded-2xl bg-[#DBAD6A]/20 border border-[#DBAD6A]/60 text-xs font-bold text-[#2E2925] flex items-center justify-between shadow-xs"
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-6 h-6 rounded-lg bg-[#DBAD6A] text-white flex items-center justify-center font-black text-xs shrink-0 shadow-2xs">
+                    💡
+                  </span>
+                  <span>
+                    密碼線索：包含數字【
+                    <strong className="text-base font-black text-[#628395] underline">
+                      {targetSecret[1] || targetSecret[0] || '7'}
+                    </strong>
+                    】
+                  </span>
+                </div>
+                <span className="text-[10px] bg-white/90 px-2 py-0.5 rounded-md text-[#DBAD6A] font-extrabold border border-[#DBAD6A]/30">
+                  第 {hintRound} 輪情報
+                </span>
+              </motion.div>
+            )}
 
             {/* Numeric Keypad (0-9, Backspace, Submit) */}
             <div className="grid grid-cols-3 gap-2.5 max-w-xs mx-auto mb-3">
@@ -770,6 +816,62 @@ export const Game1A2B: React.FC = () => {
           </div>
         </div>
       </div>
+
+      {/* 1A2B Hint Unlocked Popup Notification */}
+      <AnimatePresence>
+        {hintUnlockedNotice && (
+          <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/40 backdrop-blur-xs">
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              transition={{ type: 'spring', damping: 25, stiffness: 350 }}
+              className="max-w-sm w-full bg-[#FAF7F2] rounded-3xl p-6 shadow-2xl border-2 border-[#DBAD6A] text-center relative overflow-hidden"
+            >
+              {/* Header Badge */}
+              <div className="w-14 h-14 rounded-2xl bg-[#DBAD6A]/20 text-[#DBAD6A] flex items-center justify-center mx-auto mb-3 shadow-inner">
+                <Sparkles className="w-8 h-8 text-[#DBAD6A] animate-pulse" />
+              </div>
+
+              <span className="text-[10px] tracking-widest uppercase font-black px-2.5 py-0.5 rounded-full bg-[#DBAD6A]/20 text-[#8C6D3B] mb-1 inline-block">
+                HINT UNLOCKED
+              </span>
+
+              <h3 className="text-xl font-black text-[#2E2925] mb-2 tracking-wide font-serif">
+                密碼提示已解鎖！
+              </h3>
+
+              <p className="text-xs text-[#5D4037] leading-relaxed mb-4">
+                受驗生已猜測滿 <strong>{hintRound}</strong> 回合，官方線索已為您開放！
+              </p>
+
+              <div className="p-4 rounded-2xl bg-[#DBAD6A]/15 border-2 border-dashed border-[#DBAD6A]/60 mb-5">
+                <div className="text-xs text-[#8C6D3B] font-bold mb-1">
+                  🔍 對手 4 位密碼情報
+                </div>
+                <div className="text-base font-extrabold text-[#2E2925]">
+                  其中包含數字【
+                  <span className="text-2xl font-black text-[#628395] underline mx-1">
+                    {targetSecret[1] || targetSecret[0] || '7'}
+                  </span>
+                  】
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setHintRevealed(true);
+                  setHintUnlockedNotice(false);
+                }}
+                className="w-full py-3 px-5 rounded-2xl bg-[#DBAD6A] hover:bg-[#c69a59] text-white font-black text-sm shadow-md shadow-[#DBAD6A]/30 transition-all cursor-pointer"
+              >
+                我知道了，繼續解密
+              </button>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </div>
   );
 };
