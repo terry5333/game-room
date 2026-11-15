@@ -22,13 +22,13 @@ interface SlotSymbol {
 }
 
 const SLOT_SYMBOLS: SlotSymbol[] = [
-  { id: '7', char: '7️⃣', name: '大紅柒', weight: 4 },
-  { id: 'crown', char: '👑', name: '帝國冠', weight: 6 },
-  { id: 'diamond', char: '💎', name: '金剛石', weight: 10 },
-  { id: 'bell', char: '🔔', name: '招財鐘', weight: 14 },
-  { id: 'watermelon', char: '🍉', name: '昭和瓜', weight: 18 },
+  { id: '7', char: '7️⃣', name: '大紅柒', weight: 2 },
+  { id: 'crown', char: '👑', name: '帝國冠', weight: 3 },
+  { id: 'diamond', char: '💎', name: '金剛石', weight: 6 },
+  { id: 'bell', char: '🔔', name: '招財鐘', weight: 9 },
+  { id: 'watermelon', char: '🍉', name: '昭和瓜', weight: 15 },
   { id: 'coin', char: '🪙', name: '帝國幣', weight: 22 },
-  { id: 'cherry', char: '🍒', name: '紅櫻桃', weight: 26 }
+  { id: 'cherry', char: '🍒', name: '紅櫻桃', weight: 14 }
 ];
 
 const BET_OPTIONS = [5, 10, 20, 50, 100, 200];
@@ -50,7 +50,7 @@ const SCRATCH_TIERS: ScratchTier[] = [
     id: 'fortune_20',
     name: '昭和小確幸・對對碰',
     price: 20,
-    topPrize: 500,
+    topPrize: 80,
     desc: '刮出 6 個金元寶，湊齊 3 個相同金額即中獎！',
     color: '#8D5B4C'
   },
@@ -58,7 +58,7 @@ const SCRATCH_TIERS: ScratchTier[] = [
     id: 'gold_50',
     name: '帝國金元寶・幸運號',
     price: 50,
-    topPrize: 2000,
+    topPrize: 180,
     desc: '刮出帝國幸運號，4 個號碼中任一對中即可獲得對應獎金！',
     color: '#B8860B'
   },
@@ -66,7 +66,7 @@ const SCRATCH_TIERS: ScratchTier[] = [
     id: 'jackpot_100',
     name: '狀元及第・777 豪賭',
     price: 100,
-    topPrize: 5000,
+    topPrize: 350,
     desc: '3x3 九宮格，只要出現 7️⃣ 或任意連成一線即爆頭獎！',
     color: '#A82323'
   }
@@ -199,43 +199,40 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
       if (target1.id === target2.id && target2.id === target3.id) {
         // Triple Match
         if (target1.id === '7') {
-          multiplier = 50;
-          winDesc = '👑 昭和特獎 777 爆擊！狂攬 50 倍！';
-        } else if (target1.id === 'crown') {
-          multiplier = 30;
-          winDesc = '👑 帝國黃金冠連線！30 倍暴賺！';
-        } else if (target1.id === 'diamond') {
-          multiplier = 20;
-          winDesc = '💎 璀璨鑽石連線！20 倍獎金！';
-        } else if (target1.id === 'bell') {
           multiplier = 15;
-          winDesc = '🔔 招財金鐘連線！15 倍獎金！';
-        } else if (target1.id === 'watermelon') {
+          winDesc = '👑 昭和特獎 777 爆擊！獲得 15 倍！';
+        } else if (target1.id === 'crown') {
           multiplier = 10;
-          winDesc = '🍉 昭和西瓜連線！10 倍獎金！';
-        } else if (target1.id === 'coin') {
-          multiplier = 6;
-          winDesc = '🪙 帝國金幣連線！6 倍金幣入袋！';
-        } else if (target1.id === 'cherry') {
+          winDesc = '👑 帝國黃金冠連線！獲得 10 倍！';
+        } else if (target1.id === 'diamond') {
+          multiplier = 7;
+          winDesc = '💎 璀璨鑽石連線！獲得 7 倍！';
+        } else if (target1.id === 'bell') {
           multiplier = 5;
-          winDesc = '🍒 三顆紅櫻桃！5 倍小確幸！';
+          winDesc = '🔔 招財金鐘連線！獲得 5 倍！';
+        } else if (target1.id === 'watermelon') {
+          multiplier = 3;
+          winDesc = '🍉 昭和西瓜連線！獲得 3 倍！';
+        } else if (target1.id === 'coin') {
+          multiplier = 2;
+          winDesc = '🪙 帝國金幣連線！獲得 2 倍！';
+        } else if (target1.id === 'cherry') {
+          multiplier = 1.5;
+          winDesc = '🍒 三顆紅櫻桃！獲得 1.5 倍！';
         }
       } else {
-        // Partial Cherry rules
+        // Partial Cherry rules (Only 2 cherries gives return, 1 cherry is miss)
         const cherryCount = [target1.id, target2.id, target3.id].filter((id) => id === 'cherry').length;
         if (cherryCount === 2) {
-          multiplier = 2;
-          winDesc = '🍒 雙櫻桃回本！獲利 2 倍！';
-        } else if (cherryCount === 1) {
           multiplier = 1;
-          winDesc = '🍒 單櫻桃保本！返還本金！';
+          winDesc = '🍒 雙櫻桃保本！返還本金！';
         }
       }
 
-      const winnings = slotBet * multiplier;
+      const winnings = Math.floor(slotBet * multiplier);
 
       if (winnings > 0) {
-        if (multiplier >= 20) {
+        if (multiplier >= 10) {
           sound.playJackpot();
         } else {
           sound.playSlotWin();
@@ -272,14 +269,14 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
     // Deduct ticket cost
     await updateCoins(-tier.price, 'casino_bet', `購買【${tier.name}】刮刮樂`);
 
-    // Generate random prizes based on tier
+    // Generate random prizes based on tier (drastically lower win rate & lower prize amounts)
     if (tier.id === 'fortune_20') {
       // Tier 1: 6 values, match 3 to win
-      const pool = [10, 20, 20, 50, 100, 200, 500];
-      const win = Math.random() < 0.38; // 38% win rate
+      const pool = [5, 10, 15, 20, 25, 40, 80];
+      const win = Math.random() < 0.18; // 18% win rate (down from 38%)
       let items: number[] = [];
       if (win) {
-        const prizeOptions = [20, 20, 50, 50, 100, 200];
+        const prizeOptions = [10, 15, 20, 25, 40, 80];
         const winPrize = prizeOptions[Math.floor(Math.random() * prizeOptions.length)];
         items = [winPrize, winPrize, winPrize];
         while (items.length < 6) {
@@ -289,7 +286,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
           }
         }
       } else {
-        items = [10, 20, 50, 100, 200, 500];
+        items = [5, 10, 15, 20, 40, 80];
       }
       // Shuffle
       items.sort(() => Math.random() - 0.5);
@@ -297,13 +294,13 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
     } else if (tier.id === 'gold_50') {
       // Tier 2: 1 Lucky number, 4 Player numbers
       const lucky = Math.floor(Math.random() * 20) + 1;
-      const win = Math.random() < 0.4;
+      const win = Math.random() < 0.16; // 16% win rate (down from 40%)
       const nums: { num: number; prize: number; match: boolean }[] = [];
-      const prizePool = [50, 100, 150, 300, 500, 2000];
+      const prizePool = [20, 30, 50, 75, 100, 180];
 
       let winInserted = false;
       for (let i = 0; i < 4; i++) {
-        const isMatch = win && !winInserted && (i === 1 || Math.random() < 0.4);
+        const isMatch = win && !winInserted && (i === 1 || Math.random() < 0.3);
         if (isMatch) winInserted = true;
         const prize = prizePool[Math.floor(Math.random() * prizePool.length)];
         nums.push({
@@ -316,7 +313,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
     } else {
       // Tier 3: 3x3 grid
       const symbols = ['7️⃣', '🪙', '👑', '💎', '🔔'];
-      const win = Math.random() < 0.42;
+      const win = Math.random() < 0.12; // 12% win rate (down from 42%)
       const grid: string[] = [];
       if (win) {
         // Guaranteed 7
@@ -463,7 +460,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
 
     setScratchWinAmount(totalWin);
     if (totalWin > 0) {
-      if (totalWin >= 500) {
+      if (totalWin >= 180) {
         sound.playJackpot();
       } else {
         sound.playSlotWin();
@@ -516,7 +513,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
       if (diceChoice === 'triple') {
         if (isTriple) {
           isWin = true;
-          multiplier = 24; // 24x
+          multiplier = 10; // 10x (was 24x)
         }
       } else if (!isTriple) {
         if (diceChoice === 'big' && total >= 11 && total <= 17) {
@@ -681,7 +678,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                     </span>
                   </div>
                   <div className="text-[11px] font-black text-[#FFD700]">
-                    ★ 頭獎 777 賠率 50x ★
+                    ★ 頭獎 777 賠率 15x ★
                   </div>
                 </div>
 
@@ -1146,7 +1143,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose }) => 
                     }`}
                   >
                     <div>👑 豹子 (圍骰)</div>
-                    <div className="text-[10px] text-yellow-300 font-bold mt-0.5">賠率 1:24</div>
+                    <div className="text-[10px] text-yellow-300 font-bold mt-0.5">賠率 1:10</div>
                   </button>
                 </div>
               </div>

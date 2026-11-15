@@ -21,6 +21,7 @@ import { GameBingo } from './components/games/bingo/GameBingo';
 import { GameDotsAndBoxes } from './components/games/dotsandboxes/GameDotsAndBoxes';
 import { GameOOXX } from './components/games/ooxx/GameOOXX';
 import { LoadingScreen } from './components/common/LoadingScreen';
+import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 import type { GameId } from './types';
 
 export const AppContent: React.FC = () => {
@@ -41,7 +42,12 @@ export const AppContent: React.FC = () => {
 
   // Pure Google Sign-in Landing Page
   if (!currentUser) {
-    return <LandingPage />;
+    return (
+      <>
+        <LandingPage />
+        <PwaInstallPrompt />
+      </>
+    );
   }
 
   const handleOpenRules = (gameId: GameId = '1a2b') => {
@@ -161,6 +167,9 @@ export const AppContent: React.FC = () => {
         isOpen={Boolean(currentUser && currentUser.profileCompleted && !currentUser.tutorialCompleted)}
         onClose={() => {}}
       />
+
+      {/* PWA Mobile App Install Prompt */}
+      <PwaInstallPrompt />
     </div>
   );
 };

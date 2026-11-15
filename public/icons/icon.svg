@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512" width="512" height="512">
+  <rect width="512" height="512" rx="100" fill="#2B1E16"/>
+  <rect x="28" y="28" width="456" height="456" rx="80" fill="none" stroke="#D4AF37" stroke-width="12"/>
+  <circle cx="68" cy="68" r="14" fill="#D4AF37"/>
+  <circle cx="444" cy="68" r="14" fill="#D4AF37"/>
+  <circle cx="68" cy="444" r="14" fill="#D4AF37"/>
+  <circle cx="444" cy="444" r="14" fill="#D4AF37"/>
+  
+  <!-- Controller Silhouette -->
+  <rect x="86" y="160" width="340" height="190" rx="40" fill="#8D5B4C" stroke="#FFE8D6" stroke-width="8"/>
+  
+  <!-- D-Pad -->
+  <rect x="156" y="225" width="24" height="60" rx="6" fill="#FFFFFF"/>
+  <rect x="138" y="243" width="60" height="24" rx="6" fill="#FFFFFF"/>
+  
+  <!-- Action Buttons -->
+  <circle cx="340" cy="225" r="14" fill="#FFD700"/>
+  <circle cx="340" cy="285" r="14" fill="#E74C3C"/>
+  <circle cx="310" cy="255" r="14" fill="#3498DB"/>
+  <circle cx="370" cy="255" r="14" fill="#2ECC71"/>
+  
+  <!-- Center Text -->
+  <text x="256" y="405" font-family="'Noto Sans TC', sans-serif" font-size="42" font-weight="900" fill="#FDF6C7" text-anchor="middle" letter-spacing="4">遊戲室</text>
+</svg>

@@ -11,7 +11,8 @@ import {
   Gamepad2,
   ChevronDown,
   User,
-  Award
+  Award,
+  Smartphone
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
@@ -194,6 +195,18 @@ export const Header: React.FC<HeaderProps> = ({
                     <span>帝國地下遊技場 (拉霸・刮刮樂)</span>
                   </button>
                 )}
+
+                {/* PWA Mobile App Install Shortcut */}
+                <button
+                  onClick={() => {
+                    setMenuOpen(false);
+                    window.dispatchEvent(new CustomEvent('open-pwa-install'));
+                  }}
+                  className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#8D5B4C] hover:bg-[#8D5B4C]/10 rounded-xl transition-colors cursor-pointer"
+                >
+                  <Smartphone className="w-3.5 h-3.5 text-[#8D5B4C]" />
+                  <span>安裝手機應用程式 (PWA)</span>
+                </button>
 
                 {/* Edit Profile Option */}
                 <button
