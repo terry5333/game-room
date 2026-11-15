@@ -39,7 +39,7 @@ const GAME_NAMES: Record<GameId, string> = {
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) => {
   const { currentUser, allUsers } = useAuth();
-  const { createRoom, joinRoomById, joinRoomByCode } = useRoom();
+  const { currentRoom, createRoom, joinRoomById, joinRoomByCode } = useRoom();
 
   const [activeTab, setActiveTab] = useState<'friends' | 'requests'>('friends');
   const [searchInput, setSearchInput] = useState('');
@@ -240,6 +240,23 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     } finally {
       setInviting(false);
     }
+  };
+
+  const handleInviteToCurrentRoom = (friend: UserPresence) => {
+    if (!currentRoom || !currentUser) return;
+    sound.playSuccess();
+    const invite: BattleInvite = {
+      id: 'inv_' + Math.random().toString(36).substring(2, 9),
+      fromUid: currentUser.uid,
+      fromName: currentUser.displayName,
+      toUid: friend.uid,
+      gameId: currentRoom.gameId,
+      roomId: currentRoom.id,
+      createdAt: Date.now(),
+      status: 'pending'
+    };
+    matchService.sendBattleInvite(invite);
+    setFeedbackMsg({ text: `已發送房間邀請給 ${friend.displayName}！`, type: 'success' });
   };
 
   const handleAcceptBattleInvite = async () => {
@@ -490,7 +507,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                         </div>
                       </div>
 
-                      {/* Actions: Follow into room (Supports 2-5 player rooms) or Send Battle Invite */}
+                      {/* Actions: Follow into room, Invite to current room, or Send Battle Invite */}
                       <div className="shrink-0 flex items-center gap-1.5">
                         {isInGame ? (
                           <button
@@ -501,6 +518,20 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                             <Eye className="w-3.5 h-3.5" />
                             <span>跟隨進房</span>
                           </button>
+                        ) : currentRoom ? (
+                          <button
+                            disabled={!isOnline}
+                            onClick={() => handleInviteToCurrentRoom(f)}
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
+                              !isOnline
+                                ? 'opacity-30 cursor-not-allowed text-[#96897B] bg-neutral-100'
+                                : 'bg-[#628395] hover:bg-[#526f7f] text-white cursor-pointer shadow-xs'
+                            }`}
+                            title="邀請加入我的房間"
+                          >
+                            <UserPlus className="w-3.5 h-3.5" />
+                            <span>邀請進房</span>
+                          </button>
                         ) : (
                           <button
                             disabled={!isOnline}
@@ -508,14 +539,15 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                               sound.playClick();
                               setSelectedFriend(f);
                             }}
-                            className={`p-2 rounded-xl text-xs font-bold transition-colors ${
+                            className={`px-2.5 py-1.5 rounded-xl text-xs font-bold transition-colors flex items-center gap-1 ${
                               !isOnline
-                                ? 'opacity-30 cursor-not-allowed text-[#96897B]'
-                                : 'bg-[#628395]/15 hover:bg-[#628395] text-[#628395] hover:text-white cursor-pointer'
+                                ? 'opacity-30 cursor-not-allowed text-[#96897B] bg-neutral-100'
+                                : 'bg-[#628395] hover:bg-[#526f7f] text-white cursor-pointer shadow-xs'
                             }`}
                             title="發送對戰邀請"
                           >
-                            <Swords className="w-4 h-4" />
+                            <Swords className="w-3.5 h-3.5" />
+                            <span>邀請對戰</span>
                           </button>
                         )}
                       </div>

@@ -7,6 +7,7 @@ import {
   Check,
   Flag,
   Users2,
+  UserPlus,
   WifiOff,
   Wifi,
   AlertTriangle,
@@ -17,6 +18,7 @@ import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
 import { VictoryCelebration } from '../common/VictoryCelebration';
 import { ErrorBoundary } from '../common/ErrorBoundary';
+import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { sound } from '../../services/soundService';
 
 interface GameShellProps {
@@ -48,6 +50,7 @@ export const GameShell: React.FC<GameShellProps> = ({
   const { currentUser, recordGameResult } = useAuth();
   const [copied, setCopied] = useState(false);
   const [recorded, setRecorded] = useState(false);
+  const [inviteFriendsOpen, setInviteFriendsOpen] = useState(false);
 
   if (!currentRoom || !currentUser) return null;
 
@@ -213,7 +216,20 @@ export const GameShell: React.FC<GameShellProps> = ({
         </div>
 
         {/* Right: Actions */}
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5 sm:gap-2">
+          {/* Invite friends into this room button */}
+          <button
+            onClick={() => {
+              sound.playClick();
+              setInviteFriendsOpen(true);
+            }}
+            className="flex items-center gap-1 px-2.5 py-1 rounded-xl bg-[#628395]/15 hover:bg-[#628395] text-[#628395] hover:text-white transition-colors text-xs font-bold cursor-pointer"
+            title="邀請好友加入"
+          >
+            <UserPlus className="w-3.5 h-3.5" />
+            <span className="hidden sm:inline">邀請好友</span>
+          </button>
+
           <button
             onClick={() => {
               sound.playClick();
@@ -315,7 +331,7 @@ export const GameShell: React.FC<GameShellProps> = ({
               好友輸入下方 6 位數房號即可立即進房對戰
             </p>
 
-            <div className="bg-white/80 rounded-2xl p-3 border border-white flex items-center justify-center gap-3 mb-5 shadow-xs">
+            <div className="bg-white/80 rounded-2xl p-3 border border-white flex items-center justify-center gap-3 mb-3 shadow-xs">
               <span className="font-mono text-2xl font-black text-[#628395] tracking-widest">
                 {currentRoom.code}
               </span>
@@ -325,6 +341,20 @@ export const GameShell: React.FC<GameShellProps> = ({
                 title="複製房號"
               >
                 {copied ? <Check className="w-4 h-4 text-emerald-600" /> : <Copy className="w-4 h-4" />}
+              </button>
+            </div>
+
+            {/* Prominent Invite Friends to Room Button */}
+            <div className="mb-5">
+              <button
+                onClick={() => {
+                  sound.playClick();
+                  setInviteFriendsOpen(true);
+                }}
+                className="w-full py-2.5 px-4 rounded-2xl bg-[#628395] hover:bg-[#526f7f] text-white font-extrabold text-xs shadow-md shadow-[#628395]/20 flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                <UserPlus className="w-4 h-4" />
+                <span>邀請好友加入此房間</span>
               </button>
             </div>
 
@@ -418,6 +448,13 @@ export const GameShell: React.FC<GameShellProps> = ({
           }}
         />
       )}
+
+      {/* Invite Friends into this room Modal */}
+      <InviteFriendsModal
+        isOpen={inviteFriendsOpen}
+        onClose={() => setInviteFriendsOpen(false)}
+        currentRoom={currentRoom}
+      />
     </motion.div>
   );
 };
