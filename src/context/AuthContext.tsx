@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { UserProfile, CoinTransaction, UserWardrobe } from '../types';
+import type { UserProfile, CoinTransaction, UserWardrobe, UserPetProfile } from '../types';
+import { DEFAULT_PET_PROFILE } from '../data/petAndChairCatalog';
 import {
   auth,
   rtdb,
@@ -29,6 +30,12 @@ interface AuthContextType {
   updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
   updateWardrobe: (newWardrobe: UserWardrobe, newUnlockedItem?: string) => Promise<void>;
   purchaseWardrobeItem: (newWardrobe: UserWardrobe, unlockedItemId: string, coinCost: number, itemName: string) => Promise<boolean>;
+  petProfile: UserPetProfile;
+  updatePetProfile: (newProfile: UserPetProfile) => Promise<void>;
+  feedPet: () => Promise<boolean>;
+  petThePet: () => Promise<boolean>;
+  purchaseChair: (chairId: string, cost: number, chairName: string) => Promise<boolean>;
+  purchasePet: (petId: string, cost: number, petName: string) => Promise<boolean>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
@@ -357,6 +364,260 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     return true;
   };
 
+  const petProfile: UserPetProfile = currentUser?.petProfile || DEFAULT_PET_PROFILE;
+
+  const updatePetProfile = async (newProfile: UserPetProfile) => {
+    if (!currentUser) return;
+    const updated: UserProfile = {
+      ...currentUser,
+      petProfile: newProfile
+    };
+    saveUser(updated);
+
+    matchService.updatePresence({
+      uid: updated.uid,
+      displayName: updated.displayName,
+      photoURL: updated.photoURL,
+      userTag: updated.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updated.wardrobe,
+      petProfile: newProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updated.uid}/petProfile`), newProfile).catch(console.warn);
+    }
+  };
+
+  const feedPet = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    const cost = 10;
+    if (currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const pet = { ...currProfile.pet };
+
+    pet.hunger = Math.min(100, (pet.hunger || 0) + 30);
+    pet.intimacy = Math.min(100, (pet.intimacy || 0) + 10);
+    pet.exp = (pet.exp || 0) + 25;
+    pet.lastFed = Date.now();
+
+    const maxExp = pet.maxExp || pet.level * 50;
+    if (pet.exp >= maxExp && pet.level < 10) {
+      pet.level += 1;
+      pet.exp -= maxExp;
+      pet.maxExp = pet.level * 50;
+    }
+
+    const newCoins = currentUser.coins - cost;
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      pet
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    const tx: CoinTransaction = {
+      id: 'tx_' + Math.random().toString(36).substring(2, 9),
+      uid: currentUser.uid,
+      amount: -cost,
+      type: 'shop_purchase',
+      description: `餵食寵物（${pet.name}）點心`,
+      timestamp: Date.now()
+    };
+    setTransactions((prev) => [tx, ...prev]);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const petThePet = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const pet = { ...currProfile.pet };
+
+    pet.intimacy = Math.min(100, (pet.intimacy || 0) + 5);
+    pet.exp = (pet.exp || 0) + 5;
+    pet.lastPetted = Date.now();
+
+    const maxExp = pet.maxExp || pet.level * 50;
+    if (pet.exp >= maxExp && pet.level < 10) {
+      pet.level += 1;
+      pet.exp -= maxExp;
+      pet.maxExp = pet.level * 50;
+    }
+
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      pet
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const purchaseChair = async (chairId: string, cost: number, chairName: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (cost > 0 && currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const unlockedChairs = currProfile.unlockedChairs || ['wooden_chair'];
+    const updatedUnlocked = unlockedChairs.includes(chairId) ? unlockedChairs : [...unlockedChairs, chairId];
+
+    const newCoins = Math.max(0, currentUser.coins - cost);
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      character: {
+        ...currProfile.character,
+        chairId
+      },
+      unlockedChairs: updatedUnlocked
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    if (cost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -cost,
+        type: 'shop_purchase',
+        description: `購買座椅：${chairName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const purchasePet = async (petId: string, cost: number, petName: string): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (cost > 0 && currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const unlockedPets = currProfile.unlockedPets || ['shiba'];
+    const updatedUnlocked = unlockedPets.includes(petId) ? unlockedPets : [...unlockedPets, petId];
+
+    const newCoins = Math.max(0, currentUser.coins - cost);
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      character: {
+        ...currProfile.character,
+        petId
+      },
+      pet: {
+        ...currProfile.pet,
+        id: petId,
+        name: petName
+      },
+      unlockedPets: updatedUnlocked
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    if (cost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -cost,
+        type: 'shop_purchase',
+        description: `領養萌寵：${petName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
   const logout = async () => {
     if (currentUser) {
       matchService.updatePresence({
@@ -468,6 +729,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserProfile,
         updateWardrobe,
         purchaseWardrobeItem,
+        petProfile,
+        updatePetProfile,
+        feedPet,
+        petThePet,
+        purchaseChair,
+        purchasePet,
         updateCoins,
         recordGameResult,
         completeTutorial,

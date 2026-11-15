@@ -14,7 +14,8 @@ import {
   RotateCcw,
   Sparkles,
   Keyboard,
-  Award
+  Award,
+  Heart
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -23,6 +24,13 @@ import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
 import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
+import { PixelStage } from '../profile/PixelStage';
+import { PixelLoungeModal } from '../profile/PixelLoungeModal';
+import {
+  CHAIR_CATALOG,
+  PET_CATALOG,
+  DEFAULT_PET_PROFILE
+} from '../../data/petAndChairCatalog';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
@@ -38,11 +46,24 @@ export const Lobby: React.FC<LobbyProps> = ({
   onOpenExamCard
 }) => {
   const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
-  const { currentUser } = useAuth();
+  const {
+    currentUser,
+    petProfile = DEFAULT_PET_PROFILE,
+    feedPet,
+    petThePet
+  } = useAuth();
   const [keypadModalOpen, setKeypadModalOpen] = useState(false);
+  const [pixelLoungeOpen, setPixelLoungeOpen] = useState(false);
   const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [creatingGame, setCreatingGame] = useState<GameId | null>(null);
   const [configGameId, setConfigGameId] = useState<GameId | null>(null);
+
+  const currentPet = petProfile.pet || DEFAULT_PET_PROFILE.pet;
+  const currentCharacter = petProfile.character || DEFAULT_PET_PROFILE.character;
+  const currentChair =
+    CHAIR_CATALOG.find((c) => c.id === currentCharacter.chairId) || CHAIR_CATALOG[0];
+  const petSpecies =
+    PET_CATALOG.find((p) => p.id === currentPet.id) || PET_CATALOG[0];
 
   useEffect(() => {
     if (!currentUser) return;
@@ -162,9 +183,9 @@ export const Lobby: React.FC<LobbyProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Sleek Top Action Bar: Friends, Room Code Keypad & Wardrobe Shop */}
+      {/* Sleek Top Action Bar: Friends, Room Code Keypad, Casino & Pet/Chair Workshop */}
       <div className="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-xs border border-white/70">
-        <div className="grid grid-cols-3 gap-2 sm:gap-3">
+        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
           {/* Button 1: 好友名單 */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -217,8 +238,128 @@ export const Lobby: React.FC<LobbyProps> = ({
             </div>
             <span className="truncate">帝國遊技場</span>
           </motion.button>
+
+          {/* Button 4: 寵物與座椅工坊 */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              sound.playClick();
+              setPixelLoungeOpen(true);
+            }}
+            className="flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-gradient-to-r from-[#8D5B4C] to-[#6E463B] hover:brightness-110 text-white font-black text-xs shadow-xs hover:shadow-md transition-all cursor-pointer border border-[#D5C0A1]/50"
+          >
+            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+              <span className="text-sm">🛋️</span>
+            </div>
+            <span className="truncate">寵物工坊</span>
+          </motion.button>
         </div>
       </div>
+
+      {/* Pixel Character, Chair & Pet Lounge Widget (像素小人・養寵物・椅子) */}
+      {currentUser && (
+        <div className="glass-panel rounded-3xl p-3 sm:p-4 border-2 border-white/80 shadow-md flex flex-col md:flex-row items-center justify-between gap-3 bg-gradient-to-r from-[#FAF3E0]/90 to-[#F7EBD2]/90">
+          {/* Left: Pixel Stage Canvas (Pixel Avatar seated on chair with pet) */}
+          <div className="flex items-center justify-center bg-white/40 rounded-2xl p-1 border border-[#D5C0A1]/50 shadow-inner w-full md:w-auto">
+            <PixelStage
+              profile={petProfile}
+              size="md"
+              interactive={true}
+              onPetClick={() => {}}
+              onCharacterClick={() => {}}
+            />
+          </div>
+
+          {/* Right: Info & Quick Pet Care Actions */}
+          <div className="flex-1 w-full flex flex-col justify-between gap-2.5 min-w-0">
+            <div className="flex items-start justify-between gap-2">
+              <div>
+                <div className="flex items-center gap-1.5 flex-wrap">
+                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#8D5B4C]/15 text-[#5D3A1A] border border-[#8D5B4C]/25">
+                    受驗茶水間
+                  </span>
+                  <span className="text-xs sm:text-sm font-black text-[#2E2925]">
+                    {currentUser.displayName} 的專屬席
+                  </span>
+                  <span className="text-[10px] font-mono font-bold text-[#8D5B4C]">
+                    {petProfile.character?.gender === 'female' ? '👧 女受驗生' : '👦 男受驗生'}
+                  </span>
+                </div>
+
+                <div className="text-xs text-[#8D5B4C] font-bold mt-1 flex items-center gap-2 flex-wrap">
+                  <span>🪑 御用座椅：<strong className="text-[#5D3A1A]">{currentChair.name}</strong></span>
+                  <span>•</span>
+                  <span>🐾 隨行萌寵：<strong className="text-[#5D3A1A]">{currentPet.name}</strong> ({petSpecies.speciesName})</span>
+                  <span className="text-[10px] font-mono px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-black">
+                    Lv.{currentPet.level}
+                  </span>
+                </div>
+              </div>
+
+              <button
+                onClick={() => {
+                  sound.playPop();
+                  setPixelLoungeOpen(true);
+                }}
+                className="shrink-0 px-3 py-1.5 rounded-xl bg-[#8D5B4C] hover:bg-[#6e463b] text-white text-xs font-black shadow-xs flex items-center gap-1 transition-all cursor-pointer"
+              >
+                <span>🛋️ 寵物工坊</span>
+                <ArrowRight className="w-3.5 h-3.5" />
+              </button>
+            </div>
+
+            {/* Gauges & Fast Actions */}
+            <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 pt-1 border-t border-[#8D5B4C]/15">
+              <div className="p-1.5 rounded-xl bg-white/60 border border-[#D5C0A1]/60 flex flex-col justify-center">
+                <div className="flex items-center justify-between text-[10px] font-black text-[#5D3A1A]">
+                  <span>飽食 🍖</span>
+                  <span>{currentPet.hunger}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-neutral-200 mt-1 overflow-hidden">
+                  <div className="h-full bg-amber-500 rounded-full" style={{ width: `${Math.min(100, currentPet.hunger)}%` }} />
+                </div>
+              </div>
+
+              <div className="p-1.5 rounded-xl bg-white/60 border border-[#D5C0A1]/60 flex flex-col justify-center">
+                <div className="flex items-center justify-between text-[10px] font-black text-rose-800">
+                  <span>親密 ❤️</span>
+                  <span>{currentPet.intimacy}%</span>
+                </div>
+                <div className="w-full h-1.5 rounded-full bg-rose-100 mt-1 overflow-hidden">
+                  <div className="h-full bg-rose-500 rounded-full" style={{ width: `${Math.min(100, currentPet.intimacy)}%` }} />
+                </div>
+              </div>
+
+              <button
+                onClick={async () => {
+                  if (currentUser.coins < 10) {
+                    sound.playError();
+                    alert('金幣不足 10 枚，快去遊技場或對戰贏取金幣吧！');
+                    return;
+                  }
+                  const ok = await feedPet();
+                  if (ok) sound.playSuccess();
+                }}
+                className="py-1.5 px-2 rounded-xl bg-gradient-to-r from-amber-500 to-amber-600 hover:from-amber-600 hover:to-amber-700 text-white font-black text-[11px] shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition-all"
+              >
+                <span>🍖 餵食 (10幣)</span>
+              </button>
+
+              <button
+                onClick={async () => {
+                  const ok = await petThePet();
+                  if (ok) sound.playPop();
+                }}
+                className="py-1.5 px-2 rounded-xl bg-gradient-to-r from-rose-500 to-pink-500 hover:from-rose-600 hover:to-pink-600 text-white font-black text-[11px] shadow-2xs flex items-center justify-center gap-1 cursor-pointer transition-all"
+              >
+                <Heart className="w-3.5 h-3.5 fill-white" />
+                <span>摸摸 (+5親密)</span>
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Showa Examinee Passport Banner (Exam Card / 名片) */}
       {currentUser && (
@@ -367,6 +508,12 @@ export const Lobby: React.FC<LobbyProps> = ({
       <RoomCodeKeypadModal
         isOpen={keypadModalOpen}
         onClose={() => setKeypadModalOpen(false)}
+      />
+
+      {/* Pixel Lounge, Pet & Chair Customization Modal */}
+      <PixelLoungeModal
+        isOpen={pixelLoungeOpen}
+        onClose={() => setPixelLoungeOpen(false)}
       />
     </div>
   );

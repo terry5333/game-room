@@ -8,6 +8,36 @@ export interface UserWardrobe {
   stamp: string;     // 'candidate' | 'passed' | 'master' | 'undefeated' | 'pro'
 }
 
+export interface PetData {
+  id: string; // 'shiba' | 'calico_cat' | 'capybara' | 'penguin' | 'lucky_cat' | 'slime'
+  name: string;
+  level: number;
+  exp: number;
+  maxExp: number;
+  hunger: number;    // 0 - 100
+  intimacy: number;  // 0 - 100
+  lastFed: number;
+  lastPetted: number;
+}
+
+export interface PixelCharacterCustomization {
+  gender: 'male' | 'female';
+  skinTone: string;
+  hairStyle: string; // 'short' | 'twintail' | 'bob' | 'spiky'
+  hairColor: string; // hex color
+  outfitColor: string; // hex color
+  accessory: string; // 'none' | 'glasses' | 'ribbon' | 'cap' | 'tie'
+  chairId: string; // 'wooden_chair' | 'retro_sofa' | 'royal_throne' | 'gaming_chair' | 'beanbag' | 'tatami'
+  petId: string; // 'shiba' | 'calico_cat' | 'capybara' | 'penguin' | 'lucky_cat' | 'slime'
+}
+
+export interface UserPetProfile {
+  character: PixelCharacterCustomization;
+  pet: PetData;
+  unlockedChairs: string[];
+  unlockedPets: string[];
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -25,6 +55,7 @@ export interface UserProfile {
   createdAt: number;
   wardrobe?: UserWardrobe;
   unlockedItems?: string[];
+  petProfile?: UserPetProfile;
 }
 
 export type PresenceStatus = 'online' | 'lobby' | 'in_game' | 'offline';
@@ -43,6 +74,7 @@ export interface UserPresence {
   currentRoomMaxPlayers?: number;
   currentRoomPlayerCount?: number;
   wardrobe?: UserWardrobe;
+  petProfile?: UserPetProfile;
 }
 
 export interface CoinTransaction {

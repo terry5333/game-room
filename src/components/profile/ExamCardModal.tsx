@@ -3,6 +3,11 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Coins, Flame, Sparkles, Edit3, ShieldCheck } from 'lucide-react';
 import type { UserProfile, UserPresence, PlayerSlot, FriendRecord } from '../../types';
 import { STAMP_DETAILS, DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
+import {
+  CHAIR_CATALOG,
+  PET_CATALOG,
+  DEFAULT_PET_PROFILE
+} from '../../data/petAndChairCatalog';
 import { sound } from '../../services/soundService';
 
 interface ExamCardModalProps {
@@ -37,6 +42,12 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   const userTag = (user as any).userTag || user.uid?.substring(0, 4) || '1000';
   const photoUrl =
     user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid || 'guest'}`;
+
+  const petProf = (user as any).petProfile || DEFAULT_PET_PROFILE;
+  const activePet = petProf.pet || DEFAULT_PET_PROFILE.pet;
+  const activeChar = petProf.character || DEFAULT_PET_PROFILE.character;
+  const activeChair = CHAIR_CATALOG.find((c) => c.id === activeChar.chairId) || CHAIR_CATALOG[0];
+  const petSpecies = PET_CATALOG.find((p) => p.id === activePet.id) || PET_CATALOG[0];
 
   return (
     <AnimatePresence>
@@ -197,6 +208,19 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                   </span>
                   <span className="font-mono font-black text-[#B26A00] flex items-center gap-1">
                     🪙 {coins} 枚
+                  </span>
+                </div>
+
+                {/* Pixel Pet & Chair Companion Badge */}
+                <div className="pt-2 border-t border-[#D5C0A1]/50 flex items-center justify-between gap-2">
+                  <div className="flex items-center gap-2">
+                    <span className="text-base">{petSpecies.icon}</span>
+                    <span className="text-[11px] font-black text-[#5D3A1A]">
+                      隨行：{activePet.name} (Lv.{activePet.level})
+                    </span>
+                  </div>
+                  <span className="text-[10px] font-bold text-[#8D5B4C] bg-white/70 px-2 py-0.5 rounded-md border border-[#D5C0A1]/50">
+                    🪑 {activeChair.name}
                   </span>
                 </div>
               </div>
