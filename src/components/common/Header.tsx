@@ -10,17 +10,15 @@ import {
   Shield,
   Gamepad2,
   ChevronDown,
-  User,
-  Users2
+  User
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { matchService } from '../../services/matchService';
 import { sound } from '../../services/soundService';
 
 interface HeaderProps {
   onOpenRules: () => void;
   onOpenAdmin: () => void;
-  onOpenFriends: () => void;
+  onOpenFriends?: () => void;
   onOpenEditProfile: () => void;
   inGame?: boolean;
 }
@@ -28,7 +26,6 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onOpenAdmin,
-  onOpenFriends,
   onOpenEditProfile,
   inGame = false
 }) => {
@@ -36,16 +33,7 @@ export const Header: React.FC<HeaderProps> = ({
   const [copied, setCopied] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const [soundEnabled, setSoundEnabled] = useState(sound.isEnabled());
-  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const menuRef = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!currentUser) return;
-    const unsub = matchService.subscribeFriendRequests(currentUser.uid, (reqs) => {
-      setPendingRequestsCount(reqs.length);
-    });
-    return () => unsub();
-  }, [currentUser?.uid]);
 
   useEffect(() => {
     const handleClickOutside = (e: MouseEvent) => {
@@ -87,24 +75,7 @@ export const Header: React.FC<HeaderProps> = ({
         </div>
 
         {/* Right Actions */}
-        <div className="flex items-center gap-1.5 sm:gap-3">
-          {/* Friends Button with Badge */}
-          <button
-            onClick={() => {
-              sound.playClick();
-              onOpenFriends();
-            }}
-            className="relative flex items-center gap-1.5 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white text-xs font-bold text-[#628395] border border-[#628395]/30 shadow-2xs transition-colors cursor-pointer"
-          >
-            <Users2 className="w-3.5 h-3.5 text-[#628395]" />
-            <span className="text-xs">好友</span>
-            {pendingRequestsCount > 0 && (
-              <span className="absolute -top-1 -right-1 w-3.5 h-3.5 rounded-full bg-rose-500 text-white font-mono text-[9px] font-black flex items-center justify-center shadow-xs animate-bounce">
-                {pendingRequestsCount}
-              </span>
-            )}
-          </button>
-
+        <div className="flex items-center gap-1.5 sm:gap-2.5">
           {/* Minimal Coin Chip */}
           <div className="flex items-center gap-1 px-2.5 sm:px-3 py-1.5 rounded-xl bg-white/60 border border-[#DBAD6A]/40 text-[#2E2925] font-mono font-bold text-xs shrink-0">
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />

@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Plus,
@@ -12,12 +12,16 @@ import {
   Users2,
   BookOpen,
   RotateCcw,
-  Sparkles
+  Sparkles,
+  Keyboard
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
+import { useAuth } from '../../context/AuthContext';
+import { matchService } from '../../services/matchService';
 import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
+import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
@@ -28,24 +32,20 @@ export const Lobby: React.FC<LobbyProps> = ({
   onOpenRulesForGame,
   onOpenFriends
 }) => {
-  const { createRoom, joinRoomByCode, activeOngoingRoom, rejoinActiveRoom } = useRoom();
-  const [roomCodeInput, setRoomCodeInput] = useState('');
+  const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
+  const { currentUser } = useAuth();
+  const [keypadModalOpen, setKeypadModalOpen] = useState(false);
+  const [pendingRequestsCount, setPendingRequestsCount] = useState(0);
   const [creatingGame, setCreatingGame] = useState<GameId | null>(null);
   const [configGameId, setConfigGameId] = useState<GameId | null>(null);
 
-  const handleJoinByCode = async (e: React.FormEvent) => {
-    e.preventDefault();
-    sound.playClick();
-    const code = roomCodeInput.trim();
-    if (code.length < 6) return;
-    const success = await joinRoomByCode(code);
-    if (!success) {
-      sound.playError();
-      alert('找不到該房號之房間，或房間已滿員！');
-    } else {
-      sound.playJoin();
-    }
-  };
+  useEffect(() => {
+    if (!currentUser) return;
+    const unsub = matchService.subscribeFriendRequests(currentUser.uid, (reqs) => {
+      setPendingRequestsCount(reqs.length);
+    });
+    return () => unsub();
+  }, [currentUser?.uid]);
 
   const handleCreateGame = (gameId: GameId) => {
     sound.playPop();
@@ -157,51 +157,46 @@ export const Lobby: React.FC<LobbyProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Sleek Top Join & Friends Bar */}
-      <div className="glass-panel rounded-2xl px-5 py-3 flex flex-col sm:flex-row items-center justify-between gap-3 shadow-xs border border-white/70">
-        <div className="flex items-center gap-3">
+      {/* Sleek Top Action Bar: Friends & Room Code Keypad in a Single Row */}
+      <div className="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-xs border border-white/70">
+        <div className="grid grid-cols-2 gap-2 sm:gap-3">
+          {/* Button 1: 好友名單 */}
           <motion.button
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.95 }}
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
             onClick={() => {
               sound.playClick();
               onOpenFriends();
             }}
-            className="flex items-center gap-2 px-3.5 py-1.5 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
+            className="relative flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20 hover:border-[#628395]/40 font-bold text-xs shadow-2xs hover:shadow-xs transition-all cursor-pointer"
           >
-            <Users2 className="w-4 h-4" />
-            <span>好友與對戰</span>
+            <div className="w-6 h-6 rounded-lg bg-[#628395]/15 text-[#628395] flex items-center justify-center shrink-0">
+              <Users2 className="w-3.5 h-3.5 text-[#628395]" />
+            </div>
+            <span className="truncate">好友名單</span>
+            {pendingRequestsCount > 0 && (
+              <span className="w-4 h-4 rounded-full bg-rose-500 text-white font-mono text-[10px] font-black flex items-center justify-center shadow-xs animate-bounce">
+                {pendingRequestsCount}
+              </span>
+            )}
           </motion.button>
 
-          <span className="text-xs text-[#96897B] font-medium hidden sm:inline">
-            或輸入 6 碼代碼進房
-          </span>
-        </div>
-
-        <form onSubmit={handleJoinByCode} className="flex items-center gap-2 w-full sm:w-auto">
-          <div className="relative flex-1 sm:w-44">
-            <input
-              type="text"
-              maxLength={6}
-              value={roomCodeInput}
-              onChange={(e) => setRoomCodeInput(e.target.value.replace(/\D/g, ''))}
-              placeholder="輸入 6 碼房號"
-              className="w-full pl-8 pr-3 py-1.5 rounded-xl bg-white/80 border border-[#96897B]/20 focus:outline-none focus:border-[#628395] text-xs font-mono font-bold tracking-widest text-[#2E2925] transition-all"
-            />
-            <LogIn className="w-3.5 h-3.5 text-[#96897B] absolute left-2.5 top-1/2 -translate-y-1/2" />
-          </div>
-
+          {/* Button 2: 輸入房號進房 */}
           <motion.button
-            whileHover={{ scale: 1.04 }}
-            whileTap={{ scale: 0.95 }}
-            type="submit"
-            disabled={roomCodeInput.length < 6}
-            className="px-3.5 py-1.5 rounded-xl bg-white/80 hover:bg-white text-[#2E2925] border border-[#96897B]/20 disabled:opacity-40 font-bold text-xs transition-all flex items-center gap-1 cursor-pointer"
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              sound.playClick();
+              setKeypadModalOpen(true);
+            }}
+            className="flex items-center justify-center gap-2 py-2.5 px-3 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs shadow-xs hover:shadow-md transition-all cursor-pointer"
           >
-            <span>進入</span>
-            <ArrowRight className="w-3 h-3" />
+            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+              <Hash className="w-3.5 h-3.5 text-white" />
+            </div>
+            <span className="truncate">輸入房號進房</span>
           </motion.button>
-        </form>
+        </div>
       </div>
 
       {/* 5 Game Cards */}
@@ -299,6 +294,12 @@ export const Lobby: React.FC<LobbyProps> = ({
           />
         )}
       </AnimatePresence>
+
+      {/* In-Page Virtual Keypad Modal for Room Code */}
+      <RoomCodeKeypadModal
+        isOpen={keypadModalOpen}
+        onClose={() => setKeypadModalOpen(false)}
+      />
     </div>
   );
 };

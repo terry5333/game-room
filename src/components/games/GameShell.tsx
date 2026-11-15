@@ -93,14 +93,37 @@ export const GameShell: React.FC<GameShellProps> = ({
   const p2 = currentRoom.player2;
 
   const displayPlayers: PlayerSlot[] = (() => {
-    const list: PlayerSlot[] = [...players];
-    if (currentRoom.player1 && !list.some((p) => p.uid === currentRoom.player1.uid)) {
-      list.unshift(currentRoom.player1);
+    const map = new Map<string, PlayerSlot>();
+
+    // 1. Add all from players array
+    (players || []).forEach((p, idx) => {
+      const key = p.uid || `player_${idx}`;
+      if (!map.has(key)) map.set(key, p);
+    });
+
+    // 2. Ensure player1 is present
+    if (currentRoom.player1) {
+      const key = currentRoom.player1.uid || 'p1';
+      if (!map.has(key)) map.set(key, currentRoom.player1);
     }
-    if (currentRoom.player2 && !list.some((p) => p.uid === currentRoom.player2.uid)) {
-      list.push(currentRoom.player2);
+
+    // 3. Ensure player2 is present
+    if (currentRoom.player2) {
+      const key = currentRoom.player2.uid || 'p2';
+      if (!map.has(key)) map.set(key, currentRoom.player2);
     }
-    return list;
+
+    // 4. Fallback: if empty, create host slot
+    if (map.size === 0 && currentRoom.hostUid) {
+      map.set(currentRoom.hostUid, {
+        uid: currentRoom.hostUid,
+        displayName: '玩家1',
+        photoURL: `https://api.dicebear.com/7.x/bottts/svg?seed=${currentRoom.hostUid}`,
+        ready: false
+      });
+    }
+
+    return Array.from(map.values());
   })();
 
   const isSettled = currentRoom.status === 'settled';
@@ -217,11 +240,11 @@ export const GameShell: React.FC<GameShellProps> = ({
       {/* Sleek Dynamic Players Bar (Supports 2-5 Players) */}
       <div
         className={`grid gap-2 mb-3 ${
-          displayPlayers.length <= 2
+          (currentRoom.maxPlayers || 2) <= 2
             ? 'grid-cols-2'
-            : displayPlayers.length === 3
+            : (currentRoom.maxPlayers || 2) === 3
             ? 'grid-cols-3'
-            : displayPlayers.length === 4
+            : (currentRoom.maxPlayers || 2) === 4
             ? 'grid-cols-2 sm:grid-cols-4'
             : 'grid-cols-2 sm:grid-cols-3 md:grid-cols-5'
         }`}
@@ -232,7 +255,7 @@ export const GameShell: React.FC<GameShellProps> = ({
 
           return (
             <motion.div
-              key={p.uid}
+              key={p.uid || `player-${idx}`}
               initial={{ opacity: 0, scale: 0.92, y: 6 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               transition={{ type: 'spring', stiffness: 350, damping: 25, delay: idx * 0.05 }}
@@ -243,7 +266,7 @@ export const GameShell: React.FC<GameShellProps> = ({
               }`}
             >
               <img
-                src={p.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid}`}
+                src={p.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${p.uid || idx}`}
                 alt={p.displayName}
                 className="w-7 h-7 rounded-lg object-cover border border-[#96897B]/20 shrink-0"
               />
@@ -259,12 +282,17 @@ export const GameShell: React.FC<GameShellProps> = ({
           );
         })}
 
-        {/* If 2-player duel and opponent has not yet connected */}
-        {displayPlayers.length === 1 && (currentRoom.maxPlayers || 2) === 2 && (
-          <div className="rounded-xl px-2.5 py-1.5 flex items-center justify-center gap-2 border-2 border-dashed border-[#96897B]/30 bg-white/30 text-xs text-[#96897B] font-bold">
+        {/* If fewer players than maxPlayers, fill remaining slots with dashed waiting indicators */}
+        {Array.from({
+          length: Math.max(0, (currentRoom.maxPlayers || 2) - displayPlayers.length)
+        }).map((_, i) => (
+          <div
+            key={`empty-waiting-slot-${i}`}
+            className="rounded-xl px-2.5 py-1.5 flex items-center justify-center gap-2 border-2 border-dashed border-[#96897B]/30 bg-white/30 text-xs text-[#96897B] font-bold"
+          >
             <span className="animate-pulse">等待對手加入房間...</span>
           </div>
-        )}
+        ))}
       </div>
 
       {/* Main Game Stage or Waiting Screen wrapped in ErrorBoundary */}
