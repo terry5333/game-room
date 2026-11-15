@@ -7,6 +7,7 @@ import {
   Grid,
   SquareDot,
   CircleDot,
+  Disc,
   ArrowRight,
   LogIn,
   Users2,
@@ -75,9 +76,9 @@ export const Lobby: React.FC<LobbyProps> = ({
 
   const handleCreateGame = (gameId: GameId) => {
     sound.playPop();
-    if (gameId === 'ooxx') {
-      // OOXX 什麼都不用問，直接建立房間
-      executeCreateRoom('ooxx');
+    if (gameId === 'ooxx' || gameId === 'connect4') {
+      // OOXX 與 四子棋 什麼都不用問，直接建立房間
+      executeCreateRoom(gameId);
     } else {
       // 1A2B, Bingo, Battleship, Dots 彈出設定視窗詢問對應參數
       setConfigGameId(gameId);
@@ -133,6 +134,13 @@ export const Lobby: React.FC<LobbyProps> = ({
       desc: '經典 3x3 圈圈叉叉對弈，雙方輪流落子，先連成三點一線者獲勝！（限定 2 人）',
       icon: CircleDot,
       color: '#628395'
+    },
+    {
+      id: 'connect4' as const,
+      title: '四子棋 連線爭霸',
+      desc: '7x6 垂直重力四子連線！預判對手落子，率先連成四顆一線者獲勝。（限定 2 人）',
+      icon: Disc,
+      color: '#C85A32'
     }
   ];
 
@@ -164,6 +172,8 @@ export const Lobby: React.FC<LobbyProps> = ({
                     ? '賓果'
                     : activeOngoingRoom.gameId === 'dots'
                     ? '點線棋'
+                    : activeOngoingRoom.gameId === 'connect4'
+                    ? '四子棋'
                     : '經典 OOXX'}{' '}
                   · 房號 #{activeOngoingRoom.code}
                 </div>

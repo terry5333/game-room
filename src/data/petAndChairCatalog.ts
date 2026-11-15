@@ -205,6 +205,193 @@ export const OUTFIT_CATALOG: OutfitItem[] = [
     price: 220,
     icon: '⚡',
     rarity: 'legendary'
+  },
+  {
+    id: 'tuxedo',
+    name: '昭和洋風執事燕尾服',
+    description: '典雅黑色雙開衩修身燕尾西裝，純白硬領襯衫與酒紅領結，奢華名仕風範。',
+    price: 250,
+    icon: '🤵',
+    rarity: 'epic'
+  },
+  {
+    id: 'kimono',
+    name: '櫻吹雪大正振袖和服',
+    description: '淡粉櫻瓣印花華美和服，配以金紋朱紅寬腰封與振袖長擺，風姿卓絕。',
+    price: 260,
+    icon: '🌸',
+    rarity: 'legendary'
+  },
+  {
+    id: 'wizard',
+    name: '星空占星大魔導長袍',
+    description: '深邃夜藍星空法袍，繡有金絲星宿符文，散發神祕莫測的預知靈光。',
+    price: 280,
+    icon: '🧙',
+    rarity: 'epic'
+  },
+  {
+    id: 'gold_armor',
+    name: '帝國黃金重裝鎧甲',
+    description: '百戰不殞的純金鍛造胸甲與肩甲，光芒耀眼，專屬於連勝霸主的無上榮耀。',
+    price: 350,
+    icon: '🛡️',
+    rarity: 'legendary'
+  },
+  {
+    id: 'ninja',
+    name: '暗夜影忍隱密裝束',
+    description: '全黑緊身夜行忍裝，交叉朱紅束腰，身手敏捷、如影隨形。',
+    price: 200,
+    icon: '🥷',
+    rarity: 'rare'
+  },
+  {
+    id: 'tracksuit',
+    name: '昭和熱血必勝運動衫',
+    description: '紅白經典雙槓體育合宿運動夾克，胸前印有必勝二字，青春滿溢！',
+    price: 130,
+    icon: '🏃',
+    rarity: 'normal'
+  }
+];
+
+export interface AccessoryItem {
+  id: string;
+  name: string;
+  description: string;
+  price: number;
+  icon: string;
+  category: 'head' | 'face' | 'neck' | 'back';
+  rarity: 'normal' | 'rare' | 'epic' | 'legendary';
+}
+
+export const ACCESSORY_CATALOG: AccessoryItem[] = [
+  {
+    id: 'glasses',
+    name: '昭和黑框文士眼鏡',
+    description: '沉穩知性的復古黑框眼鏡，戴上後智力與洞察力似乎翻倍！',
+    price: 50,
+    icon: '👓',
+    category: 'face',
+    rarity: 'normal'
+  },
+  {
+    id: 'monocle',
+    name: '帝國名仕金絲單片鏡',
+    description: '懸垂細金鏈的右眼單片鏡，貴族推理名偵探的標配行頭。',
+    price: 80,
+    icon: '🧐',
+    category: 'face',
+    rarity: 'rare'
+  },
+  {
+    id: 'cap',
+    name: '高校黑金學生制帽',
+    description: '挺拔的金屬徽章大簷黑制帽，散發高等學府精英氣質。',
+    price: 70,
+    icon: '🎓',
+    category: 'head',
+    rarity: 'normal'
+  },
+  {
+    id: 'fox_mask',
+    name: '稻荷神社白紅狐狸面具',
+    description: '斜掛於髮際的朱紅花紋白狐面具，神秘悠遠的神社祭典風情。',
+    price: 110,
+    icon: '🦊',
+    category: 'head',
+    rarity: 'rare'
+  },
+  {
+    id: 'cat_ears',
+    name: '萌萌軟毛貓耳髮箍',
+    description: '絨毛粉嫩的小貓雙耳髮箍，隨主人的心情俏皮晃動。',
+    price: 90,
+    icon: '🐱',
+    category: 'head',
+    rarity: 'normal'
+  },
+  {
+    id: 'devil_horns',
+    name: '頑皮黑曜石惡魔雙角',
+    description: '頭頂微微彎曲的深紅小惡魔尖犄角，狡黠俏皮。',
+    price: 100,
+    icon: '😈',
+    category: 'head',
+    rarity: 'rare'
+  },
+  {
+    id: 'halo',
+    name: '天界耀金聖潔光環',
+    description: '懸浮於頭頂的金光神聖天使光環，彷彿自帶開運祈福護罩。',
+    price: 140,
+    icon: '😇',
+    category: 'head',
+    rarity: 'epic'
+  },
+  {
+    id: 'crown',
+    name: '迷你純金帝國王冠',
+    description: '鑲嵌藍紅寶石的小巧純金王冠，棋盤之王專屬桂冠！',
+    price: 180,
+    icon: '👑',
+    category: 'head',
+    rarity: 'legendary'
+  },
+  {
+    id: 'tie',
+    name: '受驗生深紅修身長領帶',
+    description: '一絲不苟的端正深紅領帶，展現沉著穩健的受驗姿態。',
+    price: 40,
+    icon: '👔',
+    category: 'neck',
+    rarity: 'normal'
+  },
+  {
+    id: 'ribbon',
+    name: '昭和水手紅緞蝴蝶結',
+    description: '胸前俏麗的鮮紅絲綢蝴蝶結，靈動飄逸。',
+    price: 40,
+    icon: '🎀',
+    category: 'neck',
+    rarity: 'normal'
+  },
+  {
+    id: 'scarf',
+    name: '冬日流蘇暖陽圍巾',
+    description: '厚實溫暖的深紅針織圍巾，寒冬對弈時的最佳守護。',
+    price: 60,
+    icon: '🧣',
+    category: 'neck',
+    rarity: 'normal'
+  },
+  {
+    id: 'wings',
+    name: '聖潔天界羽翼',
+    description: '背後徐徐展開的純白羽毛翅膀，夢幻聖潔。',
+    price: 160,
+    icon: '🪽',
+    category: 'back',
+    rarity: 'epic'
+  },
+  {
+    id: 'bat_wings',
+    name: '暗夜蝙蝠惡魔雙翼',
+    description: '背後張開的深紫黑色夜魔雙翅，氣場十足！',
+    price: 160,
+    icon: '🦇',
+    category: 'back',
+    rarity: 'epic'
+  },
+  {
+    id: 'hachimaki',
+    name: '熱血必勝紅白頭帶',
+    description: '挑燈夜戰必備布條，額前朱紅大字「必勝」！',
+    price: 50,
+    icon: '🎗️',
+    category: 'head',
+    rarity: 'normal'
   }
 ];
 
@@ -217,6 +404,7 @@ export const DEFAULT_PET_PROFILE: UserPetProfile = {
     outfitStyle: 'gakuran',
     outfitColor: '#628395',
     accessory: 'none',
+    accessories: [],
     chairId: 'wooden_chair',
     petId: 'shiba'
   },
@@ -230,6 +418,8 @@ export const DEFAULT_PET_PROFILE: UserPetProfile = {
     intimacy: 60,
     mood: 90,
     cleanliness: 95,
+    health: 100,
+    isDead: false,
     lastFed: Date.now(),
     lastPetted: Date.now(),
     lastPlayed: Date.now(),
@@ -237,5 +427,6 @@ export const DEFAULT_PET_PROFILE: UserPetProfile = {
   },
   unlockedChairs: ['wooden_chair'],
   unlockedPets: ['shiba'],
-  unlockedOutfits: ['gakuran']
+  unlockedOutfits: ['gakuran'],
+  unlockedAccessories: ['none']
 };

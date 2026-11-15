@@ -1,4 +1,4 @@
-export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx';
+export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx' | 'connect4';
 
 export interface UserWardrobe {
   gender?: 'male' | 'female';
@@ -18,6 +18,10 @@ export interface PetData {
   intimacy: number;  // 0 - 100
   mood?: number;     // 0 - 100 (心情度)
   cleanliness?: number; // 0 - 100 (潔淨度)
+  health?: number;      // 0 - 100 (生命力 / 健康)
+  isDead?: boolean;     // 寵物是否罹難離世
+  causeOfDeath?: string; // 死因說明
+  diedAt?: number;      // 罹難時間戳
   lastFed: number;
   lastPetted: number;
   lastPlayed?: number;
@@ -35,9 +39,10 @@ export interface PixelCharacterCustomization {
   skinTone: string;
   hairStyle: string; // 'short' | 'twintail' | 'bob' | 'spiky'
   hairColor: string; // hex color
-  outfitStyle?: string; // 'gakuran' | 'sailor' | 'trench' | 'hoodie' | 'haori' | 'cyber'
+  outfitStyle?: string; // 'gakuran' | 'sailor' | 'trench' | 'hoodie' | 'haori' | 'cyber' | 'tuxedo' | 'kimono' | 'wizard' | 'gold_armor' | 'ninja' | 'tracksuit'
   outfitColor: string; // hex color
-  accessory: string; // 'none' | 'glasses' | 'ribbon' | 'cap' | 'tie'
+  accessory: string; // 'none' | 'glasses' | 'ribbon' | 'cap' | 'tie' (單件向下相容)
+  accessories?: string[]; // 支援多件飾品同時穿戴
   chairId: string; // 'wooden_chair' | 'retro_sofa' | 'royal_throne' | 'gaming_chair' | 'beanbag' | 'tatami'
   petId: string; // 'shiba' | 'calico_cat' | 'capybara' | 'penguin' | 'lucky_cat' | 'slime'
 }
@@ -48,6 +53,7 @@ export interface UserPetProfile {
   unlockedChairs: string[];
   unlockedPets: string[];
   unlockedOutfits?: string[];
+  unlockedAccessories?: string[];
 }
 
 export interface UserProfile {
@@ -231,6 +237,14 @@ export interface StateOOXX {
   winningLine?: { r: number; c: number }[];
 }
 
+// Connect Four (四子棋) Types
+export interface StateConnect4 {
+  grid: (string | null)[][]; // 6 rows x 7 cols (grid[r][c] = uid)
+  currentTurnUid: string;
+  winningLine?: { r: number; c: number }[];
+  lastDrop?: { r: number; c: number; uid: string };
+}
+
 // Unified Game Room
 export interface GameRoom {
   id: string;
@@ -253,6 +267,7 @@ export interface GameRoom {
   stateBingo?: StateBingo;
   stateDots?: StateDots;
   stateOOXX?: StateOOXX;
+  stateConnect4?: StateConnect4;
 }
 
 export interface RoomCreationOptions {

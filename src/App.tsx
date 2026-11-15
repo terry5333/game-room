@@ -20,6 +20,7 @@ import { GameBattleship } from './components/games/battleship/GameBattleship';
 import { GameBingo } from './components/games/bingo/GameBingo';
 import { GameDotsAndBoxes } from './components/games/dotsandboxes/GameDotsAndBoxes';
 import { GameOOXX } from './components/games/ooxx/GameOOXX';
+import { GameConnect4 } from './components/games/connect4/GameConnect4';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 import type { GameId } from './types';
@@ -82,6 +83,8 @@ export const AppContent: React.FC = () => {
                   ? '賓果'
                   : currentRoom.gameId === 'dots'
                   ? '點線棋'
+                  : currentRoom.gameId === 'connect4'
+                  ? '四子棋 連線爭霸'
                   : '經典 OOXX'
               }
               gameId={currentRoom.gameId}
@@ -92,6 +95,7 @@ export const AppContent: React.FC = () => {
               {currentRoom.gameId === 'bingo' && <GameBingo />}
               {currentRoom.gameId === 'dots' && <GameDotsAndBoxes />}
               {currentRoom.gameId === 'ooxx' && <GameOOXX />}
+              {currentRoom.gameId === 'connect4' && <GameConnect4 />}
             </GameShell>
           ) : (
             <div className="flex-1 flex max-w-5xl mx-auto w-full">

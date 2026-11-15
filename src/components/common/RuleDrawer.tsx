@@ -8,6 +8,7 @@ import {
   Grid,
   SquareDot,
   CircleDot,
+  Disc,
   Coins,
   ChevronRight,
   ShieldCheck,
@@ -35,6 +36,7 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
     { id: 'bingo' as const, label: '賓果 5x5', icon: Grid },
     { id: 'dots' as const, label: '點線棋', icon: SquareDot },
     { id: 'ooxx' as const, label: '經典 OOXX', icon: CircleDot },
+    { id: 'connect4' as const, label: '四子棋', icon: Disc },
     { id: 'general' as const, label: '金幣與系統', icon: Coins }
   ];
 
@@ -280,6 +282,41 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
                         <div className="font-bold text-[#96897B] mb-1">平局判定</div>
                         <p className="text-[#2E2925]/80">
                           若 9 格全滿且雙方皆未達成 3 連線，則判定為和局（平局）。
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* Connect 4 */}
+              {activeTab === 'connect4' && (
+                <div className="space-y-4">
+                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/60">
+                    <div className="flex items-center gap-2 font-bold text-base text-[#C85A32] mb-2">
+                      <Disc className="w-4 h-4" />
+                      <span>四子棋 連線爭霸（Connect Four）</span>
+                    </div>
+                    <p className="text-xs text-[#2E2925]/80 leading-relaxed mb-3">
+                      7 行 6 列垂直立體棋盤！輪流投擲棋子，受重力沉底。預判對手進攻路線，最先達成四子一線者獲勝！
+                    </p>
+                    <div className="space-y-2 text-xs">
+                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
+                        <div className="font-bold text-[#D34836] mb-1">落子重力機制</div>
+                        <p className="text-[#2E2925]/80">
+                          點選任一欄位投放棋子，棋子會沿著該欄受重力下墜至最底部的空格中。若該欄 6 格已滿則無法再落子。
+                        </p>
+                      </div>
+                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
+                        <div className="font-bold text-[#DBAD6A] mb-1">連線勝利判定</div>
+                        <p className="text-[#2E2925]/80">
+                          任何橫排（4 顆）、直排（4 顆）或正反斜對角（4 顆）最先連成一條線的玩家立即獲勝並贏得金幣獎勵！
+                        </p>
+                      </div>
+                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
+                        <div className="font-bold text-[#628395] mb-1">單人與雙人模式</div>
+                        <p className="text-[#2E2925]/80">
+                          支援 2 人即時連線對戰；若在房間中單人練習，系統將自動啟動「昭和棋士 AI」進行即時對弈！
                         </p>
                       </div>
                     </div>

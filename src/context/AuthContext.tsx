@@ -18,6 +18,7 @@ import {
 } from '../services/firebase';
 import { matchService } from '../services/matchService';
 import { r2Service } from '../services/r2Service';
+import { sound } from '../services/soundService';
 
 export const ADMIN_EMAIL = 'terrylie0215@gmail.com';
 
@@ -36,9 +37,12 @@ interface AuthContextType {
   petThePet: () => Promise<boolean>;
   playWithPet: () => Promise<boolean>;
   bathePet: () => Promise<boolean>;
+  revivePet: () => Promise<boolean>;
   purchaseChair: (chairId: string, cost: number, chairName: string) => Promise<boolean>;
   purchasePet: (petId: string, cost: number, petName: string) => Promise<boolean>;
   purchaseOutfit: (outfitId: string, cost: number, outfitName: string) => Promise<boolean>;
+  purchaseAccessory: (accessoryId: string, cost: number, accessoryName: string) => Promise<boolean>;
+  toggleEquipAccessory: (accessoryId: string) => Promise<void>;
   updateCoins: (amount: number, type: CoinTransaction['type'], description: string, gameId?: any) => Promise<number>;
   recordGameResult: (isWin: boolean, multiplier?: number, gameId?: any) => Promise<void>;
   completeTutorial: () => Promise<void>;
@@ -132,6 +136,13 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   const handleFirebaseUser = async (fbUser: any) => {
     const isAdmin = fbUser.email?.toLowerCase().trim() === ADMIN_EMAIL.toLowerCase().trim();
 
+    // Try reading local cached profile to avoid losing any offline/recent purchases
+    let localBackup: UserProfile | null = null;
+    try {
+      const cached = localStorage.getItem('duo_current_user');
+      if (cached) localBackup = JSON.parse(cached);
+    } catch {}
+
     // Try reading existing profile from RTDB
     let existingProfile: UserProfile | null = null;
     if (rtdb) {
@@ -145,28 +156,96 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       }
     }
 
+    // Merge petProfile carefully so unlocked items, outfits, and accessories are NEVER lost upon refresh
+    const rawPet = existingProfile?.petProfile?.pet || localBackup?.petProfile?.pet || DEFAULT_PET_PROFILE.pet;
+    const now = Date.now();
+    const lastFed = rawPet.lastFed || now;
+    const hoursSinceFed = Math.max(0, (now - lastFed) / (1000 * 60 * 60));
+
+    // Dynamic hunger & mortality decay
+    const calculatedHunger = Math.max(0, Math.round((rawPet.hunger ?? 80) - hoursSinceFed * 3));
+    let calculatedHealth = rawPet.health ?? 100;
+    let isDead = Boolean(rawPet.isDead);
+    let causeOfDeath = rawPet.causeOfDeath;
+
+    // Pet mortality check: if hunger drops to 0 and neglected, health drops to 0
+    if (calculatedHunger === 0 && !isDead) {
+      const starvingHours = Math.max(0, hoursSinceFed - 12);
+      if (starvingHours > 0) {
+        calculatedHealth = Math.max(0, calculatedHealth - Math.round(starvingHours * 8));
+      }
+      if (calculatedHealth <= 0) {
+        isDead = true;
+        calculatedHealth = 0;
+        causeOfDeath = '長時間飢寒交迫，不幸罹難前往天國';
+      }
+    }
+
+    const mergedPetProfile: UserPetProfile = {
+      character: {
+        ...DEFAULT_PET_PROFILE.character,
+        ...(localBackup?.petProfile?.character || {}),
+        ...(existingProfile?.petProfile?.character || {})
+      },
+      pet: {
+        ...DEFAULT_PET_PROFILE.pet,
+        ...rawPet,
+        hunger: calculatedHunger,
+        health: calculatedHealth,
+        isDead,
+        causeOfDeath: isDead ? (causeOfDeath || '飢寒交迫離世') : undefined
+      },
+      unlockedChairs: Array.from(new Set([
+        ...DEFAULT_PET_PROFILE.unlockedChairs,
+        ...(localBackup?.petProfile?.unlockedChairs || []),
+        ...(existingProfile?.petProfile?.unlockedChairs || [])
+      ])),
+      unlockedPets: Array.from(new Set([
+        ...DEFAULT_PET_PROFILE.unlockedPets,
+        ...(localBackup?.petProfile?.unlockedPets || []),
+        ...(existingProfile?.petProfile?.unlockedPets || [])
+      ])),
+      unlockedOutfits: Array.from(new Set([
+        ...(DEFAULT_PET_PROFILE.unlockedOutfits || ['gakuran']),
+        ...(localBackup?.petProfile?.unlockedOutfits || []),
+        ...(existingProfile?.petProfile?.unlockedOutfits || [])
+      ])),
+      unlockedAccessories: Array.from(new Set([
+        ...(DEFAULT_PET_PROFILE.unlockedAccessories || ['none']),
+        ...(localBackup?.petProfile?.unlockedAccessories || []),
+        ...(existingProfile?.petProfile?.unlockedAccessories || [])
+      ]))
+    };
+
     const profile: UserProfile = {
       uid: fbUser.uid,
-      displayName: existingProfile?.displayName || fbUser.displayName || '玩家_' + fbUser.uid.substring(0, 4),
-      photoURL: existingProfile?.photoURL || fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
+      displayName: existingProfile?.displayName || localBackup?.displayName || fbUser.displayName || '玩家_' + fbUser.uid.substring(0, 4),
+      photoURL: existingProfile?.photoURL || localBackup?.photoURL || fbUser.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${fbUser.uid}`,
       email: fbUser.email || '',
-      userTag: existingProfile?.userTag || generateUserTag(),
-      coins: existingProfile ? existingProfile.coins : 100,
-      wins: existingProfile ? existingProfile.wins : 0,
-      losses: existingProfile ? existingProfile.losses : 0,
-      gamesPlayed: existingProfile ? existingProfile.gamesPlayed : 0,
-      profileCompleted: existingProfile ? Boolean(existingProfile.profileCompleted) : false,
-      tutorialCompleted: existingProfile ? Boolean(existingProfile.tutorialCompleted) : false,
-      role: isAdmin ? 'admin' : (existingProfile?.role || 'user'),
-      friendCode: existingProfile?.friendCode || generateFriendCode(),
-      createdAt: existingProfile?.createdAt || Date.now()
+      userTag: existingProfile?.userTag || localBackup?.userTag || generateUserTag(),
+      coins: existingProfile?.coins !== undefined ? existingProfile.coins : (localBackup?.coins ?? 100),
+      wins: existingProfile?.wins ?? localBackup?.wins ?? 0,
+      losses: existingProfile?.losses ?? localBackup?.losses ?? 0,
+      gamesPlayed: existingProfile?.gamesPlayed ?? localBackup?.gamesPlayed ?? 0,
+      profileCompleted: Boolean(existingProfile?.profileCompleted ?? localBackup?.profileCompleted),
+      tutorialCompleted: Boolean(existingProfile?.tutorialCompleted ?? localBackup?.tutorialCompleted),
+      role: isAdmin ? 'admin' : (existingProfile?.role || localBackup?.role || 'user'),
+      friendCode: existingProfile?.friendCode || localBackup?.friendCode || generateFriendCode(),
+      createdAt: existingProfile?.createdAt || localBackup?.createdAt || Date.now(),
+      wardrobe: existingProfile?.wardrobe || localBackup?.wardrobe,
+      unlockedItems: Array.from(new Set([
+        'none', 'default', 'candidate',
+        ...(localBackup?.unlockedItems || []),
+        ...(existingProfile?.unlockedItems || [])
+      ])),
+      petProfile: mergedPetProfile
     };
 
     setCurrentUser(profile);
     localStorage.setItem('duo_current_user', JSON.stringify(profile));
     setAuthError(null);
 
-    // Save to RTDB
+    // Save full merged profile to RTDB to ensure no data is lost
     if (rtdb) {
       set(ref(rtdb, `users/${profile.uid}`), profile).catch(console.warn);
     }
@@ -400,8 +479,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
     const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
     const pet = { ...currProfile.pet };
+    if (pet.isDead) return false; // 死亡狀態無法進食
 
     pet.hunger = Math.min(100, (pet.hunger || 0) + 30);
+    pet.health = Math.min(100, (pet.health || 80) + 15);
     pet.intimacy = Math.min(100, (pet.intimacy || 0) + 10);
     pet.exp = (pet.exp || 0) + 25;
     pet.lastFed = Date.now();
@@ -460,8 +541,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return false;
     const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
     const pet = { ...currProfile.pet };
+    if (pet.isDead) return false;
 
     pet.intimacy = Math.min(100, (pet.intimacy || 0) + 5);
+    pet.mood = Math.min(100, (pet.mood || 80) + 10);
     pet.exp = (pet.exp || 0) + 5;
     pet.lastPetted = Date.now();
 
@@ -625,9 +708,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return false;
     const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
     const pet = { ...currProfile.pet };
+    if (pet.isDead) return false;
 
     pet.mood = Math.min(100, (pet.mood || 80) + 25);
-    pet.hunger = Math.max(10, (pet.hunger || 80) - 5);
+    pet.hunger = Math.max(0, (pet.hunger || 80) - 5);
     pet.exp = (pet.exp || 0) + 15;
     pet.lastPlayed = Date.now();
 
@@ -672,8 +756,10 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     if (!currentUser) return false;
     const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
     const pet = { ...currProfile.pet };
+    if (pet.isDead) return false;
 
     pet.cleanliness = 100;
+    pet.health = Math.min(100, (pet.health || 80) + 10);
     pet.intimacy = Math.min(100, (pet.intimacy || 60) + 10);
     pet.exp = (pet.exp || 0) + 10;
     pet.lastBathed = Date.now();
@@ -712,6 +798,68 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
     }
 
+    return true;
+  };
+
+  const revivePet = async (): Promise<boolean> => {
+    if (!currentUser) return false;
+    const cost = 50;
+    if (currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const pet = { ...currProfile.pet };
+
+    pet.isDead = false;
+    pet.health = 100;
+    pet.hunger = 80;
+    pet.cleanliness = 80;
+    pet.mood = 80;
+    pet.intimacy = Math.min(100, (pet.intimacy || 50) + 10);
+    pet.lastFed = Date.now();
+    delete pet.causeOfDeath;
+    delete pet.diedAt;
+
+    const newCoins = currentUser.coins - cost;
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      pet
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    const tx: CoinTransaction = {
+      id: 'tx_' + Math.random().toString(36).substring(2, 9),
+      uid: currentUser.uid,
+      amount: -cost,
+      type: 'shop_purchase',
+      description: `✨ 聖光奇蹟：復活愛寵（${pet.name}）`,
+      timestamp: Date.now()
+    };
+    setTransactions((prev) => [tx, ...prev]);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    sound.playPetRevive();
     return true;
   };
 
@@ -770,6 +918,118 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return true;
+  };
+
+  const purchaseAccessory = async (
+    accessoryId: string,
+    cost: number,
+    accessoryName: string
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (cost > 0 && currentUser.coins < cost) return false;
+
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const unlockedAccessories = currProfile.unlockedAccessories || ['none'];
+    const updatedUnlocked = unlockedAccessories.includes(accessoryId)
+      ? unlockedAccessories
+      : [...unlockedAccessories, accessoryId];
+
+    // Auto-equip upon purchase into accessories list
+    const currentEquipped = currProfile.character.accessories || [];
+    const updatedEquipped = currentEquipped.includes(accessoryId)
+      ? currentEquipped
+      : [...currentEquipped, accessoryId];
+
+    const newCoins = Math.max(0, currentUser.coins - cost);
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      character: {
+        ...currProfile.character,
+        accessory: accessoryId,
+        accessories: updatedEquipped
+      },
+      unlockedAccessories: updatedUnlocked
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    if (cost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -cost,
+        type: 'shop_purchase',
+        description: `解鎖飾品：${accessoryName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const toggleEquipAccessory = async (accessoryId: string) => {
+    if (!currentUser) return;
+    const currProfile = currentUser.petProfile || DEFAULT_PET_PROFILE;
+    const currentEquipped = currProfile.character.accessories || (currProfile.character.accessory ? [currProfile.character.accessory] : []);
+
+    const isEquipped = currentEquipped.includes(accessoryId);
+    const newEquipped = isEquipped
+      ? currentEquipped.filter((id) => id !== accessoryId)
+      : [...currentEquipped, accessoryId];
+
+    const updatedProfile: UserPetProfile = {
+      ...currProfile,
+      character: {
+        ...currProfile.character,
+        accessory: newEquipped.length > 0 ? newEquipped[0] : 'none',
+        accessories: newEquipped
+      }
+    };
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      petProfile: updatedProfile
+    };
+
+    saveUser(updatedUser);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedProfile
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/petProfile`), updatedProfile).catch(console.warn);
+    }
   };
 
   const logout = async () => {
@@ -889,9 +1149,12 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         petThePet,
         playWithPet,
         bathePet,
+        revivePet,
         purchaseChair,
         purchasePet,
         purchaseOutfit,
+        purchaseAccessory,
+        toggleEquipAccessory,
         updateCoins,
         recordGameResult,
         completeTutorial,

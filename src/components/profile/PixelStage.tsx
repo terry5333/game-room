@@ -60,6 +60,15 @@ export const PixelStage: React.FC<PixelStageProps> = ({
 
   const handlePetInteraction = () => {
     if (!interactive) return;
+
+    if (pet.isDead) {
+      sound.playClick();
+      setSpeechText(`「👻（${pet.name} 的幽靈飄了過來）嗚嗚...肚子好餓...請在工坊為我舉行復活儀式...」`);
+      setTimeout(() => setSpeechText(null), 3500);
+      if (onPetClick) onPetClick();
+      return;
+    }
+
     sound.playPop();
     setPetJump(true);
     setTimeout(() => setPetJump(false), 400);
@@ -107,6 +116,15 @@ export const PixelStage: React.FC<PixelStageProps> = ({
   const hairColor = character.hairColor || '#2C3E50';
   const outfitColor = character.outfitColor || '#628395';
   const isGirl = character.gender === 'female';
+
+  // Multi-accessory check helper
+  const equippedAccessories: string[] =
+    Array.isArray(character.accessories) && character.accessories.length > 0
+      ? character.accessories
+      : character.accessory && character.accessory !== 'none'
+      ? [character.accessory]
+      : [];
+  const hasAccessory = (id: string) => equippedAccessories.includes(id);
 
   return (
     <div
@@ -357,6 +375,26 @@ export const PixelStage: React.FC<PixelStageProps> = ({
             <rect x="25" y="66" width="7" height="3" rx="1" fill="#1C2833" stroke="#000" strokeWidth="0.3" />
             <rect x="36" y="66" width="7" height="3" rx="1" fill="#1C2833" stroke="#000" strokeWidth="0.3" />
 
+            {/* Back Accessories: Angel Wings or Bat Wings (Behind Torso) */}
+            {hasAccessory('wings') && (
+              <g id="accessory-wings">
+                {/* Left Feather Wing */}
+                <path d="M 26 38 C 16 32 14 44 26 48 Z" fill="#FDFEFE" stroke="#D5D8DC" strokeWidth="0.5" />
+                <path d="M 26 40 C 18 36 17 46 26 47 Z" fill="#EBF5FB" />
+                {/* Right Feather Wing */}
+                <path d="M 42 38 C 52 32 54 44 42 48 Z" fill="#FDFEFE" stroke="#D5D8DC" strokeWidth="0.5" />
+                <path d="M 42 40 C 50 36 51 46 42 47 Z" fill="#EBF5FB" />
+              </g>
+            )}
+            {hasAccessory('bat_wings') && (
+              <g id="accessory-bat-wings">
+                {/* Left Demon Wing */}
+                <polygon points="26,38 15,31 19,41 14,44 26,47" fill="#2C3E50" stroke="#1A252F" strokeWidth="0.5" />
+                {/* Right Demon Wing */}
+                <polygon points="42,38 53,31 49,41 54,44 42,47" fill="#2C3E50" stroke="#1A252F" strokeWidth="0.5" />
+              </g>
+            )}
+
             {/* Torso / Outfits based on outfitStyle */}
             <rect x="26" y="37" width="16" height="16" rx="2" fill={outfitColor} stroke="#2C3E50" strokeWidth="0.5" />
 
@@ -435,12 +473,87 @@ export const PixelStage: React.FC<PixelStageProps> = ({
               </g>
             )}
 
-            {/* Accessories (Tie / Ribbon) */}
-            {character.accessory === 'tie' && (
+            {/* 7. Tuxedo (昭和洋風執事燕尾服) */}
+            {character.outfitStyle === 'tuxedo' && (
+              <g id="outfit-tuxedo">
+                <polygon points="34,37 30,44 38,44" fill="#FFFFFF" />
+                <polygon points="34,37 28,45 34,48 40,45" fill="#1C2833" />
+                <circle cx="34" cy="39" r="1.1" fill="#922B21" />
+                <circle cx="34" cy="43" r="0.6" fill="#D4AC0D" />
+                <line x1="28" y1="44" x2="33" y2="47" stroke="#17202A" strokeWidth="0.6" />
+                <line x1="40" y1="44" x2="35" y2="47" stroke="#17202A" strokeWidth="0.6" />
+              </g>
+            )}
+
+            {/* 8. Kimono (櫻吹雪大正振袖和服) */}
+            {character.outfitStyle === 'kimono' && (
+              <g id="outfit-kimono">
+                <polygon points="26,37 34,48 42,37" fill="#F8BBD0" />
+                <line x1="28" y1="37" x2="38" y2="47" stroke="#FFFFFF" strokeWidth="1" />
+                <rect x="26" y="46" width="16" height="4" fill="#E91E63" />
+                <rect x="32" y="47" width="4" height="2" fill="#FFD700" />
+                <rect x="21" y="43" width="5" height="7" rx="1" fill="#F8BBD0" />
+                <rect x="42" y="43" width="5" height="7" rx="1" fill="#F8BBD0" />
+              </g>
+            )}
+
+            {/* 9. Wizard (星空占星大魔導長袍) */}
+            {character.outfitStyle === 'wizard' && (
+              <g id="outfit-wizard">
+                <rect x="26" y="37" width="16" height="16" fill="#1A237E" />
+                <polygon points="34,37 31,44 37,44" fill="#311B92" />
+                <circle cx="29" cy="41" r="0.8" fill="#FFD700" />
+                <circle cx="39" cy="44" r="0.8" fill="#FFD700" />
+                <circle cx="34" cy="48" r="0.8" fill="#FFD700" />
+                <line x1="26" y1="52" x2="42" y2="52" stroke="#FFD700" strokeWidth="0.8" />
+              </g>
+            )}
+
+            {/* 10. Gold Armor (帝國黃金重裝鎧甲) */}
+            {character.outfitStyle === 'gold_armor' && (
+              <g id="outfit-gold-armor">
+                <rect x="27" y="37" width="14" height="15" rx="1.5" fill="#FFD700" stroke="#B7950B" strokeWidth="0.7" />
+                <polygon points="34,38 31,43 37,43" fill="#D4AC0D" />
+                <rect x="23" y="38" width="5" height="5" rx="1" fill="#FFD700" stroke="#B7950B" strokeWidth="0.5" />
+                <rect x="40" y="38" width="5" height="5" rx="1" fill="#FFD700" stroke="#B7950B" strokeWidth="0.5" />
+                <circle cx="34" cy="44" r="1.5" fill="#E74C3C" />
+              </g>
+            )}
+
+            {/* 11. Ninja (暗夜影忍隱密裝束) */}
+            {character.outfitStyle === 'ninja' && (
+              <g id="outfit-ninja">
+                <rect x="26" y="37" width="16" height="16" fill="#1C2833" />
+                <line x1="27" y1="37" x2="37" y2="48" stroke="#900C3F" strokeWidth="1.2" />
+                <line x1="41" y1="37" x2="31" y2="48" stroke="#900C3F" strokeWidth="1.2" />
+                <rect x="26" y="47" width="16" height="2" fill="#E74C3C" />
+              </g>
+            )}
+
+            {/* 12. Tracksuit (昭和熱血必勝運動衫) */}
+            {character.outfitStyle === 'tracksuit' && (
+              <g id="outfit-tracksuit">
+                <rect x="26" y="37" width="16" height="16" fill="#C0392B" />
+                <line x1="34" y1="37" x2="34" y2="52" stroke="#FFFFFF" strokeWidth="0.8" />
+                <line x1="25" y1="40" x2="25" y2="50" stroke="#FFFFFF" strokeWidth="0.8" />
+                <line x1="43" y1="40" x2="43" y2="50" stroke="#FFFFFF" strokeWidth="0.8" />
+                <rect x="29" y="41" width="3" height="3" rx="0.5" fill="#FFFFFF" />
+              </g>
+            )}
+
+            {/* Multi-Accessories: Neck Area (Tie, Ribbon, Scarf) */}
+            {hasAccessory('tie') && (
               <polygon points="33,40 35,40 34.5,46 34,48 33.5,46" fill="#C0392B" />
             )}
-            {character.accessory === 'ribbon' && (
+            {hasAccessory('ribbon') && (
               <polygon points="32,40 36,40 35,42 36,44 32,44 33,42" fill="#E74C3C" />
+            )}
+            {hasAccessory('scarf') && (
+              <g id="accessory-scarf">
+                <rect x="28" y="37" width="12" height="4" rx="1.5" fill="#C0392B" stroke="#922B21" strokeWidth="0.4" />
+                <polygon points="35,39 39,39 40,47 36,47" fill="#C0392B" stroke="#922B21" strokeWidth="0.4" />
+                <line x1="36" y1="47" x2="40" y2="47" stroke="#F1C40F" strokeWidth="0.6" strokeDasharray="1,1" />
+              </g>
             )}
 
             {/* Arms resting on knees/lap */}
@@ -478,12 +591,18 @@ export const PixelStage: React.FC<PixelStageProps> = ({
             {/* Cute smiling mouth */}
             <path d="M 33 32 Q 34 33.5 35 32" stroke="#1C2833" strokeWidth="0.6" fill="none" strokeLinecap="round" />
 
-            {/* Glasses accessory */}
-            {character.accessory === 'glasses' && (
+            {/* Multi-Accessories: Face Area (Glasses, Monocle) */}
+            {hasAccessory('glasses') && (
               <g id="accessory-glasses">
                 <rect x="29" y="26.5" width="4.5" height="4" rx="1" fill="none" stroke="#2C3E50" strokeWidth="0.7" />
                 <rect x="34.5" y="26.5" width="4.5" height="4" rx="1" fill="none" stroke="#2C3E50" strokeWidth="0.7" />
                 <line x1="33.5" y1="28.5" x2="34.5" y2="28.5" stroke="#2C3E50" strokeWidth="0.7" />
+              </g>
+            )}
+            {hasAccessory('monocle') && (
+              <g id="accessory-monocle">
+                <circle cx="36.5" cy="28.5" r="2.2" fill="none" stroke="#D4AF37" strokeWidth="0.8" />
+                <line x1="38.7" y1="28.5" x2="41" y2="35" stroke="#D4AF37" strokeWidth="0.4" />
               </g>
             )}
 
@@ -495,7 +614,6 @@ export const PixelStage: React.FC<PixelStageProps> = ({
                   d="M 26 26 C 26 21 42 21 42 26 L 43 28 L 41 27 L 39 29 L 36 26 L 33 28 L 30 26 L 27 28 Z"
                   fill={hairColor}
                 />
-                {/* Hair sideburns */}
                 <rect x="26" y="25" width="2" height="6" fill={hairColor} />
                 <rect x="40" y="25" width="2" height="6" fill={hairColor} />
               </g>
@@ -506,21 +624,58 @@ export const PixelStage: React.FC<PixelStageProps> = ({
                   d="M 25 26 C 25 20 43 20 43 26 L 43 28 L 40 27 L 37 29 L 34 27 L 31 29 L 28 27 L 25 28 Z"
                   fill={hairColor}
                 />
-                {/* Twin tails flowing down side of chair */}
                 <rect x="23" y="26" width="3" height="14" rx="1.5" fill={hairColor} />
                 <rect x="42" y="26" width="3" height="14" rx="1.5" fill={hairColor} />
-                {/* Red hair ties */}
                 <circle cx="24.5" cy="27" r="1.2" fill="#E74C3C" />
                 <circle cx="43.5" cy="27" r="1.2" fill="#E74C3C" />
               </g>
             )}
 
-            {/* Student Cap accessory */}
-            {character.accessory === 'cap' && (
+            {/* Multi-Accessories: Head Area (Hachimaki, Cap, Fox Mask, Cat Ears, Devil Horns, Halo, Crown) */}
+            {hasAccessory('hachimaki') && (
+              <g id="accessory-hachimaki">
+                <rect x="26" y="24" width="16" height="2.5" fill="#FFFFFF" stroke="#C0392B" strokeWidth="0.3" />
+                <circle cx="34" cy="25.2" r="0.8" fill="#E74C3C" />
+              </g>
+            )}
+            {hasAccessory('cap') && (
               <g id="accessory-cap">
                 <ellipse cx="34" cy="22" rx="9" ry="3" fill="#1C2833" />
                 <polygon points="27,22 41,22 38,18 30,18" fill="#2C3E50" />
                 <circle cx="34" cy="21" r="1" fill="#F1C40F" />
+              </g>
+            )}
+            {hasAccessory('fox_mask') && (
+              <g id="accessory-fox-mask">
+                <polygon points="38,20 44,22 42,28 37,25" fill="#FFFFFF" stroke="#E74C3C" strokeWidth="0.4" />
+                <polygon points="39,20 40,17 41,20" fill="#E74C3C" />
+                <circle cx="41" cy="23" r="0.6" fill="#E74C3C" />
+              </g>
+            )}
+            {hasAccessory('cat_ears') && (
+              <g id="accessory-cat-ears">
+                <polygon points="27,23 29,17 31,23" fill="#2C3E50" />
+                <polygon points="28,22 29,18 30,22" fill="#FF8DA1" />
+                <polygon points="37,23 39,17 41,23" fill="#2C3E50" />
+                <polygon points="38,22 39,18 40,22" fill="#FF8DA1" />
+              </g>
+            )}
+            {hasAccessory('devil_horns') && (
+              <g id="accessory-devil-horns">
+                <polygon points="28,23 26,17 30,22" fill="#C0392B" stroke="#922B21" strokeWidth="0.4" />
+                <polygon points="40,23 42,17 38,22" fill="#C0392B" stroke="#922B21" strokeWidth="0.4" />
+              </g>
+            )}
+            {hasAccessory('halo') && (
+              <g id="accessory-halo">
+                <ellipse cx="34" cy="18" rx="7" ry="2" fill="none" stroke="#F1C40F" strokeWidth="1" />
+                <ellipse cx="34" cy="18" rx="6.5" ry="1.7" fill="none" stroke="#FFFFFF" strokeWidth="0.4" />
+              </g>
+            )}
+            {hasAccessory('crown') && (
+              <g id="accessory-crown">
+                <polygon points="31,21 32,17 34,19 36,17 37,21" fill="#F1C40F" stroke="#B7950B" strokeWidth="0.4" />
+                <circle cx="34" cy="20.5" r="0.6" fill="#E74C3C" />
               </g>
             )}
           </g>
@@ -532,6 +687,35 @@ export const PixelStage: React.FC<PixelStageProps> = ({
           onClick={handlePetInteraction}
           className={`cursor-pointer transition-transform duration-300 ${petJump ? '-translate-y-2' : ''}`}
         >
+          {/* Dead Pet State: Pixel Ghost with Halo & Gravestone */}
+          {pet.isDead ? (
+            <g id="pet-ghost" transform="translate(56, 50)">
+              {/* Floating shadow */}
+              <ellipse cx="14" cy="24" rx="8" ry="2" fill="#8D5B4C" opacity="0.2" />
+              {/* Gravestone */}
+              <rect x="0" y="10" width="8" height="13" rx="3" fill="#7F8C8D" stroke="#34495E" strokeWidth="0.5" />
+              <text x="4" y="15" fontSize="2.8" textAnchor="middle" fill="#FFFFFF" fontWeight="bold">RIP</text>
+              <line x1="2" y1="18" x2="6" y2="18" stroke="#BDC3C7" strokeWidth="0.5" />
+              {/* Ghost Body (Pale Cyan/White Floating) */}
+              <path
+                d="M 12 10 C 12 4 22 4 22 10 C 22 14 24 18 21 19 C 19 20 18 18 17 19 C 15 20 14 18 12 19 Z"
+                fill="#E8F8F5"
+                stroke="#A3E4D7"
+                strokeWidth="0.5"
+                opacity="0.92"
+              />
+              {/* Angel Halo above ghost */}
+              <ellipse cx="17" cy="4" rx="3.5" ry="1" fill="none" stroke="#F1C40F" strokeWidth="0.6" />
+              {/* Ghost Eyes (sad dots) */}
+              <circle cx="15" cy="9" r="0.8" fill="#2C3E50" />
+              <circle cx="19" cy="9" r="0.8" fill="#2C3E50" />
+              {/* Tiny tear */}
+              <ellipse cx="19.5" cy="11.5" rx="0.4" ry="0.6" fill="#3498DB" />
+              {/* Angel wing on ghost */}
+              <path d="M 22 9 Q 25 7 24 11 Z" fill="#FFFFFF" stroke="#BDC3C7" strokeWidth="0.3" />
+            </g>
+          ) : (
+            <>
           {/* Pet A: 赤柴犬 (shiba) */}
           {pet.id === 'shiba' && (
             <g id="pet-shiba" transform="translate(56, 52)">
@@ -689,6 +873,8 @@ export const PixelStage: React.FC<PixelStageProps> = ({
               <circle cx="13" cy="13" r="0.9" fill="#1B4F72" />
               <path d="M 9 14.5 Q 10 16 11 14.5" stroke="#1B4F72" strokeWidth="0.6" fill="none" />
             </g>
+          )}
+            </>
           )}
         </g>
       </svg>

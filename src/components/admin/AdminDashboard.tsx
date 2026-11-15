@@ -114,7 +114,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
       'battleship': '海戰棋 艦隊對決 battleship',
       'bingo': '賓果 5x5 連線 bingo',
       'dots': '點線棋 圍地方格 dots',
-      'ooxx': '經典 ooxx'
+      'ooxx': '經典 ooxx',
+      'connect4': '四子棋 connect4'
     };
     const gameName = (gameNames[r.gameId] || r.gameId).toLowerCase();
     const matchesCode = String(r.code || '').includes(q);
@@ -357,7 +358,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                     'battleship': '海戰棋 艦隊對決',
                     'bingo': '賓果 5x5 連線',
                     'dots': '點線棋 圍地方格',
-                    'ooxx': '經典 OOXX'
+                    'ooxx': '經典 OOXX',
+                    'connect4': '四子棋 連線爭霸'
                   };
                   const roomPlayers = room.players && room.players.length > 0
                     ? room.players
@@ -683,7 +685,8 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   { id: 'battleship', name: '海戰棋 艦隊對決', color: '#628395' },
                   { id: 'bingo', name: '賓果 5x5 連線', color: '#DBAD6A' },
                   { id: 'dots', name: '點線棋 圍地方格', color: '#CF995F' },
-                  { id: 'ooxx', name: '經典 OOXX', color: '#628395' }
+                  { id: 'ooxx', name: '經典 OOXX', color: '#628395' },
+                  { id: 'connect4', name: '四子棋 連線爭霸', color: '#C85A32' }
                 ].map((game) => {
                   const count = liveRooms.filter((r) => r.gameId === game.id).length;
                   const percent = liveRooms.length > 0 ? (count / liveRooms.length) * 100 : 0;
@@ -1257,6 +1260,53 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                                 >
                                   {cellUid ? (isP1 ? 'O' : 'X') : ''}
                                 </div>
+                              );
+                            })
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })()}
+
+                  {/* 6. 四子棋 Connect Four 盤面實況 */}
+                  {inspectedRoom.gameId === 'connect4' && inspectedRoom.stateConnect4 && (() => {
+                    const c4State = inspectedRoom.stateConnect4;
+                    const grid = c4State.grid || Array(6).fill(null).map(() => Array(7).fill(null));
+                    const p1Uid = inspectedRoom.player1.uid;
+
+                    return (
+                      <div className="bg-white/80 p-4 rounded-2xl border border-white shadow-xs space-y-3">
+                        <div className="flex items-center justify-between">
+                          <span className="font-extrabold text-xs text-[#C85A32] flex items-center gap-1.5">
+                            <Layers className="w-4 h-4" />
+                            <span>四子棋 7x6 垂直重力棋盤實況</span>
+                          </span>
+                          <span className="text-[11px] font-mono text-[#96897B]">
+                            當前輪到：{c4State.currentTurnUid === p1Uid ? inspectedRoom.player1.displayName : inspectedRoom.player2?.displayName || 'P2'}
+                          </span>
+                        </div>
+
+                        {/* 6x7 Grid */}
+                        <div className="grid grid-cols-7 gap-1.5 max-w-[280px] mx-auto bg-[#1C3550] p-2.5 rounded-2xl">
+                          {grid.map((row: any[], r: number) =>
+                            row.map((cellUid: string | null, c: number) => {
+                              const isP1 = cellUid === p1Uid;
+                              const isWinning = c4State.winningLine?.some(
+                                (pt: any) => pt.r === r && pt.c === c
+                              );
+                              return (
+                                <div
+                                  key={`${r}-${c}`}
+                                  className={`aspect-square rounded-full flex items-center justify-center font-black text-xs ${
+                                    isWinning
+                                      ? 'ring-2 ring-yellow-400 bg-yellow-400 text-neutral-900 animate-pulse'
+                                      : cellUid
+                                      ? isP1
+                                        ? 'bg-rose-500 text-white'
+                                        : 'bg-amber-400 text-white'
+                                      : 'bg-[#132233]'
+                                  }`}
+                                />
                               );
                             })
                           )}

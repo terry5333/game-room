@@ -32,6 +32,7 @@ import {
   onValue,
   onDisconnect,
   remove,
+  runTransaction,
   serverTimestamp as rtdbServerTimestamp,
   type Database
 } from 'firebase/database';
@@ -131,5 +132,6 @@ export {
   onValue,
   onDisconnect,
   remove,
+  runTransaction,
   rtdbServerTimestamp
 };

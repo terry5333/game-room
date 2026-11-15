@@ -58,7 +58,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
         ? Math.min(6, Math.max(2, maxPlayers))
         : gameId === 'battleship'
         ? 2
-        : gameId === 'ooxx'
+        : gameId === 'ooxx' || gameId === 'connect4'
         ? 2
         : gameId === 'dots'
         ? Math.min(3, maxPlayers)
@@ -80,7 +80,8 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
     'battleship': { title: '海戰棋 艦隊對決', icon: Anchor },
     'bingo': { title: '賓果 5x5 連線', icon: Grid },
     'dots': { title: '點線棋 圍地方格', icon: SquareDot },
-    'ooxx': { title: '經典 OOXX', icon: Sliders }
+    'ooxx': { title: '經典 OOXX', icon: Sliders },
+    'connect4': { title: '四子棋 連線爭霸', icon: Sliders }
   };
 
   const info = gameInfoMap[gameId];

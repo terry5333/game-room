@@ -37,7 +37,8 @@ const GAME_NAMES: Record<GameId, string> = {
   'battleship': '海戰棋',
   'bingo': '賓果',
   'dots': '點線棋',
-  'ooxx': '無限三子棋'
+  'ooxx': '無限三子棋',
+  'connect4': '四子棋'
 };
 
 export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) => {

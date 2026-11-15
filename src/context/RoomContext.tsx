@@ -409,6 +409,11 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           currentTurnUid: draft.hostUid,
           infiniteMode: false
         };
+      } else if (draft.gameId === 'connect4') {
+        draft.stateConnect4 = {
+          grid: Array(6).fill(null).map(() => Array(7).fill(null)),
+          currentTurnUid: draft.hostUid
+        };
       }
     });
     sound.playClick();

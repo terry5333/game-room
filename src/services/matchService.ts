@@ -28,7 +28,8 @@ export const DEFAULT_SETTINGS: GameSettings = {
     'battleship': 1.2,
     'bingo': 1,
     'dots': 1,
-    'ooxx': 1
+    'ooxx': 1,
+    'connect4': 1
   }
 };
 
@@ -539,6 +540,24 @@ class MatchService {
             payload.stateOOXX.grid = safeGrid;
           }
         }
+        if (payload?.gameId === 'connect4' && payload?.stateConnect4) {
+          const rawGrid = payload.stateConnect4.grid;
+          if (rawGrid && typeof rawGrid === 'object') {
+            const safeGrid = Array(6).fill(null).map(() => Array(7).fill(''));
+            for (let r = 0; r < 6; r++) {
+              const row = (rawGrid as any)[r];
+              if (row && typeof row === 'object') {
+                for (let c = 0; c < 7; c++) {
+                  const cell = (row as any)[c];
+                  if (cell && typeof cell === 'string' && cell.trim() !== '') {
+                    safeGrid[r][c] = cell;
+                  }
+                }
+              }
+            }
+            payload.stateConnect4.grid = safeGrid;
+          }
+        }
         set(ref(rtdb, `rooms/${normalized.id}`), payload).catch(console.warn);
       } catch (err) {
         console.warn('RTDB update room error:', err);
@@ -822,6 +841,35 @@ class MatchService {
         infiniteMode: Boolean(room.stateOOXX?.infiniteMode),
         winningLine: winningLine as any
       };
+    } else if (room.gameId === 'connect4') {
+      const normalizedGrid: (string | null)[][] = Array(6).fill(null).map(() => Array(7).fill(null));
+      const rawGrid = room.stateConnect4?.grid;
+      if (rawGrid && typeof rawGrid === 'object') {
+        for (let r = 0; r < 6; r++) {
+          const row = (rawGrid as any)[r];
+          if (row && typeof row === 'object') {
+            for (let c = 0; c < 7; c++) {
+              const cell = (row as any)[c];
+              if (cell && typeof cell === 'string' && cell.trim() !== '') {
+                normalizedGrid[r][c] = cell;
+              }
+            }
+          }
+        }
+      }
+      const rawWinningLine = room.stateConnect4?.winningLine;
+      const winningLine = Array.isArray(rawWinningLine)
+        ? rawWinningLine
+        : rawWinningLine && typeof rawWinningLine === 'object'
+        ? Object.values(rawWinningLine)
+        : undefined;
+
+      room.stateConnect4 = {
+        grid: normalizedGrid,
+        currentTurnUid: room.stateConnect4?.currentTurnUid || room.hostUid,
+        winningLine: winningLine as any,
+        lastDrop: room.stateConnect4?.lastDrop || undefined
+      };
     }
 
     return room;
@@ -1025,7 +1073,8 @@ class MatchService {
       'battleship': '海戰棋',
       'bingo': '賓果',
       'dots': '點線棋',
-      'ooxx': '經典 OOXX'
+      'ooxx': '經典 OOXX',
+      'connect4': '四子棋'
     };
 
     const PRESENCE_TTL_MS = 30 * 1000; // 30 seconds: if no heartbeat received, friend is offline
@@ -1166,6 +1215,11 @@ class MatchService {
         movesHistory: [],
         currentTurnUid: room.hostUid,
         infiniteMode: false
+      };
+    } else if (room.gameId === 'connect4') {
+      room.stateConnect4 = {
+        grid: Array(6).fill(null).map(() => Array(7).fill(null)),
+        currentTurnUid: room.hostUid
       };
     }
   }
