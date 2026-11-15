@@ -4,5 +4,4 @@ dist-ssr
 *.local
 .vercel
 .DS_Store
-
-.vercel
+*.tsbuildinfo

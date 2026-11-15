@@ -50,7 +50,6 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
 
   const [selectedFriend, setSelectedFriend] = useState<UserPresence | null>(null);
   const [selectedGame, setSelectedGame] = useState<GameId>('1a2b');
-  const [incomingInvite, setIncomingInvite] = useState<BattleInvite | null>(null);
   const [inviting, setInviting] = useState(false);
   const [requestSending, setRequestSending] = useState(false);
   const [feedbackMsg, setFeedbackMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
@@ -86,40 +85,13 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     };
 
     refresh();
-    const unsub = matchService.subscribePresence(() => {
-      refresh();
-    });
-    return () => unsub();
+    const unsub = matchService.subscribePresence(refresh);
+    const timer = setInterval(refresh, 3500);
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
   }, [isOpen, friendRecords]);
-
-  // Listen to battle invites
-  useEffect(() => {
-    if (!currentUser) return;
-    const unsub = matchService.subscribeInvites(currentUser.uid, (invite) => {
-      if (invite.status === 'pending') {
-        sound.playTurnChime();
-        setIncomingInvite(invite);
-      }
-    });
-    return () => unsub();
-  }, [currentUser?.uid]);
-
-  const handleDeclineBattleInvite = useCallback(async () => {
-    if (!incomingInvite || !currentUser) return;
-    sound.playClick();
-    const invite = incomingInvite;
-    setIncomingInvite(null);
-    await matchService.respondBattleInvite(currentUser.uid, invite.id, 'declined');
-  }, [incomingInvite, currentUser]);
-
-  // Auto-dismiss invite if not answered within 30 seconds
-  useEffect(() => {
-    if (!incomingInvite) return;
-    const timer = setTimeout(() => {
-      handleDeclineBattleInvite();
-    }, 30000);
-    return () => clearTimeout(timer);
-  }, [incomingInvite?.id, handleDeclineBattleInvite]);
 
   if (!isOpen || !currentUser) return null;
 
@@ -225,9 +197,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
         id: 'inv_' + Math.random().toString(36).substring(2, 9),
         fromUid: currentUser.uid,
         fromName: currentUser.displayName,
+        fromPhotoURL: currentUser.photoURL,
         toUid: selectedFriend.uid,
         gameId: selectedGame,
         roomId: room.id,
+        roomCode: room.code,
         createdAt: Date.now(),
         status: 'pending'
       };
@@ -249,9 +223,11 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
       id: 'inv_' + Math.random().toString(36).substring(2, 9),
       fromUid: currentUser.uid,
       fromName: currentUser.displayName,
+      fromPhotoURL: currentUser.photoURL,
       toUid: friend.uid,
       gameId: currentRoom.gameId,
       roomId: currentRoom.id,
+      roomCode: currentRoom.code,
       createdAt: Date.now(),
       status: 'pending'
     };
@@ -259,61 +235,8 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     setFeedbackMsg({ text: `已發送房間邀請給 ${friend.displayName}！`, type: 'success' });
   };
 
-  const handleAcceptBattleInvite = async () => {
-    if (!incomingInvite || !currentUser) return;
-    sound.playClick();
-    const invite = incomingInvite;
-    setIncomingInvite(null);
-    await matchService.respondBattleInvite(currentUser.uid, invite.id, 'accepted');
-    onClose();
-
-    const ok = await joinRoomById(invite.roomId);
-    if (!ok) {
-      alert('無法加入該對戰房間，該房間可能已結束或關閉。');
-    }
-  };
-
   return (
     <>
-      {/* Incoming Battle Invite Pop */}
-      <AnimatePresence>
-        {incomingInvite && (
-          <div className="fixed inset-0 z-60 flex items-center justify-center p-4 bg-black/45 backdrop-blur-xs">
-            <motion.div
-              initial={{ scale: 0.9, opacity: 0 }}
-              animate={{ scale: 1, opacity: 1 }}
-              exit={{ scale: 0.9, opacity: 0 }}
-              className="w-full max-w-sm glass-panel rounded-3xl p-6 border-2 border-[#CF995F] shadow-2xl text-center"
-            >
-              <div className="w-12 h-12 mx-auto rounded-2xl bg-[#CF995F] text-white flex items-center justify-center mb-3 shadow-xs">
-                <Swords className="w-6 h-6 text-white" />
-              </div>
-
-              <h4 className="font-extrabold text-base text-[#2E2925] mb-1">
-                收到即時對戰邀請！
-              </h4>
-              <p className="text-xs text-[#96897B] font-medium mb-4">
-                好友 <span className="font-bold text-[#628395]">{incomingInvite.fromName}</span> 邀請你進行《{GAME_NAMES[incomingInvite.gameId]}》！
-              </p>
-
-              <div className="grid grid-cols-2 gap-2">
-                <button
-                  onClick={handleAcceptBattleInvite}
-                  className="py-2.5 px-3 rounded-xl bg-[#628395] hover:bg-[#526f7f] text-white font-bold text-xs shadow-xs transition-colors cursor-pointer"
-                >
-                  接受挑戰
-                </button>
-                <button
-                  onClick={handleDeclineBattleInvite}
-                  className="py-2.5 px-3 rounded-xl bg-white/70 hover:bg-white text-[#96897B] font-bold text-xs border border-[#96897B]/20 transition-colors cursor-pointer"
-                >
-                  婉拒
-                </button>
-              </div>
-            </motion.div>
-          </div>
-        )}
-      </AnimatePresence>
 
       {/* Main Friends Modal */}
       <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 bg-black/45 backdrop-blur-md">

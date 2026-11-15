@@ -20,6 +20,7 @@ import { VictoryCelebration } from '../common/VictoryCelebration';
 import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { sound } from '../../services/soundService';
+import type { PlayerSlot } from '../../types';
 
 interface GameShellProps {
   title: string;
@@ -94,6 +95,7 @@ export const GameShell: React.FC<GameShellProps> = ({
     ready: false
   };
   const p2 = currentRoom.player2;
+  const maxSlots = currentRoom.maxPlayers || 2;
 
   const displayPlayers: PlayerSlot[] = (() => {
     const map = new Map<string, PlayerSlot>();

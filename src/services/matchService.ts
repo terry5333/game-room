@@ -82,8 +82,17 @@ class MatchService {
           onValue(presencesRef, (snapshot) => {
             const val = snapshot.val();
             if (val) {
+              const freshUids = new Set(Object.keys(val));
+              for (const uid of Array.from(this.localPresence.keys())) {
+                if (!freshUids.has(uid)) {
+                  this.localPresence.delete(uid);
+                }
+              }
               const list: UserPresence[] = Object.values(val);
               list.forEach((p) => this.localPresence.set(p.uid, p));
+              this.notifyPresenceListeners();
+            } else {
+              this.localPresence.clear();
               this.notifyPresenceListeners();
             }
           });
@@ -96,12 +105,23 @@ class MatchService {
           onValue(roomsRef, (snapshot) => {
             const val = snapshot.val();
             if (val) {
+              const freshIds = new Set(Object.keys(val));
+              for (const id of Array.from(this.localRooms.keys())) {
+                if (!freshIds.has(id)) {
+                  this.localRooms.delete(id);
+                }
+              }
               Object.entries<any>(val).forEach(([id, r]) => {
                 const norm = this.normalizeRoom(r);
                 this.localRooms.set(id, norm);
                 this.notifyRoomListeners(norm);
               });
               this.notifyAllRoomsListeners();
+              this.notifyPresenceListeners();
+            } else {
+              this.localRooms.clear();
+              this.notifyAllRoomsListeners();
+              this.notifyPresenceListeners();
             }
           });
         } catch (e) {
@@ -713,9 +733,9 @@ class MatchService {
       }
       const rawHistory = room.stateOOXX?.movesHistory;
       const movesHistory = Array.isArray(rawHistory)
-        ? rawHistory
+        ? (rawHistory as any[])
         : rawHistory
-        ? Object.values(rawHistory)
+        ? (Object.values(rawHistory) as any[])
         : [];
 
       room.stateOOXX = {
@@ -905,20 +925,37 @@ class MatchService {
       'ooxx': '經典 OOXX'
     };
 
+    const PRESENCE_TTL_MS = 30 * 1000; // 30 seconds: if no heartbeat received, friend is offline
+    const now = Date.now();
+
     const localActiveRooms = Array.from(this.localRooms.values()).filter(
-      (r) => r.status === 'waiting' || r.status === 'in_progress'
+      (r) => (r.status === 'waiting' || r.status === 'in_progress') && (now - (r.updatedAt || 0) < 180000)
     );
 
     return friends.map((f) => {
       const presence = this.localPresence.get(f.uid);
+      const isPresenceFresh = Boolean(presence && presence.lastActive && (now - presence.lastActive < PRESENCE_TTL_MS));
+
+      // 1. If presence does not exist, or timed out (>30s), or explicitly set to offline -> OFFLINE
+      if (!presence || !isPresenceFresh || presence.status === 'offline') {
+        return {
+          uid: f.uid,
+          displayName: f.displayName || presence?.displayName || '好友',
+          photoURL: f.photoURL || presence?.photoURL || '',
+          userTag: f.userTag || presence?.userTag,
+          status: 'offline',
+          lastActive: presence?.lastActive || 0
+        };
+      }
+
+      // 2. Check active room ground truth
       const activeRoom = localActiveRooms.find(
         (r) =>
           (r.players && r.players.some((p) => p.uid === f.uid)) ||
-          r.player1.uid === f.uid ||
+          r.player1?.uid === f.uid ||
           r.player2?.uid === f.uid
       );
 
-      // 1. Direct active room ground truth takes priority
       if (activeRoom) {
         const pCount =
           (activeRoom.players && activeRoom.players.length) ||
@@ -927,11 +964,11 @@ class MatchService {
 
         return {
           uid: f.uid,
-          displayName: f.displayName || presence?.displayName || '好友',
-          photoURL: f.photoURL || presence?.photoURL || '',
-          userTag: f.userTag || presence?.userTag,
+          displayName: f.displayName || presence.displayName || '好友',
+          photoURL: f.photoURL || presence.photoURL || '',
+          userTag: f.userTag || presence.userTag,
           status: 'in_game',
-          lastActive: Date.now(),
+          lastActive: presence.lastActive,
           currentRoomId: activeRoom.id,
           currentRoomCode: activeRoom.code,
           currentGameId: activeRoom.gameId,
@@ -941,42 +978,26 @@ class MatchService {
         };
       }
 
-      // 2. Presence in_game fallback
-      if (presence && presence.status === 'in_game') {
+      // 3. Presence in_game fallback (e.g. if room is still syncing)
+      if (presence.status === 'in_game' && presence.currentRoomId) {
         return {
           ...presence,
-          userTag: f.userTag,
+          userTag: f.userTag || presence.userTag,
           displayName: f.displayName || presence.displayName,
           photoURL: f.photoURL || presence.photoURL,
-          currentGameName: presence.currentGameId ? gameNames[presence.currentGameId] : undefined,
+          currentGameName: presence.currentGameId ? (gameNames[presence.currentGameId] || presence.currentGameId) : undefined,
           currentRoomMaxPlayers: presence.currentRoomMaxPlayers || 2,
           currentRoomPlayerCount: presence.currentRoomPlayerCount || 1
         };
       }
 
-      // 3. Online in lobby
-      if (presence && (presence.status === 'lobby' || presence.status === 'online')) {
-        return {
-          ...presence,
-          userTag: f.userTag,
-          displayName: f.displayName || presence.displayName,
-          photoURL: f.photoURL || presence.photoURL
-        };
-      }
-
+      // 4. Online in lobby
       return {
-        uid: f.uid,
-        displayName: f.displayName,
-        photoURL: f.photoURL,
-        userTag: f.userTag,
-        status: presence ? presence.status : 'offline',
-        lastActive: presence ? presence.lastActive : 0,
-        currentRoomId: presence?.currentRoomId,
-        currentRoomCode: presence?.currentRoomCode,
-        currentGameId: presence?.currentGameId,
-        currentGameName: presence?.currentGameName,
-        currentRoomMaxPlayers: presence?.currentRoomMaxPlayers || 2,
-        currentRoomPlayerCount: presence?.currentRoomPlayerCount || 1
+        ...presence,
+        userTag: f.userTag || presence.userTag,
+        displayName: f.displayName || presence.displayName,
+        photoURL: f.photoURL || presence.photoURL,
+        status: 'lobby'
       };
     });
   }

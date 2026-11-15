@@ -61,7 +61,25 @@ export const DEFAULT_FIREBASE_CONFIG: FirebaseCustomConfig = {
 };
 
 export function getStoredFirebaseConfig(): FirebaseCustomConfig {
+  try {
+    const custom = localStorage.getItem('duo_custom_firebase_config');
+    if (custom) return JSON.parse(custom);
+  } catch {}
   return DEFAULT_FIREBASE_CONFIG;
+}
+
+export function saveCustomFirebaseConfig(config: FirebaseCustomConfig) {
+  try {
+    localStorage.setItem('duo_custom_firebase_config', JSON.stringify(config));
+    window.location.reload();
+  } catch {}
+}
+
+export function clearCustomFirebaseConfig() {
+  try {
+    localStorage.removeItem('duo_custom_firebase_config');
+    window.location.reload();
+  } catch {}
 }
 
 let app: FirebaseApp | null = null;

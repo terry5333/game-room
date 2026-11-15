@@ -48,9 +48,11 @@ export interface BattleInvite {
   id: string;
   fromUid: string;
   fromName: string;
+  fromPhotoURL?: string;
   toUid: string;
   gameId: GameId;
   roomId: string;
+  roomCode?: string;
   createdAt: number;
   status: 'pending' | 'accepted' | 'declined' | 'expired';
 }
@@ -185,6 +187,7 @@ export interface GameRoom {
   winnerUid?: string | 'draw';
   createdAt: number;
   updatedAt: number;
+  version?: number;
   multiplier: number;
   // Specific Game State
   state1a2b?: State1A2B;

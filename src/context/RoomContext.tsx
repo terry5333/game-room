@@ -259,6 +259,16 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
     setCurrentRoom(null);
     sound.playClick();
+    if (currentUser) {
+      matchService.updatePresence({
+        uid: currentUser.uid,
+        displayName: currentUser.displayName,
+        photoURL: currentUser.photoURL,
+        userTag: currentUser.userTag,
+        status: 'lobby',
+        lastActive: Date.now()
+      });
+    }
   };
 
   const updateRoomState = async (updater: (draft: GameRoom) => void) => {

@@ -5,6 +5,7 @@ import { Header } from './components/common/Header';
 import { LandingPage } from './components/auth/LandingPage';
 import { Lobby } from './components/lobby/Lobby';
 import { FriendsModal } from './components/lobby/FriendsModal';
+import { IncomingInviteModal } from './components/common/IncomingInviteModal';
 import { RuleDrawer } from './components/common/RuleDrawer';
 import { AdminDashboard } from './components/admin/AdminDashboard';
 import { OnboardingTour } from './components/common/OnboardingTour';
@@ -108,6 +109,9 @@ export const AppContent: React.FC = () => {
         isOpen={friendsOpen}
         onClose={() => setFriendsOpen(false)}
       />
+
+      {/* Global Real-time Incoming Battle Invite Modal */}
+      <IncomingInviteModal />
 
       {/* Mandatory Profile Setup Modal before Onboarding */}
       <ProfileSetupModal

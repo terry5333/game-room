@@ -65,13 +65,20 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
 
     refresh();
     const unsub = matchService.subscribePresence(refresh);
-    return () => unsub();
+    const timer = setInterval(refresh, 3500);
+    return () => {
+      unsub();
+      clearInterval(timer);
+    };
   }, [isOpen, friendRecords]);
 
   if (!isOpen || !currentUser) return null;
 
   const currentRoomPlayerUids = new Set(
-    (currentRoom.players || [currentRoom.player1, currentRoom.player2])
+    (currentRoom.players && currentRoom.players.length > 0
+      ? currentRoom.players
+      : [currentRoom.player1, currentRoom.player2]
+    )
       .filter(Boolean)
       .map((p) => p?.uid)
   );
@@ -89,9 +96,11 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
       id: 'inv_' + Math.random().toString(36).substring(2, 9),
       fromUid: currentUser.uid,
       fromName: currentUser.displayName,
+      fromPhotoURL: currentUser.photoURL,
       toUid: friend.uid,
       gameId: currentRoom.gameId,
       roomId: currentRoom.id,
+      roomCode: currentRoom.code,
       createdAt: Date.now(),
       status: 'pending'
     };
@@ -171,10 +180,11 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
             </div>
           ) : (
             friendPresences.map((f) => {
-              const isAlreadyIn = currentRoomPlayerUids.has(f.uid);
+              const isAlreadyIn = currentRoomPlayerUids.has(f.uid) || f.currentRoomId === currentRoom.id;
               const isInvited = invitedUids.has(f.uid);
-              const isOnline = f.status === 'online' || f.status === 'lobby';
-              const isInOtherGame = f.status === 'in_game' && f.currentRoomId !== currentRoom.id;
+              const isOffline = f.status === 'offline';
+              const isInOtherGame = !isAlreadyIn && f.status === 'in_game' && f.currentRoomId !== currentRoom.id;
+              const isOnlineInLobby = !isAlreadyIn && !isInOtherGame && !isOffline;
 
               return (
                 <div
@@ -190,9 +200,11 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
                       />
                       <span
                         className={`absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 rounded-full border border-white ${
-                          isInOtherGame
+                          isAlreadyIn
+                            ? 'bg-emerald-500'
+                            : isInOtherGame
                             ? 'bg-[#CF995F]'
-                            : isOnline
+                            : isOnlineInLobby
                             ? 'bg-emerald-500'
                             : 'bg-[#96897B]'
                         }`}
@@ -212,8 +224,8 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
                         {isAlreadyIn
                           ? '已在房間內'
                           : isInOtherGame
-                          ? '對戰中'
-                          : isOnline
+                          ? `對戰中（${f.currentGameName || '遊戲中'}）`
+                          : isOnlineInLobby
                           ? '在線（大廳中）'
                           : '離線'}
                       </div>
@@ -231,6 +243,15 @@ export const InviteFriendsModal: React.FC<InviteFriendsModalProps> = ({
                         <Check className="w-3 h-3" />
                         <span>已邀請</span>
                       </span>
+                    ) : isOffline ? (
+                      <button
+                        onClick={() => handleSendInvite(f)}
+                        className="py-1.5 px-3 rounded-xl bg-neutral-200 hover:bg-neutral-300 text-[#96897B] hover:text-[#2E2925] text-xs font-bold transition-all flex items-center gap-1 cursor-pointer"
+                        title="好友目前離線，仍可送出邀請待其上線"
+                      >
+                        <Send className="w-3 h-3" />
+                        <span>邀請</span>
+                      </button>
                     ) : (
                       <button
                         onClick={() => handleSendInvite(f)}
