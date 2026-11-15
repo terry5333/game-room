@@ -206,6 +206,32 @@ class MatchService {
     }
   }
 
+  public async respondBattleInvite(
+    toUid: string,
+    inviteId: string,
+    _response: 'accepted' | 'declined' | 'expired'
+  ) {
+    this.localInvites.delete(inviteId);
+    if (rtdb) {
+      try {
+        // Permanently clear from RTDB so it never pops up again
+        await set(ref(rtdb, `invites/${toUid}/${inviteId}`), null);
+      } catch (e) {
+        console.warn('RTDB respondBattleInvite error:', e);
+      }
+    }
+  }
+
+  public async clearAllInvites(myUid: string) {
+    if (rtdb) {
+      try {
+        await set(ref(rtdb, `invites/${myUid}`), null);
+      } catch (e) {
+        console.warn('RTDB clearAllInvites error:', e);
+      }
+    }
+  }
+
   public subscribeInvites(myUid: string, callback: (invite: BattleInvite) => void): () => void {
     if (!this.inviteListeners.has(myUid)) {
       this.inviteListeners.set(myUid, new Set());
@@ -213,6 +239,8 @@ class MatchService {
     this.inviteListeners.get(myUid)!.add(callback);
 
     let unsubRtdb: (() => void) | null = null;
+    const INVITE_TTL_MS = 45 * 1000; // Battle invites expire after 45 seconds
+
     if (rtdb) {
       try {
         const userInvitesRef = ref(rtdb, `invites/${myUid}`);
@@ -220,8 +248,14 @@ class MatchService {
           const val = snapshot.val();
           if (val) {
             Object.values(val).forEach((inv: any) => {
-              if (inv.status === 'pending') {
-                callback(inv);
+              if (inv && inv.id) {
+                const age = Date.now() - (inv.createdAt || 0);
+                if (inv.status !== 'pending' || age > INVITE_TTL_MS) {
+                  // Silently purge expired or non-pending stale invite from RTDB
+                  set(ref(rtdb!, `invites/${myUid}/${inv.id}`), null).catch(() => {});
+                } else {
+                  callback(inv);
+                }
               }
             });
           }

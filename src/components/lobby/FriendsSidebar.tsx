@@ -127,21 +127,22 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
   const handleAcceptInvite = async () => {
     if (!incomingInvite) return;
     sound.playClick();
-    const targetRoomId = incomingInvite.roomId;
-    incomingInvite.status = 'accepted';
+    const invite = incomingInvite;
     setIncomingInvite(null);
+    await matchService.respondBattleInvite(currentUser.uid, invite.id, 'accepted');
 
-    const ok = await joinRoomById(targetRoomId);
+    const ok = await joinRoomById(invite.roomId);
     if (!ok) {
       alert('無法加入該房間，可能已開始或關閉。');
     }
   };
 
-  const handleDeclineInvite = () => {
+  const handleDeclineInvite = async () => {
     sound.playClick();
     if (incomingInvite) {
-      incomingInvite.status = 'declined';
+      const invite = incomingInvite;
       setIncomingInvite(null);
+      await matchService.respondBattleInvite(currentUser.uid, invite.id, 'declined');
     }
   };
 

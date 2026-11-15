@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   Users2,
@@ -103,6 +103,23 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     });
     return () => unsub();
   }, [currentUser?.uid]);
+
+  const handleDeclineBattleInvite = useCallback(async () => {
+    if (!incomingInvite || !currentUser) return;
+    sound.playClick();
+    const invite = incomingInvite;
+    setIncomingInvite(null);
+    await matchService.respondBattleInvite(currentUser.uid, invite.id, 'declined');
+  }, [incomingInvite, currentUser]);
+
+  // Auto-dismiss invite if not answered within 30 seconds
+  useEffect(() => {
+    if (!incomingInvite) return;
+    const timer = setTimeout(() => {
+      handleDeclineBattleInvite();
+    }, 30000);
+    return () => clearTimeout(timer);
+  }, [incomingInvite?.id, handleDeclineBattleInvite]);
 
   if (!isOpen || !currentUser) return null;
 
@@ -226,16 +243,16 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
   };
 
   const handleAcceptBattleInvite = async () => {
-    if (!incomingInvite) return;
+    if (!incomingInvite || !currentUser) return;
     sound.playClick();
-    const targetRoomId = incomingInvite.roomId;
-    incomingInvite.status = 'accepted';
+    const invite = incomingInvite;
     setIncomingInvite(null);
+    await matchService.respondBattleInvite(currentUser.uid, invite.id, 'accepted');
     onClose();
 
-    const ok = await joinRoomById(targetRoomId);
+    const ok = await joinRoomById(invite.roomId);
     if (!ok) {
-      alert('無法加入該對戰房間。');
+      alert('無法加入該對戰房間，該房間可能已結束或關閉。');
     }
   };
 
@@ -270,7 +287,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
                   接受挑戰
                 </button>
                 <button
-                  onClick={() => setIncomingInvite(null)}
+                  onClick={handleDeclineBattleInvite}
                   className="py-2.5 px-3 rounded-xl bg-white/70 hover:bg-white text-[#96897B] font-bold text-xs border border-[#96897B]/20 transition-colors cursor-pointer"
                 >
                   婉拒
