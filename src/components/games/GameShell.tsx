@@ -23,6 +23,7 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
 import { ExamCardModal } from '../profile/ExamCardModal';
+import { LpcAvatarView } from '../profile/LpcAvatarView';
 import { getTitleById } from '../../data/titleCatalog';
 import { DEFAULT_LPC_CHARACTER } from '../../data/lpcCatalog';
 import { sound } from '../../services/soundService';
@@ -451,6 +452,9 @@ export const GameShell: React.FC<GameShellProps> = ({
                     const playerTag = getCleanUserTag(slotPlayer);
                     const avatarUrl =
                       slotPlayer?.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer?.uid || 'guest'}`;
+                    const charConfig =
+                      slotPlayer?.lpcCharacter ||
+                      (slotPlayer?.uid === currentUser.uid ? currentUser.lpcCharacter : DEFAULT_LPC_CHARACTER);
 
                     return slotPlayer ? (
                       <div
@@ -475,35 +479,52 @@ export const GameShell: React.FC<GameShellProps> = ({
                           )}
                         </div>
 
-                        {/* Large Player Photo Avatar Area (大頭像，非像素角色) */}
-                        <div className="relative mb-2">
-                          <div
-                            className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 bg-white shadow-md border-3 ${
-                              isHostSlot
-                                ? 'border-[#D4AF37] ring-4 ring-[#D4AF37]/30'
-                                : 'border-[#628395] ring-2 ring-[#628395]/20'
-                            } flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105`}
-                          >
-                            <img
-                              src={avatarUrl}
-                              alt={slotPlayer.displayName || '受驗生'}
-                              className="w-full h-full object-cover rounded-xl"
-                              onError={(e) => {
-                                (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid || 'guest'}`;
-                              }}
-                            />
+                        {/* Dual Showcase Card: Personal Photo Avatar + 2D LPC Walking Character (頭像與角色雙展示) */}
+                        <div className="flex items-center justify-center gap-2 p-2 rounded-2xl bg-white/80 border border-[#D5C0A1] shadow-xs relative mb-1.5">
+                          {/* 1. Player Personal Photo Avatar */}
+                          <div className="relative shrink-0">
+                            <div
+                              className={`w-14 h-14 sm:w-16 sm:h-16 rounded-xl p-0.5 bg-white shadow-xs border-2 ${
+                                isHostSlot
+                                  ? 'border-[#D4AF37] ring-2 ring-[#D4AF37]/30'
+                                  : 'border-[#628395]'
+                              } flex items-center justify-center overflow-hidden`}
+                            >
+                              <img
+                                src={avatarUrl}
+                                alt={slotPlayer.displayName || '受驗生'}
+                                className="w-full h-full object-cover rounded-lg"
+                                onError={(e) => {
+                                  (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid || 'guest'}`;
+                                }}
+                              />
+                            </div>
+                            {/* Decorative Host Crown */}
+                            {isHostSlot && (
+                              <div className="absolute -top-2 -right-1 text-sm select-none filter drop-shadow">
+                                👑
+                              </div>
+                            )}
                           </div>
 
-                          {/* Decorative Host Crown */}
-                          {isHostSlot && (
-                            <div className="absolute -top-2 -right-1 text-base select-none filter drop-shadow">
-                              👑
+                          {/* 2. 2D LPC Walking Character */}
+                          <div className="flex flex-col items-center shrink-0">
+                            <div className="w-[72px] h-[72px] flex items-center justify-center overflow-hidden">
+                              <LpcAvatarView
+                                config={charConfig}
+                                size={72}
+                                scale={1.3}
+                                direction="down"
+                                animate={true}
+                              />
                             </div>
-                          )}
+                            {/* Floor Shadow Under Character */}
+                            <div className="w-10 h-1.5 bg-[#5D3A1A]/20 rounded-full blur-[1px] -mt-1" />
+                          </div>
                         </div>
 
                         {/* Player Name Capsule & 4-Digit Code */}
-                        <div className="text-center max-w-[130px] w-full px-1">
+                        <div className="text-center max-w-[140px] w-full px-1">
                           <div className="text-xs sm:text-sm font-black text-[#3B2211] truncate leading-tight">
                             {slotPlayer.displayName || '受驗生'}
                           </div>
@@ -536,8 +557,8 @@ export const GameShell: React.FC<GameShellProps> = ({
                         key={`empty-slot-${slotIdx}`}
                         className="flex flex-col items-center justify-center shrink-0"
                       >
-                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-dashed border-[#8D5B4C]/40 bg-white/40 flex flex-col items-center justify-center p-2 text-center mb-2">
-                          <div className="w-8 h-8 rounded-full bg-[#8D5B4C]/10 text-[#8D5B4C] flex items-center justify-center mb-1 animate-pulse">
+                        <div className="w-36 h-22 rounded-2xl border-2 border-dashed border-[#8D5B4C]/40 bg-white/40 flex flex-col items-center justify-center p-2 text-center mb-1.5">
+                          <div className="w-7 h-7 rounded-full bg-[#8D5B4C]/10 text-[#8D5B4C] flex items-center justify-center mb-1 animate-pulse">
                             <UserPlus className="w-4 h-4" />
                           </div>
                           <span className="text-[10px] font-black text-[#5D3A1A]">

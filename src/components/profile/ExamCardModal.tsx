@@ -135,39 +135,56 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
 
           {/* Card Body Grid */}
           <div className="grid grid-cols-1 sm:grid-cols-12 gap-5 items-center">
-            {/* Left: Classic ID Photo in Vintage Corner Mounts */}
-            <div className="sm:col-span-5 flex flex-col items-center justify-center p-3.5 rounded-xl bg-[#F7EBD2] border-2 border-[#D5C0A1] shadow-inner relative">
+            {/* Left: Classic ID Photo & LPC Character in Vintage Mounts */}
+            <div className="sm:col-span-5 flex flex-col items-center justify-center p-3 rounded-xl bg-[#F7EBD2] border-2 border-[#D5C0A1] shadow-inner relative">
               <span className="absolute top-1.5 left-2 text-[9px] font-bold text-[#8D5B4C]/70 tracking-wider">
-                【 受驗生肖像 】
+                【 受驗生肖像與角色 】
               </span>
 
-              {/* Vintage Photo Mounting Card */}
-              <div className="mt-3 mb-2 relative p-1.5 bg-[#FAF3E0] rounded-lg border border-[#D5C0A1] shadow-sm">
+              {/* Dual Portrait Display: Real Photo Avatar + 2D LPC Character */}
+              <div className="mt-3 mb-2 w-full flex items-center justify-around gap-2 p-2 bg-[#FAF3E0] rounded-xl border border-[#D5C0A1] shadow-sm relative">
                 {/* 4 Decorative Corner Photo Brackets */}
                 <div className="absolute -top-1 -left-1 w-2.5 h-2.5 border-t-2 border-l-2 border-[#5D3A1A]" />
                 <div className="absolute -top-1 -right-1 w-2.5 h-2.5 border-t-2 border-r-2 border-[#5D3A1A]" />
                 <div className="absolute -bottom-1 -left-1 w-2.5 h-2.5 border-b-2 border-l-2 border-[#5D3A1A]" />
                 <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#5D3A1A]" />
 
-                <div className="scale-85 origin-center my-[-4px]">
-                  <div className="w-[128px] h-[128px] flex items-center justify-center">
+                {/* 1. Player Personal Photo Avatar */}
+                <div className="flex flex-col items-center shrink-0">
+                  <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-xl border-2 border-[#5D3A1A] p-0.5 bg-white shadow-xs overflow-hidden">
+                    <img
+                      src={photoUrl}
+                      alt={merged.displayName || '受驗生'}
+                      className="w-full h-full object-cover rounded-lg"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${merged.uid || 'guest'}`;
+                      }}
+                    />
+                  </div>
+                  <span className="text-[8px] font-black text-[#8D5B4C] mt-1 tracking-tight">本人頭像</span>
+                </div>
+
+                {/* 2. 2D LPC Pixel Full-body Character */}
+                <div className="flex flex-col items-center shrink-0">
+                  <div className="w-[84px] h-[84px] flex items-center justify-center overflow-hidden">
                     <LpcAvatarView
                       config={merged.lpcCharacter}
-                      size={128}
-                      scale={2}
+                      size={80}
+                      scale={1.4}
                       direction="down"
                     />
                   </div>
+                  <span className="text-[8px] font-black text-[#8D5B4C] mt-1 tracking-tight">自訂化身</span>
                 </div>
 
                 {/* Corner Embossed School Stamp */}
-                <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-[#A83232]/90 text-white text-[8px] font-black font-serif tracking-tighter shadow-xs border border-white/80 rotate-[-12deg]">
+                <div className="absolute -bottom-2 -right-1 px-1.5 py-0.5 rounded-full bg-[#A83232]/90 text-white text-[8px] font-black font-serif tracking-tighter shadow-xs border border-white/80 rotate-[-10deg]">
                   對弈認可
                 </div>
               </div>
 
               {/* Registration Tag */}
-              <div className="mt-1 px-3 py-0.5 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[11px] font-black tracking-wider shadow-xs">
+              <div className="mt-0.5 px-3 py-0.5 rounded-md bg-[#5D3A1A] text-[#FFE8D6] text-[11px] font-black tracking-wider shadow-xs">
                 #{userTag}
               </div>
             </div>

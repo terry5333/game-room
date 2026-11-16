@@ -5,6 +5,7 @@ import { useAuth } from '../../context/AuthContext';
 import { getTitleById } from '../../data/titleCatalog';
 import { sound } from '../../services/soundService';
 import { getCleanUserTag } from '../../utils/userTag';
+import { LpcAvatarView } from '../profile/LpcAvatarView';
 
 interface TopWealthLeaderboardProps {
   onInspectUser?: (user: any) => void;
@@ -131,25 +132,42 @@ export const TopWealthLeaderboard: React.FC<TopWealthLeaderboardProps> = ({ onIn
                 </div>
               </div>
 
-              {/* Center Profile & Large Avatar Area (玩家大頭像，非像素角色) */}
+              {/* Center Profile Area: BOTH Large Photo Avatar AND 2D LPC Pixel Character (頭像與角色雙展示) */}
               <div className="flex flex-col items-center justify-center my-auto py-1">
-                {/* Large Player Photo Avatar with Decorative Rank Frame */}
-                <div className="relative mb-2">
-                  <div
-                    className={`w-20 h-20 sm:w-22 sm:h-22 rounded-2xl p-1 bg-white shadow-md border-3 ${cfg.borderColor} flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105`}
-                  >
-                    <img
-                      src={avatarUrl}
-                      alt={player.displayName || '受驗生'}
-                      className="w-full h-full object-cover rounded-xl"
-                      onError={(e) => {
-                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${player.uid || 'guest'}`;
-                      }}
-                    />
+                {/* Dual Avatar & Character Duo Showcase */}
+                <div className="relative mb-2 flex items-center justify-center gap-2 sm:gap-3">
+                  {/* 1. Large Player Photo Avatar with Decorative Rank Frame */}
+                  <div className="relative shrink-0">
+                    <div
+                      className={`w-14 h-14 sm:w-16 sm:h-16 rounded-2xl p-0.5 bg-white shadow-md border-3 ${cfg.borderColor} flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105`}
+                    >
+                      <img
+                        src={avatarUrl}
+                        alt={player.displayName || '受驗生'}
+                        className="w-full h-full object-cover rounded-xl"
+                        onError={(e) => {
+                          (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${player.uid || 'guest'}`;
+                        }}
+                      />
+                    </div>
+                    {/* Pinned Medal Badge on Corner */}
+                    <div className="absolute -bottom-1 -right-1 w-5 h-5 rounded-full bg-white border border-[#D5C0A1] shadow-xs flex items-center justify-center text-xs select-none">
+                      {cfg.medal}
+                    </div>
                   </div>
-                  {/* Pinned Medal Badge on Corner */}
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-[#D5C0A1] shadow-xs flex items-center justify-center text-sm select-none">
-                    {cfg.medal}
+
+                  {/* 2. 2D LPC Pixel Character standing with shadow */}
+                  <div className="flex flex-col items-center shrink-0">
+                    <div className="w-[66px] h-[66px] flex items-center justify-center rounded-2xl bg-[#FAF3E0]/90 border border-[#D5C0A1] shadow-inner overflow-hidden">
+                      <LpcAvatarView
+                        config={player.lpcCharacter}
+                        size={64}
+                        scale={1.2}
+                        direction="down"
+                      />
+                    </div>
+                    {/* Floor Shadow Under Character */}
+                    <div className="w-10 h-1.5 bg-[#5D3A1A]/20 rounded-full blur-[1px] -mt-0.5" />
                   </div>
                 </div>
 
