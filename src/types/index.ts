@@ -164,6 +164,7 @@ export interface PlayerSlot {
   score?: number;
   wardrobe?: UserWardrobe;
   petProfile?: UserPetProfile;
+  lpcCharacter?: LpcCharacterConfig;
 }
 
 // 1A2B Game Types

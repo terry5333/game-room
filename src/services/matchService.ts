@@ -354,7 +354,8 @@ class MatchService {
       photoURL: hostUser.photoURL,
       ready: false,
       wardrobe: hostUser.wardrobe,
-      petProfile: hostUser.petProfile
+      petProfile: hostUser.petProfile,
+      lpcCharacter: hostUser.lpcCharacter
     };
 
     const newRoom: GameRoom = {
@@ -465,7 +466,8 @@ class MatchService {
         photoURL: user.photoURL,
         ready: false,
         wardrobe: user.wardrobe,
-        petProfile: user.petProfile
+        petProfile: user.petProfile,
+        lpcCharacter: user.lpcCharacter
       };
       players.push(newPlayer);
       room.players = players;

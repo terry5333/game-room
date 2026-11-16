@@ -1,5 +1,5 @@
 // Service Worker for 遊戲室 PWA
-const CACHE_NAME = 'gameroom-pwa-v5';
+const CACHE_NAME = 'gameroom-pwa-v6';
 const STATIC_ASSETS = [
   '/',
   '/index.html',

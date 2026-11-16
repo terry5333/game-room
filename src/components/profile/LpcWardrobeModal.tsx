@@ -368,7 +368,14 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                           : 'bg-white text-[#5C5346] border-[#E5DEC9] hover:border-[#2E2925]'
                       }`}
                     >
-                      <span className="text-xl">👦</span>
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center p-0.5 overflow-hidden border border-white/30">
+                        <img
+                          src="/assets/lpc/thumbnails/body_male.png"
+                          alt="男性"
+                          className="w-full h-full object-contain"
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      </div>
                       <span>男性體型 (Male)</span>
                     </button>
 
@@ -387,7 +394,14 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                           : 'bg-white text-[#5C5346] border-[#E5DEC9] hover:border-[#2E2925]'
                       }`}
                     >
-                      <span className="text-xl">👧</span>
+                      <div className="w-10 h-10 bg-white/20 rounded-xl flex items-center justify-center p-0.5 overflow-hidden border border-white/30">
+                        <img
+                          src="/assets/lpc/thumbnails/body_female.png"
+                          alt="女性"
+                          className="w-full h-full object-contain"
+                          style={{ imageRendering: 'pixelated' }}
+                        />
+                      </div>
                       <span>女性體型 (Female)</span>
                     </button>
                   </div>
@@ -472,13 +486,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleEquipItem('hair', item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">💇</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
@@ -580,13 +601,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleEquipItem('top', item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">👕</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
@@ -634,13 +662,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleEquipItem('bottom', item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">👖</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
@@ -688,13 +723,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleEquipItem('shoes', item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">👞</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
@@ -742,13 +784,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleEquipItem('hat', item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">🧢</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
@@ -789,13 +838,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                       <button
                         key={item.id}
                         onClick={() => handleToggleAccessory(item.id)}
-                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative ${
+                        className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isEquipped
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <span className="text-2xl">👓</span>
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                          <img
+                            src={`/assets/lpc/thumbnails/${item.id}.png`}
+                            alt={item.name}
+                            className="w-full h-full object-contain"
+                            style={{ imageRendering: 'pixelated' }}
+                          />
+                        </div>
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>

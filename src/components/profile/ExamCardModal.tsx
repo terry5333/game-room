@@ -122,56 +122,20 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                 <div className="absolute -bottom-1 -right-1 w-2.5 h-2.5 border-b-2 border-r-2 border-[#5D3A1A]" />
 
                 <div className="scale-85 origin-center my-[-4px]">
-                  {portraitMode === 'lpc' ? (
-                    <div className="w-[128px] h-[128px] flex items-center justify-center">
-                      <LpcAvatarView
-                        config={(user as any).lpcCharacter}
-                        size={128}
-                        scale={2}
-                        direction="down"
-                      />
-                    </div>
-                  ) : (
-                    <PixelStage profile={petProf} size="sm" interactive={false} showFloor={true} />
-                  )}
+                  <div className="w-[128px] h-[128px] flex items-center justify-center">
+                    <LpcAvatarView
+                      config={(user as any).lpcCharacter}
+                      size={128}
+                      scale={2}
+                      direction="down"
+                    />
+                  </div>
                 </div>
 
                 {/* Corner Embossed School Stamp */}
                 <div className="absolute -bottom-2 -right-2 px-1.5 py-0.5 rounded-full bg-[#A83232]/90 text-white text-[8px] font-black font-serif tracking-tighter shadow-xs border border-white/80 rotate-[-12deg]">
                   對弈認可
                 </div>
-              </div>
-
-              {/* Portrait Mode Switcher */}
-              <div className="flex items-center gap-1 my-1">
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    setPortraitMode('lpc');
-                  }}
-                  className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-all cursor-pointer ${
-                    portraitMode === 'lpc'
-                      ? 'bg-[#5D3A1A] text-white border-[#5D3A1A]'
-                      : 'bg-white/80 text-[#8D5B4C] border-[#D5C0A1] hover:border-[#5D3A1A]'
-                  }`}
-                >
-                  🪞 2D 全身
-                </button>
-                <button
-                  type="button"
-                  onClick={() => {
-                    sound.playClick();
-                    setPortraitMode('stage');
-                  }}
-                  className={`px-2 py-0.5 rounded text-[9px] font-bold border transition-all cursor-pointer ${
-                    portraitMode === 'stage'
-                      ? 'bg-[#5D3A1A] text-white border-[#5D3A1A]'
-                      : 'bg-white/80 text-[#8D5B4C] border-[#D5C0A1] hover:border-[#5D3A1A]'
-                  }`}
-                >
-                  🛋️ 茶座小人
-                </button>
               </div>
 
               {/* Registration Tag */}
@@ -253,19 +217,6 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                   </span>
                   <span className="font-mono font-black text-[#B26A00] flex items-center gap-1">
                     🪙 {coins} 枚
-                  </span>
-                </div>
-
-                {/* Pixel Pet & Chair Companion Badge */}
-                <div className="pt-2 border-t border-[#D5C0A1]/50 flex items-center justify-between gap-2">
-                  <div className="flex items-center gap-2">
-                    <span className="text-base">{petSpecies.icon}</span>
-                    <span className="text-[11px] font-black text-[#5D3A1A]">
-                      隨行：{activePet.name} (Lv.{activePet.level})
-                    </span>
-                  </div>
-                  <span className="text-[10px] font-bold text-[#8D5B4C] bg-white/70 px-2 py-0.5 rounded-md border border-[#D5C0A1]/50">
-                    🪑 {activeChair.name}
                   </span>
                 </div>
               </div>
