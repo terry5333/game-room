@@ -174,6 +174,23 @@ class LpcRendererService {
       targetPaletteId: config.skinTone || 'light'
     });
 
+    // 1.5 頭部 Head (人臉頭型基底，與身體同膚色)
+    const headPath = config.gender === 'female' ? 'body/head_female.png' : 'body/head_male.png';
+    layers.push({
+      item: {
+        id: 'head_base',
+        name: '頭部基底',
+        category: 'body',
+        imagePath: headPath,
+        layerOrder: 15,
+        genderSupport: 'both',
+        author: 'LPC Community',
+        license: 'CC-BY-SA 3.0'
+      },
+      paletteType: 'skin',
+      targetPaletteId: config.skinTone || 'light'
+    });
+
     // 2. 褲子/下著 Bottom
     if (config.bottom && config.bottom !== 'none') {
       const bottomItem = LPC_ITEMS.find((it) => it.id === config.bottom);
