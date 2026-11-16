@@ -328,7 +328,20 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </div>
               </div>
 
-              <div className="flex items-center gap-1.5 shrink-0">
+              <div className="flex items-center gap-1.5 shrink-0 flex-wrap">
+                {onOpenCasino && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onOpenCasino();
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-[#231710] text-xs font-black shadow-xs flex items-center gap-1 transition-all cursor-pointer border border-[#FDF6C7]/50"
+                    title="帝國地下遊技場（拉霸機・刮刮樂・輪盤）"
+                  >
+                    <span>🎰 遊技場</span>
+                  </button>
+                )}
+
                 <button
                   onClick={() => {
                     sound.playClick();

@@ -32,12 +32,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onOpenAdmin,
-  onOpenCasinoBoss,
-  onOpenEditProfile,
-  onOpenCasino,
-  onOpenExamCard,
-  onOpenLpcWardrobe,
-  inGame = false
+  onOpenEditProfile
 }) => {
   const { currentUser, logout } = useAuth();
   const [copied, setCopied] = useState(false);
@@ -91,51 +86,6 @@ export const Header: React.FC<HeaderProps> = ({
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />
             <span>{currentUser.coins.toLocaleString()}</span>
           </div>
-
-          {/* Casino Boss Desk Shortcut for Admin */}
-          {currentUser.role === 'admin' && onOpenCasinoBoss && (
-            <button
-              onClick={() => {
-                sound.playClick();
-                onOpenCasinoBoss();
-              }}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:brightness-110 text-neutral-950 font-black text-xs shadow-xs transition-all cursor-pointer shrink-0 border border-yellow-200"
-              title="開啟賭場老闆管理後台（調整賠率、開關機率、查驗賭博紀錄）"
-            >
-              <span className="text-sm">👑</span>
-              <span className="hidden sm:inline">賭場後台</span>
-            </button>
-          )}
-
-          {/* Casino / Gaming Hall Shortcut */}
-          {onOpenCasino && (
-            <button
-              onClick={() => {
-                sound.playClick();
-                onOpenCasino();
-              }}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#D4AF37] to-[#B8860B] hover:brightness-110 text-[#231710] font-black text-xs shadow-xs transition-all cursor-pointer shrink-0 border border-[#FDF6C7]/50"
-              title="前往帝國地下遊技場（拉霸機・刮刮樂・骰寶）"
-            >
-              <span className="text-sm">🎰</span>
-              <span className="hidden sm:inline">遊技場</span>
-            </button>
-          )}
-
-          {/* 2D Full-body LPC Wardrobe Shortcut */}
-          {onOpenLpcWardrobe && (
-            <button
-              onClick={() => {
-                sound.playClick();
-                onOpenLpcWardrobe();
-              }}
-              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#2E2925] to-[#433C36] hover:brightness-110 text-white font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0 border border-white/20"
-              title="開啟 2D 全身像素自訂換裝室"
-            >
-              <span className="text-sm">🪞</span>
-              <span className="hidden sm:inline">換裝室</span>
-            </button>
-          )}
 
           {/* Sound Toggle */}
           <button
@@ -202,48 +152,6 @@ export const Header: React.FC<HeaderProps> = ({
                   </div>
                 </div>
 
-                {/* Showa Exam Card Option */}
-                {onOpenExamCard && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenExamCard();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#5D3A1A] hover:bg-[#8D5B4C]/10 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <Award className="w-3.5 h-3.5 text-[#8D5B4C]" />
-                    <span>帝國受驗准考證（名片）</span>
-                  </button>
-                )}
-
-                {/* 2D Full-body LPC Wardrobe Option */}
-                {onOpenLpcWardrobe && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenLpcWardrobe();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#2E2925] hover:bg-black/5 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <span>🪞</span>
-                    <span>2D 全身像素自訂換裝室</span>
-                  </button>
-                )}
-
-                {/* Casino Option */}
-                {onOpenCasino && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenCasino();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#8C6D1F] hover:bg-[#D4AF37]/10 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <span>🎰</span>
-                    <span>帝國地下遊技場 (拉霸・刮刮樂)</span>
-                  </button>
-                )}
-
                 {/* PWA Mobile App Install Shortcut */}
                 <button
                   onClick={() => {
@@ -280,18 +188,7 @@ export const Header: React.FC<HeaderProps> = ({
                       <Shield className="w-3.5 h-3.5" />
                       <span>管理員房間大廳 (Admin)</span>
                     </button>
-                    {onOpenCasinoBoss && (
-                      <button
-                        onClick={() => {
-                          setMenuOpen(false);
-                          onOpenCasinoBoss();
-                        }}
-                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-black text-amber-800 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors cursor-pointer"
-                      >
-                        <span className="text-sm">👑</span>
-                        <span>賭場老闆後台 (機率/查帳)</span>
-                      </button>
-                    )}
+                    
                   </>
                 )}
 

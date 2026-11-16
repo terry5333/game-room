@@ -1,6 +1,6 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { X, Award, Coins, Flame, Sparkles, Edit3, ShieldCheck } from 'lucide-react';
+import { X, Award, Coins, Flame, Sparkles, Edit3, ShieldCheck, BookOpen } from 'lucide-react';
 import type { UserProfile, UserPresence, PlayerSlot, FriendRecord } from '../../types';
 import { STAMP_DETAILS, DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
 import {
@@ -12,6 +12,8 @@ import { PixelStage } from './PixelStage';
 import { LpcAvatarView } from './LpcAvatarView';
 import { sound } from '../../services/soundService';
 import { getTitleById } from '../../data/titleCatalog';
+import { useAuth } from '../../context/AuthContext';
+import { rtdb, ref, onValue } from '../../services/firebase';
 
 interface ExamCardModalProps {
   isOpen: boolean;
@@ -30,24 +32,42 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   onOpenEditProfile,
   onOpenTitleSelector
 }) => {
+  const { allUsers, currentUser } = useAuth();
+  const [liveUserData, setLiveUserData] = useState<any>(null);
+
+  useEffect(() => {
+    if (!isOpen || !user?.uid || !rtdb) return;
+    const unsub = onValue(ref(rtdb, `users/${user.uid}`), (snap) => {
+      if (snap.exists()) {
+        setLiveUserData(snap.val());
+      }
+    });
+    return () => unsub();
+  }, [isOpen, user?.uid]);
+
   if (!isOpen || !user) return null;
 
-  const wardrobe = user.wardrobe || DEFAULT_WARDROBE;
+  const targetFromAll = allUsers.find((u) => u.uid === user.uid);
+  const targetSelf = user.uid === currentUser?.uid ? currentUser : null;
+  const merged: any = { ...user, ...targetFromAll, ...targetSelf, ...liveUserData };
+
+  const wardrobe = merged.wardrobe || DEFAULT_WARDROBE;
   const stampKey = wardrobe.stamp || 'candidate';
   const stampInfo = STAMP_DETAILS[stampKey] || STAMP_DETAILS['candidate'];
 
-  const wins = Number((user as any).wins ?? (user as any).stats?.wins ?? 0);
-  const losses = Number((user as any).losses ?? (user as any).stats?.losses ?? 0);
-  const totalGames = Number((user as any).gamesPlayed ?? (user as any).stats?.totalGames ?? (wins + losses));
+  const wins = Number(merged.wins ?? merged.stats?.wins ?? 0);
+  const losses = Number(merged.losses ?? merged.stats?.losses ?? 0);
+  const totalGames = Number(merged.gamesPlayed ?? merged.stats?.totalGames ?? (wins + losses));
   const winRate =
     totalGames > 0
       ? ((wins / totalGames) * 100).toFixed(1)
       : '0.0';
 
-  const coins = (user as any).coins ?? 0;
-  const userTag = (user as any).userTag || user.uid?.substring(0, 4) || '1000';
+  const coins = Number(merged.coins ?? 0);
+  const userTag = merged.userTag || (isSelf ? currentUser?.userTag : '') || '0215';
+  const bio = merged.bio || merged.motto || '';
   const photoUrl =
-    user.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid || 'guest'}`;
+    merged.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${merged.uid || 'guest'}`;
 
   const [portraitMode, setPortraitMode] = React.useState<'lpc' | 'stage'>('lpc');
 
@@ -128,7 +148,7 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                 <div className="scale-85 origin-center my-[-4px]">
                   <div className="w-[128px] h-[128px] flex items-center justify-center">
                     <LpcAvatarView
-                      config={(user as any).lpcCharacter}
+                      config={merged.lpcCharacter}
                       size={128}
                       scale={2}
                       direction="down"
@@ -149,7 +169,7 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
             </div>
 
             {/* Right: Examinee Dossier & Stats */}
-            <div className="sm:col-span-7 flex flex-col justify-between space-y-3">
+            <div className="sm:col-span-7 flex flex-col justify-between space-y-2.5">
               {/* Name & Stamp Header */}
               <div className="flex items-start justify-between">
                 <div>
@@ -157,11 +177,11 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                     受驗生氏名
                   </div>
                   <div className="text-lg sm:text-xl font-black text-[#3B2211] font-serif tracking-wide truncate max-w-[160px]">
-                    {user.displayName}
+                    {merged.displayName || user.displayName}
                   </div>
                   {/* Equipped Title Badge */}
                   {(() => {
-                    const title = getTitleById((user as any).equippedTitle);
+                    const title = getTitleById(merged.equippedTitle);
                     if (!title) {
                       return isSelf && onOpenTitleSelector ? (
                         <div className="mt-1">
@@ -252,6 +272,31 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                     🪙 {coins} 枚
                   </span>
                 </div>
+              </div>
+
+              {/* Personal Bio / Motto Card */}
+              <div className="p-2.5 rounded-xl bg-white/70 border border-[#D5C0A1] shadow-2xs">
+                <div className="flex items-center justify-between mb-0.5">
+                  <span className="text-[10px] font-bold text-[#8D5B4C] flex items-center gap-1">
+                    <BookOpen className="w-3 h-3 text-[#5D3A1A]" />
+                    受驗生個人自介・座右銘
+                  </span>
+                  {isSelf && onOpenEditProfile && (
+                    <button
+                      onClick={() => {
+                        sound.playClick();
+                        onClose();
+                        onOpenEditProfile();
+                      }}
+                      className="text-[10px] font-bold text-[#628395] hover:underline cursor-pointer"
+                    >
+                      編輯自介
+                    </button>
+                  )}
+                </div>
+                <p className="text-xs text-[#3B2211] font-serif italic line-clamp-2">
+                  {bio ? `"${bio}"` : '「此受驗生專注對弈，暫未留下個人自介。」'}
+                </p>
               </div>
             </div>
           </div>

@@ -230,7 +230,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
   ).length;
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-5 bg-black/50 backdrop-blur-md">
+    <div className="fixed inset-0 z-80 flex items-center justify-center p-3 sm:p-5 bg-black/55 backdrop-blur-md">
       <motion.div
         initial={{ scale: 0.92, opacity: 0, y: 15 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
@@ -269,7 +269,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
 
         {/* Tab Switcher */}
         <div className="flex items-center justify-between gap-2 mb-4 shrink-0 flex-wrap">
-          <div className="flex items-center gap-2">
+          <div className="flex items-center gap-2 flex-wrap">
             <button
               onClick={() => setActiveTab('rooms')}
               className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
@@ -292,6 +292,30 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose,
             >
               <Users2 className="w-3.5 h-3.5" />
               <span>玩家管理與明細 ({allUsers.length})</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('casino_boss')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
+                activeTab === 'casino_boss'
+                  ? 'bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 text-neutral-950 shadow-sm border border-yellow-200'
+                  : 'bg-amber-500/15 text-amber-900 hover:bg-amber-500/25 border border-amber-500/40'
+              }`}
+            >
+              <span>👑</span>
+              <span>賭場老闆後台 (機率/查帳)</span>
+            </button>
+
+            <button
+              onClick={() => setActiveTab('shop_pricing')}
+              className={`flex items-center gap-1.5 px-3.5 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                activeTab === 'shop_pricing'
+                  ? 'bg-[#2E2925] text-white shadow-xs'
+                  : 'bg-white/60 text-[#2E2925] hover:bg-white border border-[#96897B]/20'
+              }`}
+            >
+              <ShoppingBag className="w-3.5 h-3.5" />
+              <span>服飾定價中心</span>
             </button>
 
             <button

@@ -91,6 +91,7 @@ export interface UserProfile {
   lpcCharacter?: LpcCharacterConfig;
   equippedTitle?: string;
   unlockedTitles?: string[];
+  bio?: string;
 }
 
 export type PresenceStatus = 'online' | 'lobby' | 'in_game' | 'offline';
@@ -112,6 +113,7 @@ export interface UserPresence {
   petProfile?: UserPetProfile;
   lpcCharacter?: LpcCharacterConfig;
   equippedTitle?: string;
+  bio?: string;
 }
 
 export interface CoinTransaction {

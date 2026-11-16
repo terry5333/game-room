@@ -30,7 +30,7 @@ interface AuthContextType {
   authError: string | null;
   loginWithGoogle: () => Promise<void>;
   logout: () => Promise<void>;
-  updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
+  updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string; bio?: string }) => Promise<void>;
   updateWardrobe: (newWardrobe: UserWardrobe, newUnlockedItem?: string) => Promise<void>;
   purchaseWardrobeItem: (newWardrobe: UserWardrobe, unlockedItemId: string, coinCost: number, itemName: string) => Promise<boolean>;
   lpcCharacter: LpcCharacterConfig;
@@ -248,6 +248,7 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       petProfile: mergedPetProfile,
       lpcCharacter: existingProfile?.lpcCharacter || localBackup?.lpcCharacter || DEFAULT_LPC_CHARACTER,
       equippedTitle: existingProfile?.equippedTitle ?? localBackup?.equippedTitle ?? '',
+      bio: existingProfile?.bio || localBackup?.bio || '',
       unlockedTitles: Array.from(new Set([
         ...(localBackup?.unlockedTitles || []),
         ...(existingProfile?.unlockedTitles || [])
@@ -351,24 +352,26 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
   };
 
-  // Update profile (Name, Avatar, 4-digit ID)
-  const updateUserProfile = async (data: { displayName: string; photoURL: string; userTag: string }) => {
+  // Update profile (Name, Avatar, 4-digit ID, Bio)
+  const updateUserProfile = async (data: { displayName: string; photoURL: string; userTag: string; bio?: string }) => {
     if (!currentUser) return;
     const updated: UserProfile = {
       ...currentUser,
       displayName: data.displayName.trim() || currentUser.displayName,
       photoURL: data.photoURL || currentUser.photoURL,
       userTag: data.userTag.trim() || currentUser.userTag,
+      bio: data.bio !== undefined ? data.bio.trim() : (currentUser.bio || ''),
       profileCompleted: true
     };
     saveUser(updated);
 
-    // Immediately propagate updated avatar & name to live presence
+    // Immediately propagate updated avatar & name & bio to live presence
     matchService.updatePresence({
       uid: updated.uid,
       displayName: updated.displayName,
       photoURL: updated.photoURL,
       userTag: updated.userTag,
+      bio: updated.bio,
       status: 'lobby',
       lastActive: Date.now()
     });

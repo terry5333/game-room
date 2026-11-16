@@ -33,6 +33,7 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
   const [name, setName] = useState(currentUser?.displayName || '');
   const [photoURL, setPhotoURL] = useState(currentUser?.photoURL || PRESET_AVATARS[0]);
   const [userTag, setUserTag] = useState(currentUser?.userTag || '1000');
+  const [bio, setBio] = useState(currentUser?.bio || '');
   const [uploading, setUploading] = useState(false);
 
   if (!isOpen || !currentUser) return null;
@@ -86,7 +87,8 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
     await updateUserProfile({
       displayName: name.trim(),
       photoURL,
-      userTag: userTag.trim()
+      userTag: userTag.trim(),
+      bio: bio.trim()
     });
 
     onClose();
@@ -218,6 +220,26 @@ export const EditProfileModal: React.FC<EditProfileModalProps> = ({ isOpen, onCl
                 className="w-full pl-7 pr-3 py-2 rounded-xl bg-white/80 border border-[#96897B]/20 font-mono text-sm font-extrabold tracking-widest text-[#2E2925] focus:outline-none focus:border-[#628395]"
               />
             </div>
+          </div>
+
+          {/* Bio / Self-Introduction */}
+          <div>
+            <div className="flex items-center justify-between mb-1">
+              <label className="text-xs font-bold text-[#2E2925]">
+                個人自介 / 座右銘
+              </label>
+              <span className="text-[10px] text-[#96897B] font-mono">
+                {bio.length} / 60
+              </span>
+            </div>
+            <textarea
+              maxLength={60}
+              rows={2}
+              value={bio}
+              onChange={(e) => setBio(e.target.value)}
+              placeholder="寫下一段座右銘或個人自介...（展示於准考證名片）"
+              className="w-full px-3 py-2 rounded-xl bg-white/80 border border-[#96897B]/20 text-xs text-[#2E2925] focus:outline-none focus:border-[#628395] resize-none"
+            />
           </div>
 
           <button
