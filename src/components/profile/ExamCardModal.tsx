@@ -11,6 +11,7 @@ import {
 import { PixelStage } from './PixelStage';
 import { LpcAvatarView } from './LpcAvatarView';
 import { sound } from '../../services/soundService';
+import { getTitleById } from '../../data/titleCatalog';
 
 interface ExamCardModalProps {
   isOpen: boolean;
@@ -18,6 +19,7 @@ interface ExamCardModalProps {
   user: UserProfile | UserPresence | PlayerSlot | FriendRecord | null;
   isSelf?: boolean;
   onOpenEditProfile?: () => void;
+  onOpenTitleSelector?: () => void;
 }
 
 export const ExamCardModal: React.FC<ExamCardModalProps> = ({
@@ -25,7 +27,8 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   onClose,
   user,
   isSelf = false,
-  onOpenEditProfile
+  onOpenEditProfile,
+  onOpenTitleSelector
 }) => {
   if (!isOpen || !user) return null;
 
@@ -155,7 +158,20 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                   <div className="text-lg sm:text-xl font-black text-[#3B2211] font-serif tracking-wide truncate max-w-[160px]">
                     {user.displayName}
                   </div>
-                  <div className="text-xs text-[#8D5B4C] font-mono font-bold mt-0.5">
+                  {/* Equipped Title Badge */}
+                  {(() => {
+                    const title = getTitleById((user as any).equippedTitle);
+                    return (
+                      <div className="mt-1">
+                        <span
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black border shadow-2xs ${title.badgeStyle} ${title.textColor}`}
+                        >
+                          {title.name}
+                        </span>
+                      </div>
+                    );
+                  })()}
+                  <div className="text-xs text-[#8D5B4C] font-mono font-bold mt-1">
                     編號：No.{userTag}
                   </div>
                 </div>
@@ -227,6 +243,19 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
           <div className="mt-5 pt-3.5 border-t-2 border-[#8D5B4C]/30 flex flex-wrap items-center justify-between gap-2">
             {isSelf ? (
               <div className="flex items-center gap-2 w-full sm:w-auto">
+                {onOpenTitleSelector && (
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      onClose();
+                      onOpenTitleSelector();
+                    }}
+                    className="flex-1 sm:flex-none px-3.5 py-2 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-bold text-xs transition-colors flex items-center justify-center gap-1.5 shadow-xs cursor-pointer"
+                  >
+                    <span>🎖️</span>
+                    <span>更換榮譽稱號</span>
+                  </button>
+                )}
                 {onOpenEditProfile && (
                   <button
                     onClick={() => {

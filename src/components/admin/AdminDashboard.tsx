@@ -38,6 +38,10 @@ import { useAuth } from '../../context/AuthContext';
 import { matchService } from '../../services/matchService';
 import type { GameRoom, UserProfile, UserPresence } from '../../types';
 import { sound } from '../../services/soundService';
+import { casinoSettings, CasinoSettings, CasinoHistoryRecord } from '../../services/casinoSettingsService';
+import { itemPricing, ItemPriceMap } from '../../services/itemPricingService';
+import { LPC_ITEMS, LpcItemDef } from '../../data/lpcCatalog';
+import { Dices, ShoppingBag, Sliders, History, DollarSign } from 'lucide-react';
 import { calculateLines } from '../games/bingo/GameBingo';
 
 interface AdminDashboardProps {
@@ -51,11 +55,31 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [roomStatusFilter, setRoomStatusFilter] = useState<'all' | 'in_progress' | 'waiting' | 'settled' | 'closed'>('all');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
-  const [activeTab, setActiveTab] = useState<'rooms' | 'users' | 'overview'>('rooms');
+  const [activeTab, setActiveTab] = useState<'rooms' | 'users' | 'casino_boss' | 'shop_pricing' | 'overview'>('rooms');
+  const [casinoSettingsState, setCasinoSettingsState] = useState<CasinoSettings>(casinoSettings.getSettings());
+  const [casinoHistory, setCasinoHistory] = useState<CasinoHistoryRecord[]>(casinoSettings.getHistory());
+  const [casinoHistoryFilter, setCasinoHistoryFilter] = useState<'all' | 'slot' | 'scratch' | 'roulette'>('all');
+  const [casinoSaveSuccess, setCasinoSaveSuccess] = useState(false);
+  const [customPrices, setCustomPrices] = useState<ItemPriceMap>(itemPricing.getAllCustomPrices());
+  const [priceCategoryFilter, setPriceCategoryFilter] = useState<'all' | 'top' | 'bottom' | 'shoes' | 'hat' | 'hair' | 'accessories'>('all');
+  const [priceSearchQuery, setPriceSearchQuery] = useState('');
+  const [pricingSaveSuccess, setPricingSaveSuccess] = useState(false);
   const [userFilter, setUserFilter] = useState<'all' | 'online' | 'in_game' | 'admin'>('all');
   const [rooms, setRooms] = useState<GameRoom[]>([]);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [inspectedRoom, setInspectedRoom] = useState<GameRoom | null>(null);
+
+  // 0. Subscribe to Casino Boss Settings & Item Pricing
+  useEffect(() => {
+    const unsubCasino = casinoSettings.subscribe((s) => setCasinoSettingsState(s));
+    const unsubHist = casinoSettings.subscribeHistory((h) => setCasinoHistory(h));
+    const unsubPrices = itemPricing.subscribe((p) => setCustomPrices(p));
+    return () => {
+      unsubCasino();
+      unsubHist();
+      unsubPrices();
+    };
+  }, []);
 
   // 1. Real-time zero-latency room stream & immediate RTDB pull
   useEffect(() => {
@@ -688,8 +712,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   { id: 'bingo', name: '賓果 5x5 連線', color: '#DBAD6A' },
                   { id: 'dots', name: '點線棋 圍地方格', color: '#CF995F' },
                   { id: 'ooxx', name: '經典 OOXX', color: '#628395' },
-                  { id: 'connect4', name: '四子棋 連線爭霸', color: '#C85A32' },
-                  { id: 'blackjack', name: '21點 莊家對決', color: '#0D4A2D' }
+                  { id: 'connect4', name: '四子棋 連線爭霸', color: '#C85A32' }
                 ].map((game) => {
                   const count = liveRooms.filter((r) => r.gameId === game.id).length;
                   const percent = liveRooms.length > 0 ? (count / liveRooms.length) * 100 : 0;
@@ -732,6 +755,662 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                   <span>RTDB WebSocket 正常</span>
                 </span>
               </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 4: 🎲 賭場老闆後台 (CASINO BOSS DESK & PROBABILITY AUDIT)  */}
+        {/* ============================================================== */}
+        {activeTab === 'casino_boss' && (
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            {/* Header Banner */}
+            <div className="glass-panel-subtle rounded-3xl p-5 border border-amber-500/30 bg-gradient-to-r from-amber-950/20 via-neutral-900/10 to-transparent">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-amber-500/20 border-2 border-amber-500/40 flex items-center justify-center text-2xl shadow-inner">
+                    🎲
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#2E2925] flex items-center gap-2">
+                      <span>地下賭場老闆管理中心</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-amber-500 text-white font-bold">
+                        莊家後台
+                      </span>
+                    </h3>
+                    <p className="text-xs text-[#96897B] font-medium">
+                      即時調整拉霸、刮刮樂、俄羅斯輪盤的精確中獎數學機率與獎池分成，並查閱即時下注稽核流水
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      sound.playClick();
+                      if (window.confirm('確定要將賭場所有遊戲機率恢復為官方預設值嗎？')) {
+                        await casinoSettings.resetSettings();
+                        setCasinoSaveSuccess(true);
+                        setTimeout(() => setCasinoSaveSuccess(false), 2000);
+                      }
+                    }}
+                    className="px-3 py-1.5 rounded-xl bg-white/70 hover:bg-white text-xs font-bold text-[#5C5346] border border-[#96897B]/30 transition-all cursor-pointer"
+                  >
+                    🔄 還原官方平衡機率
+                  </button>
+
+                  <button
+                    onClick={async () => {
+                      sound.playSuccess();
+                      await casinoSettings.updateSettings(casinoSettingsState, currentUser?.displayName);
+                      setCasinoSaveSuccess(true);
+                      setTimeout(() => setCasinoSaveSuccess(false), 2000);
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-amber-600 to-amber-700 hover:from-amber-500 hover:to-amber-600 text-white text-xs font-black shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{casinoSaveSuccess ? '已成功同步全伺服器！' : '儲存機率配置'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 賭場總營業額與莊家損益 KPI 看板 */}
+            {(() => {
+              const totalBet = casinoHistory.reduce((sum, r) => sum + (r.bet || 0), 0);
+              const totalPayout = casinoHistory.reduce((sum, r) => sum + (r.payout || 0), 0);
+              const houseProfit = totalBet - totalPayout;
+              return (
+                <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/70">
+                    <div className="text-[11px] font-bold text-[#96897B] flex items-center gap-1">
+                      <span>🪙</span>
+                      <span>玩家歷史總押注</span>
+                    </div>
+                    <div className="text-xl font-black text-[#2E2925] mt-1 font-mono">
+                      🪙 {totalBet.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/70">
+                    <div className="text-[11px] font-bold text-[#96897B] flex items-center gap-1">
+                      <span>🏆</span>
+                      <span>賭場總派彩金幣</span>
+                    </div>
+                    <div className="text-xl font-black text-amber-600 mt-1 font-mono">
+                      🪙 {totalPayout.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/70">
+                    <div className="text-[11px] font-bold text-[#96897B] flex items-center gap-1">
+                      <DollarSign className="w-3.5 h-3.5 text-emerald-600" />
+                      <span>莊家歷史淨收益</span>
+                    </div>
+                    <div className={`text-xl font-black mt-1 font-mono ${
+                      houseProfit >= 0 ? 'text-emerald-600' : 'text-rose-600'
+                    }`}>
+                      {houseProfit >= 0 ? '+' : ''}🪙 {houseProfit.toLocaleString()}
+                    </div>
+                  </div>
+
+                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/70">
+                    <div className="text-[11px] font-bold text-[#96897B] flex items-center gap-1">
+                      <History className="w-3.5 h-3.5 text-indigo-600" />
+                      <span>累計稽核流水局數</span>
+                    </div>
+                    <div className="text-xl font-black text-indigo-600 mt-1 font-mono">
+                      {casinoHistory.length} 局
+                    </div>
+                  </div>
+                </div>
+              );
+            })()}
+
+            {/* 3 大賭博遊戲詳細機率微調面板 */}
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+              {/* 1. 🎰 幸運拉霸機設定 */}
+              <div className="glass-panel-subtle rounded-3xl p-4 border border-amber-500/20 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-[#96897B]/20">
+                  <span className="text-lg">🎰</span>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-[#2E2925]">幸運拉霸機詳細機率</h4>
+                    <p className="text-[10px] text-[#96897B]">控制 777 爆擊、雙 7 與連線返還</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">👑 777 爆擊大獎機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.slotJackpot777Chance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.1"
+                      max="5.0"
+                      step="0.1"
+                      value={casinoSettingsState.slotJackpot777Chance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, slotJackpot777Chance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">✨ 雙星 77 中獎機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.slotTwin77Chance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="1.0"
+                      max="20.0"
+                      step="0.5"
+                      value={casinoSettingsState.slotTwin77Chance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, slotTwin77Chance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">🔔 3 圖標連線普通機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.slotNormalMatchChance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5.0"
+                      max="40.0"
+                      step="1.0"
+                      value={casinoSettingsState.slotNormalMatchChance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, slotNormalMatchChance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">🏆 77/777 奪取大獎池比例</span>
+                      <span className="text-emerald-600 font-mono font-black">{casinoSettingsState.slotJackpotPayoutPct}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={casinoSettingsState.slotJackpotPayoutPct}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, slotJackpotPayoutPct: parseInt(e.target.value, 10) })}
+                      className="w-full accent-emerald-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">🎯 目標返獎率 RTP</span>
+                      <span className="text-indigo-600 font-mono font-black">{casinoSettingsState.slotRtpTarget}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="70"
+                      max="98"
+                      step="1"
+                      value={casinoSettingsState.slotRtpTarget}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, slotRtpTarget: parseInt(e.target.value, 10) })}
+                      className="w-full accent-indigo-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 2. 🎟️ 黃金刮刮樂設定 */}
+              <div className="glass-panel-subtle rounded-3xl p-4 border border-amber-500/20 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-[#96897B]/20">
+                  <span className="text-lg">🎟️</span>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-[#2E2925]">黃金刮刮樂獎項機率</h4>
+                    <p className="text-[10px] text-[#96897B]">調整特獎、二獎、三獎與保本率</p>
+                  </div>
+                </div>
+
+                <div className="space-y-3 text-xs">
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">👑 特等頭獎中獎機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.scratchJackpotChance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="0.5"
+                      max="8.0"
+                      step="0.5"
+                      value={casinoSettingsState.scratchJackpotChance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, scratchJackpotChance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">💎 二獎中獎機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.scratchSecondChance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="2.0"
+                      max="15.0"
+                      step="0.5"
+                      value={casinoSettingsState.scratchSecondChance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, scratchSecondChance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">🔔 三獎中獎機率</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.scratchThirdChance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="5.0"
+                      max="25.0"
+                      step="1.0"
+                      value={casinoSettingsState.scratchThirdChance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, scratchThirdChance: parseFloat(e.target.value) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">🪙 保本獎中獎機率</span>
+                      <span className="text-indigo-600 font-mono font-black">{casinoSettingsState.scratchBreakevenChance}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10.0"
+                      max="40.0"
+                      step="1.0"
+                      value={casinoSettingsState.scratchBreakevenChance}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, scratchBreakevenChance: parseFloat(e.target.value) })}
+                      className="w-full accent-indigo-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* 3. 🎯 俄羅斯輪盤生還率設定 */}
+              <div className="glass-panel-subtle rounded-3xl p-4 border border-amber-500/20 space-y-3">
+                <div className="flex items-center gap-2 pb-2 border-b border-[#96897B]/20">
+                  <span className="text-lg">🎯</span>
+                  <div>
+                    <h4 className="font-extrabold text-xs text-[#2E2925]">俄羅斯輪盤生還機率</h4>
+                    <p className="text-[10px] text-[#96897B]">細緻微調第 1 至 5 輪生還比例</p>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 text-xs">
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 1 輪生還率 (1.5x)</span>
+                      <span className="text-emerald-600 font-mono font-black">{casinoSettingsState.rouletteRound1Survival}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="50.0"
+                      max="95.0"
+                      step="0.5"
+                      value={casinoSettingsState.rouletteRound1Survival}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteRound1Survival: parseFloat(e.target.value) })}
+                      className="w-full accent-emerald-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 2 輪生還率 (2.5x)</span>
+                      <span className="text-emerald-600 font-mono font-black">{casinoSettingsState.rouletteRound2Survival}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="40.0"
+                      max="90.0"
+                      step="0.5"
+                      value={casinoSettingsState.rouletteRound2Survival}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteRound2Survival: parseFloat(e.target.value) })}
+                      className="w-full accent-emerald-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 3 輪生還率 (4.5x)</span>
+                      <span className="text-emerald-600 font-mono font-black">{casinoSettingsState.rouletteRound3Survival}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="30.0"
+                      max="85.0"
+                      step="0.5"
+                      value={casinoSettingsState.rouletteRound3Survival}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteRound3Survival: parseFloat(e.target.value) })}
+                      className="w-full accent-emerald-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 4 輪生還率 (9.0x)</span>
+                      <span className="text-emerald-600 font-mono font-black">{casinoSettingsState.rouletteRound4Survival}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="20.0"
+                      max="80.0"
+                      step="0.5"
+                      value={casinoSettingsState.rouletteRound4Survival}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteRound4Survival: parseFloat(e.target.value) })}
+                      className="w-full accent-emerald-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 5 輪通關生還率 (20x)</span>
+                      <span className="text-rose-600 font-mono font-black">{casinoSettingsState.rouletteRound5Survival}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10.0"
+                      max="70.0"
+                      step="0.5"
+                      value={casinoSettingsState.rouletteRound5Survival}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteRound5Survival: parseFloat(e.target.value) })}
+                      className="w-full accent-rose-600 cursor-pointer"
+                    />
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between font-bold mb-1">
+                      <span className="text-[#5C5346]">第 5 輪奪取大獎池比例</span>
+                      <span className="text-amber-600 font-mono font-black">{casinoSettingsState.rouletteJackpotPayoutPct}%</span>
+                    </div>
+                    <input
+                      type="range"
+                      min="10"
+                      max="100"
+                      step="5"
+                      value={casinoSettingsState.rouletteJackpotPayoutPct}
+                      onChange={(e) => setCasinoSettingsState({ ...casinoSettingsState, rouletteJackpotPayoutPct: parseInt(e.target.value, 10) })}
+                      className="w-full accent-amber-600 cursor-pointer"
+                    />
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* 賭場即時下注與損益稽核流水表 (Audit Trail Table) */}
+            <div className="glass-panel-subtle rounded-3xl p-5 border border-white/70 space-y-3">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2">
+                <div className="flex items-center gap-2">
+                  <History className="w-4 h-4 text-amber-600" />
+                  <h4 className="font-extrabold text-sm text-[#2E2925]">即時賭博下注與派彩詳細稽核紀錄</h4>
+                </div>
+
+                {/* 篩選標籤 */}
+                <div className="flex items-center gap-1 bg-white/70 p-1 rounded-xl border border-[#96897B]/20 text-xs">
+                  {(['all', 'slot', 'scratch', 'roulette'] as const).map((filterId) => (
+                    <button
+                      key={filterId}
+                      onClick={() => setCasinoHistoryFilter(filterId)}
+                      className={`px-2.5 py-1 rounded-lg font-bold transition-all cursor-pointer ${
+                        casinoHistoryFilter === filterId
+                          ? 'bg-[#2E2925] text-white shadow-xs'
+                          : 'text-[#786F66] hover:text-[#2E2925]'
+                      }`}
+                    >
+                      {filterId === 'all' && '全部紀錄'}
+                      {filterId === 'slot' && '🎰 拉霸機'}
+                      {filterId === 'scratch' && '🎫 刮刮樂'}
+                      {filterId === 'roulette' && '🎯 輪盤'}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              {/* 紀錄列表 */}
+              <div className="overflow-x-auto rounded-2xl border border-[#96897B]/20 bg-white/50">
+                <table className="w-full text-left text-xs text-[#2E2925]">
+                  <thead className="bg-[#F0EBE1] text-[#786F66] font-bold border-b border-[#96897B]/20">
+                    <tr>
+                      <th className="p-3">時間</th>
+                      <th className="p-3">玩家</th>
+                      <th className="p-3">遊戲</th>
+                      <th className="p-3">下注額</th>
+                      <th className="p-3">返獎額</th>
+                      <th className="p-3">莊家淨損益</th>
+                      <th className="p-3">結果詳情</th>
+                    </tr>
+                  </thead>
+                  <tbody className="divide-y divide-[#96897B]/15">
+                    {casinoHistory
+                      .filter((r) => casinoHistoryFilter === 'all' || r.game === casinoHistoryFilter)
+                      .slice(0, 50)
+                      .map((record) => {
+                        const houseNet = (record.bet || 0) - (record.payout || 0);
+                        const isWin = houseNet > 0;
+                        const isEven = houseNet === 0;
+                        return (
+                          <tr key={record.id} className="hover:bg-white/80 transition-colors">
+                            <td className="p-3 font-mono text-[11px] text-[#786F66]">
+                              {new Date(record.timestamp).toLocaleTimeString()}
+                            </td>
+                            <td className="p-3 font-bold">
+                              {record.displayName}
+                              <span className="text-[10px] text-[#96897B] font-mono ml-1">#{record.userTag}</span>
+                            </td>
+                            <td className="p-3">
+                              <span className="px-2 py-0.5 rounded-md text-[10px] font-bold bg-[#628395]/15 text-[#628395]">
+                                {record.game === 'slot' && '🎰 幸運拉霸'}
+                                {record.game === 'scratch' && '🎫 黃金刮刮樂'}
+                                {record.game === 'roulette' && '🎯 俄羅斯輪盤'}
+                              </span>
+                            </td>
+                            <td className="p-3 font-mono font-bold text-amber-700">
+                              🪙 {record.bet}
+                            </td>
+                            <td className="p-3 font-mono font-bold text-amber-600">
+                              🪙 {record.payout}
+                            </td>
+                            <td className="p-3 font-mono font-black">
+                              <span
+                                className={`px-2 py-0.5 rounded-full text-[10px] ${
+                                  isWin
+                                    ? 'bg-emerald-100 text-emerald-800'
+                                    : isEven
+                                    ? 'bg-gray-100 text-gray-700'
+                                    : 'bg-rose-100 text-rose-800'
+                                }`}
+                              >
+                                {houseNet > 0 ? `+🪙 ${houseNet}` : houseNet < 0 ? `-🪙 ${Math.abs(houseNet)}` : '平手'}
+                              </span>
+                            </td>
+                            <td className="p-3 text-[11px] text-[#5C5346] font-medium">
+                              {record.detail}
+                            </td>
+                          </tr>
+                        );
+                      })}
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ============================================================== */}
+        {/* TAB 5: 👗 服裝商城定價管理 (LPC WARDROBE PRICING ADMIN)         */}
+        {/* ============================================================== */}
+        {activeTab === 'shop_pricing' && (
+          <div className="flex-1 overflow-y-auto space-y-4 pr-1">
+            {/* Header Banner */}
+            <div className="glass-panel-subtle rounded-3xl p-5 border border-indigo-500/30 bg-gradient-to-r from-indigo-950/20 via-neutral-900/10 to-transparent">
+              <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-12 h-12 rounded-2xl bg-indigo-500/20 border-2 border-indigo-500/40 flex items-center justify-center text-2xl shadow-inner">
+                    👗
+                  </div>
+                  <div>
+                    <h3 className="text-base font-black text-[#2E2925] flex items-center gap-2">
+                      <span>2D 像素服裝商城定價管理</span>
+                      <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-600 text-white font-bold">
+                        Universal LPC
+                      </span>
+                    </h3>
+                    <p className="text-xs text-[#96897B] font-medium">
+                      隨時自訂上衣、長褲、鞋子、髮型、帽子與飾品的金幣售價，設為 0 即代表新手免費發放
+                    </p>
+                  </div>
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <button
+                    onClick={async () => {
+                      sound.playSuccess();
+                      await itemPricing.setBatchPrices(customPrices);
+                      setPricingSaveSuccess(true);
+                      setTimeout(() => setPricingSaveSuccess(false), 2000);
+                    }}
+                    className="px-4 py-1.5 rounded-xl bg-gradient-to-r from-indigo-600 to-indigo-700 hover:from-indigo-500 hover:to-indigo-600 text-white text-xs font-black shadow-md transition-all cursor-pointer flex items-center gap-1.5"
+                  >
+                    <Check className="w-4 h-4" />
+                    <span>{pricingSaveSuccess ? '已成功同步全服價格！' : '一鍵儲存全商城定價'}</span>
+                  </button>
+                </div>
+              </div>
+            </div>
+
+            {/* 篩選與搜尋列 */}
+            <div className="glass-panel-subtle rounded-2xl p-3 border border-white/70 flex flex-wrap items-center justify-between gap-2.5">
+              <div className="flex items-center gap-1 overflow-x-auto no-scrollbar">
+                {(
+                  [
+                    { id: 'all', label: '全部' },
+                    { id: 'top', label: '上衣' },
+                    { id: 'bottom', label: '褲子' },
+                    { id: 'shoes', label: '鞋子' },
+                    { id: 'hat', label: '帽子' },
+                    { id: 'hair', label: '髮型' },
+                    { id: 'accessories', label: '配件' }
+                  ] as const
+                ).map((tab) => (
+                  <button
+                    key={tab.id}
+                    onClick={() => setPriceCategoryFilter(tab.id)}
+                    className={`px-3 py-1.5 rounded-xl text-xs font-bold transition-all cursor-pointer ${
+                      priceCategoryFilter === tab.id
+                        ? 'bg-[#2E2925] text-white shadow-xs'
+                        : 'bg-white/70 text-[#5C5346] hover:bg-white border border-[#96897B]/20'
+                    }`}
+                  >
+                    {tab.label}
+                  </button>
+                ))}
+              </div>
+
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Search className="w-3.5 h-3.5 text-[#96897B] absolute left-3 top-1/2 -translate-y-1/2 pointer-events-none" />
+                  <input
+                    type="text"
+                    placeholder="搜尋服裝名稱..."
+                    value={priceSearchQuery}
+                    onChange={(e) => setPriceSearchQuery(e.target.value)}
+                    className="pl-8 pr-3 py-1.5 rounded-xl bg-white/80 border border-[#96897B]/20 text-xs text-[#2E2925] focus:outline-none focus:border-indigo-500 w-40 sm:w-52"
+                  />
+                </div>
+              </div>
+            </div>
+
+            {/* 商品定價卡片清單 */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+              {LPC_ITEMS.filter((item) => {
+                if (priceCategoryFilter !== 'all' && item.category !== priceCategoryFilter) return false;
+                if (priceSearchQuery.trim()) {
+                  return item.name.toLowerCase().includes(priceSearchQuery.toLowerCase());
+                }
+                return true;
+              }).map((item) => {
+                const currentPrice = customPrices[item.id] !== undefined ? customPrices[item.id] : (item.price ?? 100);
+                return (
+                  <div
+                    key={item.id}
+                    className="glass-panel-subtle rounded-2xl p-3 border border-white/80 flex items-center gap-3 hover:border-indigo-400/50 transition-all shadow-xs"
+                  >
+                    <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shrink-0 overflow-hidden shadow-inner">
+                      <img
+                        src={`/assets/lpc/thumbnails/${item.id}.png`}
+                        alt={item.name}
+                        className="w-full h-full object-contain"
+                        style={{ imageRendering: 'pixelated' }}
+                      />
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center justify-between gap-1">
+                        <span className="text-xs font-bold text-[#2E2925] truncate">{item.name}</span>
+                        <span className="text-[10px] px-1.5 py-0.5 rounded-md bg-gray-100 text-gray-600 font-bold shrink-0">
+                          {item.category}
+                        </span>
+                      </div>
+                      <div className="text-[10px] text-[#786F66] truncate mt-0.5">
+                        {item.description || item.license}
+                      </div>
+
+                      {/* 價格調整區 */}
+                      <div className="flex items-center gap-2 mt-2">
+                        <div className="flex items-center gap-1 bg-white px-2 py-1 rounded-xl border border-[#96897B]/30 shadow-inner">
+                          <span className="text-xs">🪙</span>
+                          <input
+                            type="number"
+                            min="0"
+                            max="99999"
+                            step="10"
+                            value={currentPrice}
+                            onChange={(e) => {
+                              const val = Math.max(0, parseInt(e.target.value, 10) || 0);
+                              setCustomPrices((prev) => ({ ...prev, [item.id]: val }));
+                            }}
+                            className="w-16 text-xs font-mono font-black text-[#2E2925] focus:outline-none"
+                          />
+                        </div>
+
+                        <button
+                          onClick={async () => {
+                            sound.playClick();
+                            await itemPricing.setPrice(item.id, currentPrice);
+                          }}
+                          className="px-2.5 py-1 rounded-xl bg-indigo-50 hover:bg-indigo-100 text-indigo-700 border border-indigo-200 text-xs font-bold transition-all cursor-pointer"
+                        >
+                          儲存
+                        </button>
+
+                        <button
+                          onClick={async () => {
+                            sound.playClick();
+                            setCustomPrices((prev) => ({ ...prev, [item.id]: 0 }));
+                            await itemPricing.setPrice(item.id, 0);
+                          }}
+                          className="px-2 py-1 rounded-xl bg-gray-50 hover:bg-gray-100 text-gray-600 border border-gray-200 text-[10px] font-bold transition-all cursor-pointer"
+                          title="設為免費"
+                        >
+                          免費
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
         )}

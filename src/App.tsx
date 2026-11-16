@@ -14,6 +14,7 @@ import { EditProfileModal } from './components/profile/EditProfileModal';
 import { CasinoModal, CasinoTab } from './components/casino/CasinoModal';
 import { ExamCardModal } from './components/profile/ExamCardModal';
 import { LpcWardrobeModal } from './components/profile/LpcWardrobeModal';
+import { TitleSelectorModal } from './components/profile/TitleSelectorModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
 import { Game1A2B } from './components/games/game1a2b/Game1A2B';
@@ -22,7 +23,6 @@ import { GameBingo } from './components/games/bingo/GameBingo';
 import { GameDotsAndBoxes } from './components/games/dotsandboxes/GameDotsAndBoxes';
 import { GameOOXX } from './components/games/ooxx/GameOOXX';
 import { GameConnect4 } from './components/games/connect4/GameConnect4';
-import { GameBlackjackRoom } from './components/games/blackjack/GameBlackjackRoom';
 import { LoadingScreen } from './components/common/LoadingScreen';
 import { PwaInstallPrompt } from './components/common/PwaInstallPrompt';
 import type { GameId } from './types';
@@ -40,6 +40,7 @@ export const AppContent: React.FC = () => {
   const [casinoTab, setCasinoTab] = useState<CasinoTab>('slot');
   const [examCardUser, setExamCardUser] = useState<any>(null);
   const [lpcWardrobeOpen, setLpcWardrobeOpen] = useState(false);
+  const [titleSelectorOpen, setTitleSelectorOpen] = useState(false);
 
   if (loading) {
     return <LoadingScreen message="對戰平台載入中..." subMessage="正在與雲端伺服器建立加密連線並同步使用者資訊..." />;
@@ -90,8 +91,6 @@ export const AppContent: React.FC = () => {
                   ? '點線棋'
                   : currentRoom.gameId === 'connect4'
                   ? '四子棋 連線爭霸'
-                  : currentRoom.gameId === 'blackjack'
-                  ? '21點 莊家對決'
                   : '經典 OOXX'
               }
               gameId={currentRoom.gameId}
@@ -103,7 +102,6 @@ export const AppContent: React.FC = () => {
               {currentRoom.gameId === 'dots' && <GameDotsAndBoxes />}
               {currentRoom.gameId === 'ooxx' && <GameOOXX />}
               {currentRoom.gameId === 'connect4' && <GameConnect4 />}
-              {currentRoom.gameId === 'blackjack' && <GameBlackjackRoom />}
             </GameShell>
           ) : (
             <div className="flex-1 flex max-w-5xl mx-auto w-full">
@@ -116,6 +114,7 @@ export const AppContent: React.FC = () => {
                 }}
                 onOpenExamCard={() => setExamCardUser(currentUser)}
                 onOpenLpcWardrobe={() => setLpcWardrobeOpen(true)}
+                onOpenTitleSelector={() => setTitleSelectorOpen(true)}
               />
             </div>
           )}
@@ -177,6 +176,16 @@ export const AppContent: React.FC = () => {
           setExamCardUser(null);
           setEditProfileOpen(true);
         }}
+        onOpenTitleSelector={() => {
+          setExamCardUser(null);
+          setTitleSelectorOpen(true);
+        }}
+      />
+
+      {/* Player Title Selector Modal */}
+      <TitleSelectorModal
+        isOpen={titleSelectorOpen}
+        onClose={() => setTitleSelectorOpen(false)}
       />
 
       {/* 2D Full-body LPC Pixel Character Wardrobe Modal */}

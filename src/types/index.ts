@@ -1,4 +1,4 @@
-export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx' | 'connect4' | 'blackjack';
+export type GameId = '1a2b' | 'battleship' | 'bingo' | 'dots' | 'ooxx' | 'connect4';
 
 export interface UserWardrobe {
   gender?: 'male' | 'female';
@@ -89,6 +89,8 @@ export interface UserProfile {
   unlockedItems?: string[];
   petProfile?: UserPetProfile;
   lpcCharacter?: LpcCharacterConfig;
+  equippedTitle?: string;
+  unlockedTitles?: string[];
 }
 
 export type PresenceStatus = 'online' | 'lobby' | 'in_game' | 'offline';
@@ -109,6 +111,7 @@ export interface UserPresence {
   wardrobe?: UserWardrobe;
   petProfile?: UserPetProfile;
   lpcCharacter?: LpcCharacterConfig;
+  equippedTitle?: string;
 }
 
 export interface CoinTransaction {

@@ -3,6 +3,7 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Coins, Sparkles, Trophy, RotateCcw, Zap, HelpCircle, Crosshair, Flame, ShieldAlert, Award } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
+import { casinoSettings } from '../../services/casinoSettingsService';
 import { rtdb, ref, onValue, runTransaction } from '../../services/firebase';
 
 export interface CasinoModalProps {
@@ -11,7 +12,7 @@ export interface CasinoModalProps {
   initialTab?: CasinoTab;
 }
 
-export type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack';
+export type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette';
 
 // ==========================================
 // 0. PLAYING CARD INTERFACE FOR BLACKJACK
@@ -180,6 +181,12 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
   // ------------------------------------------
   // GLOBAL PROGRESSIVE JACKPOT (累積大獎池)
   // ------------------------------------------
+  const [casinoCfg, setCasinoCfg] = useState(casinoSettings.getSettings());
+
+  useEffect(() => {
+    return casinoSettings.subscribe(setCasinoCfg);
+  }, []);
+
   const [globalJackpot, setGlobalJackpot] = useState<number>(() => {
     const saved = localStorage.getItem('gameroom_casino_jackpot');
     return saved ? parseInt(saved, 10) : 13880;
@@ -276,7 +283,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
     }
 
     setIsRevolverSpinning(true);
-    sound.playRevolverSpin();
+    sound.playRouletteSpin();
 
     setTimeout(async () => {
       setIsRevolverSpinning(false);
@@ -285,11 +292,22 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
       setFiredChambers((prev) => [...prev, chamberToFire]);
 
       if (chamberToFire === bulletChamber) {
-        sound.playGunshot();
+        sound.playRouletteBoom();
         setRouletteState('dead');
         setRouletteMessage(`💥 槍響中彈！在第 ${roundNow} 輪（第 ${chamberToFire} 號彈巢）擊發！遺憾出局！`);
+        casinoSettings.logBet({
+          uid: currentUser?.uid || 'anon',
+          displayName: currentUser?.displayName || '冒險者',
+          userTag: currentUser?.userTag || '0000',
+          game: 'roulette',
+          bet: rouletteBet,
+          payout: 0,
+          netProfit: -rouletteBet,
+          jackpotContribution: rouletteBet,
+          detail: `第 ${roundNow} 輪中彈擊發 (第 ${chamberToFire} 號彈巢)`
+        });
       } else {
-        sound.playDryFire();
+        sound.playRouletteClick();
         if (roundNow === 5) {
           const jackpotBonus = await claimJackpotFiftyPercent();
           const totalWin = rouletteBet * 20 + jackpotBonus;
@@ -297,6 +315,17 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
           setRouletteState('cashed');
           setRouletteMessage(`🏆 傳奇誕生！極限生還 5 輪！狂攬 20 倍 + 獨得 50% 巨額總獎池 🪙 +${totalWin}！`);
           await updateCoins(totalWin, 'casino_win', `俄羅斯輪盤極限生還 🪙+${totalWin}`);
+          casinoSettings.logBet({
+            uid: currentUser?.uid || 'anon',
+            displayName: currentUser?.displayName || '冒險者',
+            userTag: currentUser?.userTag || '0000',
+            game: 'roulette',
+            bet: rouletteBet,
+            payout: totalWin,
+            netProfit: totalWin - rouletteBet,
+            jackpotContribution: rouletteBet,
+            detail: '第 5 輪極限生還！狂攬 50% 總獎池'
+          });
         } else {
           setRouletteState('survived');
           setRouletteRound(roundNow);
@@ -315,6 +344,17 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
     setRouletteState('cashed');
     setRouletteMessage(`💰 見好就收！成功帶走 🪙 +${winnings} 金幣！`);
     await updateCoins(winnings, 'casino_win', `俄羅斯輪盤見好就收 🪙+${winnings}`);
+    casinoSettings.logBet({
+      uid: currentUser?.uid || 'anon',
+      displayName: currentUser?.displayName || '冒險者',
+      userTag: currentUser?.userTag || '0000',
+      game: 'roulette',
+      bet: rouletteBet,
+      payout: winnings,
+      netProfit: winnings - rouletteBet,
+      jackpotContribution: rouletteBet,
+      detail: `第 ${rouletteRound} 輪見好就收 (${mult}x)`
+    });
   };
 
   // ------------------------------------------
@@ -1016,8 +1056,8 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
             </div>
           </div>
 
-          {/* Navigation Tabs (5 Games: Slots, Scratch, Dice, Roulette, Blackjack) */}
-          <div className="grid grid-cols-3 sm:grid-cols-5 gap-1.5 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
+          {/* Navigation Tabs (4 Games: Slots, Scratch, Dice, Roulette) */}
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-1.5 p-1 rounded-2xl bg-black/40 border border-[#D4AF37]/30 mb-4 shrink-0">
             <button
               onClick={() => {
                 sound.playClick();
@@ -1076,21 +1116,6 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
             >
               <span>🎯</span>
               <span>俄羅斯輪盤</span>
-            </button>
-
-            <button
-              onClick={() => {
-                sound.playClick();
-                setActiveTab('blackjack');
-              }}
-              className={`py-2 px-2 rounded-xl text-xs sm:text-sm font-black transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
-                activeTab === 'blackjack'
-                  ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] shadow-md'
-                  : 'text-[#C5A028] hover:bg-white/5'
-              }`}
-            >
-              <span>🃏</span>
-              <span>21點決鬥</span>
             </button>
           </div>
 
@@ -1853,215 +1878,7 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
             </div>
           )}
 
-          {/* ========================================================
-              TAB 5: 🃏 21點決鬥 (BLACKJACK)
-              ======================================================== */}
-          {activeTab === 'blackjack' && (
-            <div className="flex-1 flex flex-col justify-between overflow-y-auto pr-1">
-              {/* Luxury Casino Felt Table */}
-              <div className="relative p-4 sm:p-5 rounded-3xl bg-gradient-to-b from-[#0B3B24] via-[#0D4A2D] to-[#072416] border-3 border-[#D4AF37] shadow-2xl flex flex-col items-center min-h-[380px] justify-between">
-                {/* Table Felt Arch Watermark */}
-                <div className="w-full flex items-center justify-between px-3 py-1 rounded-full bg-black/40 border border-[#D4AF37]/40 mb-2">
-                  <span className="text-[10px] font-black text-amber-200 tracking-wider">
-                    DEALER STANDS ON 17 • BLACKJACK PAYS 3:2
-                  </span>
-                  <span className="text-[10px] font-mono font-black text-[#FFD700]">
-                    100% 注額注入獎池
-                  </span>
-                </div>
 
-                {/* 1. DEALER SECTION */}
-                <div className="w-full flex flex-col items-center gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-amber-200">
-                      莊家手牌 (Dealer)
-                    </span>
-                    {bjState === 'game_over' && dealerHand.length > 0 && (
-                      <span className="px-2 py-0.5 rounded-full bg-black/60 text-[#FFD700] text-[10px] font-mono font-black border border-amber-500/40">
-                        {calculateHandScore(dealerHand).total} 點
-                        {calculateHandScore(dealerHand).isBust && ' (爆牌)'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Dealer Cards Container */}
-                  <div className="flex items-center gap-2 min-h-[82px]">
-                    {dealerHand.length === 0 ? (
-                      <div className="w-16 h-22 rounded-xl border-2 border-dashed border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]/40 text-xs font-black">
-                        等待發牌
-                      </div>
-                    ) : (
-                      dealerHand.map((c, i) => {
-                        const isHidden = i === 1 && (bjState === 'playing' || bjState === 'betting');
-
-                        if (isHidden) {
-                          return (
-                            <div
-                              key="dealer-hidden-card"
-                              className="w-16 h-22 rounded-xl bg-gradient-to-br from-[#8C1D1D] to-[#5C0D0D] border-2 border-white shadow-lg flex flex-col items-center justify-center text-amber-200 font-serif select-none"
-                            >
-                              <span className="text-xl">🂠</span>
-                              <span className="text-[9px] font-black tracking-widest uppercase">暗牌</span>
-                            </div>
-                          );
-                        }
-
-                        return (
-                          <div
-                            key={`dealer-card-${i}`}
-                            className="w-16 h-22 rounded-xl bg-white border-2 border-amber-300 shadow-lg flex flex-col justify-between p-1.5 select-none animate-fade-in"
-                          >
-                            <div className={`text-xs font-black leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                              {c.rank}
-                            </div>
-                            <div className={`text-2xl text-center leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                              {c.suit}
-                            </div>
-                            <div className={`text-xs font-black text-right leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                              {c.rank}
-                            </div>
-                          </div>
-                        );
-                      })
-                    )}
-                  </div>
-                </div>
-
-                {/* 2. CENTER STATUS BANNER */}
-                <div className="my-2 text-center w-full max-w-md">
-                  {bjMessage ? (
-                    <div className="px-4 py-2 rounded-2xl bg-black/75 border border-[#D4AF37] text-xs sm:text-sm font-black text-[#FDF6C7] shadow-xl">
-                      {bjMessage}
-                    </div>
-                  ) : (
-                    <div className="text-[11px] font-bold text-emerald-200/80">
-                      下注後點擊「投幣發牌」，目標湊成最接近 21 點擊敗莊家！
-                    </div>
-                  )}
-                </div>
-
-                {/* 3. PLAYER SECTION */}
-                <div className="w-full flex flex-col items-center gap-1.5">
-                  <div className="flex items-center gap-2">
-                    <span className="text-xs font-black text-[#FDF6C7]">
-                      你的手牌 (Player)
-                    </span>
-                    {playerHand.length > 0 && (
-                      <span className={`px-2 py-0.5 rounded-full text-[10px] font-mono font-black border ${
-                        calculateHandScore(playerHand).isBlackjack
-                          ? 'bg-amber-400 text-black border-yellow-300 animate-pulse'
-                          : calculateHandScore(playerHand).isBust
-                          ? 'bg-red-600 text-white border-red-400'
-                          : 'bg-black/60 text-[#FFD700] border-amber-500/40'
-                      }`}>
-                        {calculateHandScore(playerHand).total} 點
-                        {calculateHandScore(playerHand).isBlackjack && ' (Blackjack!)'}
-                        {calculateHandScore(playerHand).isBust && ' (爆牌)'}
-                      </span>
-                    )}
-                  </div>
-
-                  {/* Player Cards Container */}
-                  <div className="flex items-center gap-2 min-h-[82px]">
-                    {playerHand.length === 0 ? (
-                      <div className="w-16 h-22 rounded-xl border-2 border-dashed border-[#D4AF37]/30 flex items-center justify-center text-[#D4AF37]/40 text-xs font-black">
-                        等待發牌
-                      </div>
-                    ) : (
-                      playerHand.map((c, i) => (
-                        <div
-                          key={`player-card-${i}`}
-                          className="w-16 h-22 rounded-xl bg-white border-2 border-amber-300 shadow-xl flex flex-col justify-between p-1.5 select-none animate-fade-in"
-                        >
-                          <div className={`text-xs font-black leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                            {c.rank}
-                          </div>
-                          <div className={`text-2xl text-center leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                            {c.suit}
-                          </div>
-                          <div className={`text-xs font-black text-right leading-none ${c.color === 'red' ? 'text-red-600' : 'text-neutral-900'}`}>
-                            {c.rank}
-                          </div>
-                        </div>
-                      ))
-                    )}
-                  </div>
-                </div>
-              </div>
-
-              {/* 4. BLACKJACK BOTTOM CONTROLS */}
-              <div className="mt-3 pt-3 border-t border-[#D4AF37]/30 flex flex-col sm:flex-row items-center justify-between gap-3">
-                {/* Chip Bet Selectors (Only selectable when not playing) */}
-                <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-xs font-bold text-[#C5A028]">下注額：</span>
-                  {BET_OPTIONS.map((amt) => (
-                    <button
-                      key={`bj-bet-${amt}`}
-                      disabled={bjState === 'playing' || bjState === 'dealer_turn'}
-                      onClick={() => {
-                        sound.playClick();
-                        setBjBet(amt);
-                      }}
-                      className={`px-3 py-1.5 rounded-xl text-xs font-black transition-all cursor-pointer ${
-                        bjBet === amt
-                          ? 'bg-[#D4AF37] text-[#231710] shadow-md scale-105'
-                          : 'bg-black/50 text-[#FFE8D6] hover:bg-white/10'
-                      }`}
-                    >
-                      🪙 {amt}
-                    </button>
-                  ))}
-                </div>
-
-                {/* Dynamic Actions */}
-                <div className="w-full sm:w-auto flex items-center gap-2">
-                  {bjState === 'playing' ? (
-                    <>
-                      {/* Hit (要牌) */}
-                      <button
-                        onClick={handleHitBlackjack}
-                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-sky-600 to-blue-700 hover:brightness-110 text-white shadow-xl flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
-                      >
-                        <span>🃏 要牌 (Hit)</span>
-                      </button>
-
-                      {/* Stand (停牌) */}
-                      <button
-                        onClick={() => handleStandBlackjack()}
-                        className="flex-1 sm:flex-initial px-5 py-2.5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-amber-600 to-yellow-600 hover:brightness-110 text-white shadow-xl flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
-                      >
-                        <span>✋ 停牌 (Stand)</span>
-                      </button>
-
-                      {/* Double Down (加倍) */}
-                      {playerHand.length === 2 && (
-                        <button
-                          disabled={currentCoins < bjBet}
-                          onClick={handleDoubleDownBlackjack}
-                          className="flex-1 sm:flex-initial px-4 py-2.5 rounded-2xl font-black text-xs sm:text-sm bg-gradient-to-r from-purple-600 to-indigo-700 hover:brightness-110 text-white shadow-xl flex items-center justify-center gap-1 cursor-pointer active:scale-95 transition-all"
-                        >
-                          <span>⚡ 加倍 (Double)</span>
-                        </button>
-                      )}
-                    </>
-                  ) : (
-                    <button
-                      disabled={currentCoins < bjBet || bjState === 'dealer_turn'}
-                      onClick={handleDealBlackjack}
-                      className={`w-full sm:w-auto px-8 py-3 rounded-2xl font-black text-base transition-all shadow-xl flex items-center justify-center gap-2 cursor-pointer ${
-                        currentCoins < bjBet
-                          ? 'bg-neutral-600 text-neutral-300 cursor-not-allowed'
-                          : 'bg-gradient-to-r from-[#D4AF37] via-[#FFD700] to-[#B8860B] hover:brightness-110 text-[#231710] active:scale-95'
-                      }`}
-                    >
-                      <span>🃏</span>
-                      <span>投幣發牌 🎲 (🪙 {bjBet})</span>
-                    </button>
-                  )}
-                </div>
-              </div>
-            </div>
-          )}
         </motion.div>
       </div>
     </AnimatePresence>

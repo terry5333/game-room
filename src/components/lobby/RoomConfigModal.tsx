@@ -52,9 +52,6 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
   // Dots Options
   const [dotsGridSize, setDotsGridSize] = useState<number>(initialOptions?.dotsGridSize || 4);
 
-  // Blackjack Options
-  const [blackjackRounds, setBlackjackRounds] = useState<3 | 5 | 10>(initialOptions?.blackjackRounds || 5);
-  const [entryFee, setEntryFee] = useState<100 | 300 | 500 | 1000>(initialOptions?.entryFee || 100);
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -68,8 +65,6 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
         ? 2
         : gameId === 'dots'
         ? Math.min(3, maxPlayers)
-        : gameId === 'blackjack'
-        ? Math.min(5, Math.max(2, maxPlayers))
         : Math.min(5, maxPlayers); // Bingo up to 5
 
     onConfirm({
@@ -80,8 +75,6 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
       targetLines,
       gridSize,
       dotsGridSize,
-      blackjackRounds,
-      entryFee
     });
   };
 
@@ -91,8 +84,7 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
     'bingo': { title: '賓果 5x5 連線', icon: Grid },
     'dots': { title: '點線棋 圍地方格', icon: SquareDot },
     'ooxx': { title: '經典 OOXX', icon: Sliders },
-    'connect4': { title: '四子棋 連線爭霸', icon: Sliders },
-    'blackjack': { title: '21點 莊家對決', icon: Sparkles }
+    'connect4': { title: '四子棋 連線爭霸', icon: Sliders }
   };
 
   const info = gameInfoMap[gameId];
@@ -481,101 +473,6 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
                       <span className={`text-[10px] ${dotsGridSize === item.size ? 'text-white/80' : 'text-[#96897B]'}`}>
                         {item.sub}
                       </span>
-                    </button>
-                  ))}
-                </div>
-              </div>
-            </>
-          )}
-
-          {/* Blackjack Configuration */}
-          {gameId === 'blackjack' && (
-            <>
-              {/* 遊玩人數模式: 2, 3, 5 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Users className="w-3.5 h-3.5 text-[#0D4A2D]" />
-                    <span>對決人數上限</span>
-                  </span>
-                  <span className="text-[10px] text-[#96897B] font-bold">全員共同對決系統莊家</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {[2, 3, 5].map((num) => (
-                    <button
-                      key={`bj-players-${num}`}
-                      type="button"
-                      onClick={() => {
-                        sound.playClick();
-                        setMaxPlayers(num);
-                      }}
-                      className={`py-2 px-3 rounded-xl border text-xs font-black transition-all cursor-pointer ${
-                        maxPlayers === num
-                          ? 'bg-[#0D4A2D] text-white border-[#0D4A2D] shadow-xs'
-                          : 'bg-white/80 hover:bg-white text-[#2E2925] border-[#96897B]/20'
-                      }`}
-                    >
-                      {num} 人桌
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 回合數: 3, 5, 10 回合 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Trophy className="w-3.5 h-3.5 text-amber-600" />
-                    <span>賽事對決回合</span>
-                  </span>
-                  <span className="text-[10px] text-amber-700 font-bold">滿局或有人破產即刻結算</span>
-                </label>
-                <div className="grid grid-cols-3 gap-2">
-                  {([3, 5, 10] as const).map((r) => (
-                    <button
-                      key={`bj-rounds-${r}`}
-                      type="button"
-                      onClick={() => {
-                        sound.playClick();
-                        setBlackjackRounds(r);
-                      }}
-                      className={`py-2 px-3 rounded-xl border text-xs font-black transition-all cursor-pointer ${
-                        blackjackRounds === r
-                          ? 'bg-amber-600 text-white border-amber-600 shadow-xs'
-                          : 'bg-white/80 hover:bg-white text-[#2E2925] border-[#96897B]/20'
-                      }`}
-                    >
-                      {r} 回合
-                    </button>
-                  ))}
-                </div>
-              </div>
-
-              {/* 初始入場費: 100, 300, 500, 1000 金幣 */}
-              <div className="space-y-1.5">
-                <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">
-                  <span className="flex items-center gap-1.5">
-                    <Coins className="w-3.5 h-3.5 text-[#D4AF37]" />
-                    <span>初始入場費（金幣籌碼）</span>
-                  </span>
-                  <span className="text-[10px] text-emerald-700 font-bold">開局扣除，等額轉換為牌桌籌碼</span>
-                </label>
-                <div className="grid grid-cols-4 gap-2">
-                  {([100, 300, 500, 1000] as const).map((fee) => (
-                    <button
-                      key={`bj-fee-${fee}`}
-                      type="button"
-                      onClick={() => {
-                        sound.playClick();
-                        setEntryFee(fee);
-                      }}
-                      className={`py-2 px-1 rounded-xl border text-xs font-black transition-all cursor-pointer ${
-                        entryFee === fee
-                          ? 'bg-gradient-to-r from-[#D4AF37] to-[#B8860B] text-[#231710] border-[#D4AF37] shadow-xs'
-                          : 'bg-white/80 hover:bg-white text-[#2E2925] border-[#96897B]/20'
-                      }`}
-                    >
-                      🪙 {fee}
                     </button>
                   ))}
                 </div>

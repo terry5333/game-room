@@ -18,6 +18,7 @@ export interface LpcItemDef {
   author: string;
   license: string;
   description?: string;
+  price?: number;
 }
 
 // 身體膚色色盤 (Base: light)
@@ -67,60 +68,61 @@ export const LPC_SKIN_PALETTES: LpcPaletteDef[] = [
 ];
 
 // 髮色色盤 (Base: blonde)
+// 髮色色盤 (Base: red / LPC default spritesheet colors)
 export const LPC_HAIR_PALETTES: LpcPaletteDef[] = [
   {
-    id: 'blonde',
-    name: '璀璨金髮',
-    previewColor: '#FCCF56',
-    colors: ['#331313', '#552B15', '#AC5D1F', '#E09E2B', '#FCCF56', '#FFE67D']
+    id: 'dark_brown',
+    name: '深濃黑褐',
+    previewColor: '#4D3121',
+    colors: ['#18100B', '#301F15', '#4D3323', '#734C34', '#996746', '#BF8963']
   },
   {
     id: 'black',
     name: '極致烏黑',
     previewColor: '#1C2222',
-    colors: ['#000000', '#080A0A', '#101414', '#1C2222', '#31313E', '#4A5057']
+    colors: ['#0D0F12', '#1A1E24', '#2C323B', '#3F4752', '#5A6370', '#7E8999']
   },
   {
-    id: 'dark_brown',
-    name: '深濃黑褐',
-    previewColor: '#4D3121',
-    colors: ['#18110D', '#2E1E14', '#4D3121', '#75482F', '#9E6747', '#C78B69']
+    id: 'blonde',
+    name: '璀璨金髮',
+    previewColor: '#FCCF56',
+    colors: ['#351C06', '#6B4011', '#A66E1D', '#D99827', '#FCCF56', '#FFE794']
   },
   {
     id: 'light_brown',
     name: '溫暖淺棕',
     previewColor: '#8F5338',
-    colors: ['#331B10', '#5E3320', '#8F5338', '#C27857', '#DE9978', '#F5BC9F']
+    colors: ['#26150C', '#4A2A19', '#784428', '#A8633B', '#C98257', '#E8A77D']
   },
   {
     id: 'red',
-    name: '烈焰赤紅',
+    name: '烈焰赤紅 (原版)',
     previewColor: '#D12626',
-    colors: ['#330A0A', '#5E1212', '#991D1D', '#D12626', '#F04848', '#FF7575']
+    colors: ['#260D14', '#6A1108', '#A42600', '#BF4000', '#E55600', '#FF8A00']
   },
   {
     id: 'pink',
     name: '櫻花緋粉',
     previewColor: '#FA6BB7',
-    colors: ['#330D21', '#5E183D', '#9C2A67', '#D4428F', '#FA6BB7', '#FF9ED0']
+    colors: ['#300C1F', '#5E183D', '#992B65', '#D1418D', '#FA6BB7', '#FF9ED0']
   },
   {
     id: 'purple',
     name: '神秘暗紫',
     previewColor: '#8F42DE',
-    colors: ['#200D33', '#3B185E', '#64289E', '#8F42DE', '#B56BFA', '#D29EFF']
+    colors: ['#1E0A30', '#3D1561', '#66249E', '#913BD9', '#BA66FF', '#D79EFF']
   },
   {
     id: 'blue',
     name: '冰川蔚藍',
     previewColor: '#3380DE',
-    colors: ['#0A1B33', '#14325E', '#21549C', '#3380DE', '#59A6FA', '#8FC4FF']
+    colors: ['#091A33', '#133566', '#20559E', '#3282DE', '#59A7FA', '#8EC5FF']
   },
   {
     id: 'green',
     name: '精靈翠綠',
     previewColor: '#2EA855',
-    colors: ['#0A2B14', '#134D25', '#1F7A3C', '#2EA855', '#52D179', '#88F5A6']
+    colors: ['#082612', '#114D25', '#1C7D3C', '#2AA852', '#52D179', '#85F2A5']
   },
   {
     id: 'white',
@@ -132,7 +134,7 @@ export const LPC_HAIR_PALETTES: LpcPaletteDef[] = [
     id: 'gray',
     name: '冷冽灰銀',
     previewColor: '#6E7F8C',
-    colors: ['#1F2429', '#343D45', '#4E5B66', '#6E7F8C', '#94A7B5', '#BDCBD4']
+    colors: ['#1E2226', '#333A42', '#4D5864', '#6D7C8C', '#92A3B5', '#B8C7D4']
   }
 ];
 
@@ -177,6 +179,7 @@ export const LPC_ITEMS: LpcItemDef[] = [
   {
     id: 'hair_bangsshort',
     name: '清爽短瀏海',
+    price: 0,
     category: 'hair',
     imagePath: 'hair/bangsshort.png',
     layerOrder: LPC_LAYER_PRIORITY.hair,
@@ -485,6 +488,7 @@ export const LPC_ITEMS: LpcItemDef[] = [
   {
     id: 'acc_belt_leather',
     name: '冒險者皮革腰帶',
+    price: 100,
     category: 'accessories',
     imagePath: 'accessories/belt_leather.png',
     layerOrder: LPC_LAYER_PRIORITY.accessories,
@@ -492,6 +496,330 @@ export const LPC_ITEMS: LpcItemDef[] = [
     author: 'bluecarrot16, LPC Artists',
     license: 'CC-BY-SA 3.0',
     description: '帶有精緻金屬扣頭的牛皮腰帶'
+  },
+  {
+    id: 'top_chainmail',
+    name: '鎖子甲戰袍',
+    category: 'top',
+    imagePath: 'tops/chainmail_male.png',
+    layerOrder: 4,
+    genderSupport: 'both',
+    author: 'LPC Community, Matthew Krohn',
+    license: 'CC-BY-SA 3.0',
+    description: '密織精鋼環鍊的防護戰甲上衣',
+    price: 350
+  },
+  {
+    id: 'top_overalls',
+    name: '工裝吊帶襯衫',
+    category: 'top',
+    imagePath: 'tops/overalls_male.png',
+    layerOrder: 4,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '結實耐穿的工匠職人背帶長衣',
+    price: 180
+  },
+  {
+    id: 'top_polo',
+    name: '學院風 Polo 衫',
+    category: 'top',
+    imagePath: 'tops/polo_male.png',
+    layerOrder: 4,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '清爽俐落的純棉短袖領口 Polo 衫',
+    price: 120
+  },
+  {
+    id: 'bottom_plate',
+    name: '鐵壁戰鎧腿甲',
+    category: 'bottom',
+    imagePath: 'bottoms/plate_male.png',
+    layerOrder: 3,
+    genderSupport: 'both',
+    author: 'Stephen Challener, Matthew Krohn',
+    license: 'CC-BY-SA 3.0',
+    description: '覆蓋厚鋼甲片的精悍戰士腿甲',
+    price: 380
+  },
+  {
+    id: 'bottom_shorts',
+    name: '俐落休閒短褲',
+    category: 'bottom',
+    imagePath: 'bottoms/shorts_male.png',
+    layerOrder: 3,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '活動自如的輕便純棉短褲',
+    price: 100
+  },
+  {
+    id: 'bottom_skirt',
+    name: '百褶及膝短裙',
+    category: 'bottom',
+    imagePath: 'bottoms/skirt_male.png',
+    layerOrder: 3,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '飄逸優雅的學院風百褶裙',
+    price: 150
+  },
+  {
+    id: 'bottom_pantaloons',
+    name: '復古燈籠褲',
+    category: 'bottom',
+    imagePath: 'bottoms/pantaloons_male.png',
+    layerOrder: 3,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '寬鬆透氣的歐式宮廷燈籠長褲',
+    price: 220
+  },
+  {
+    id: 'bottom_leggings',
+    name: '貼身戰術皮褲',
+    category: 'bottom',
+    imagePath: 'bottoms/leggings_male.png',
+    layerOrder: 3,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '緊緻俐落的黑色彈性戰鬥皮褲',
+    price: 160
+  },
+  {
+    id: 'shoes_plate',
+    name: '騎士重裝鐵靴',
+    category: 'shoes',
+    imagePath: 'shoes/plate_male.png',
+    layerOrder: 2,
+    genderSupport: 'both',
+    author: 'Stephen Challener, Matthew Krohn',
+    license: 'CC-BY-SA 3.0',
+    description: '沉穩厚重並能格擋猛烈攻擊的鋼鐵戰靴',
+    price: 320
+  },
+  {
+    id: 'shoes_slippers',
+    name: '輕盈宮廷便鞋',
+    category: 'shoes',
+    imagePath: 'shoes/slippers_male.png',
+    layerOrder: 2,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '絲絨柔軟且無聲無息的室內軟鞋',
+    price: 90
+  },
+  {
+    id: 'shoes_rimmed',
+    name: '精靈翻邊長皮靴',
+    category: 'shoes',
+    imagePath: 'shoes/rimmed_boots_male.png',
+    layerOrder: 2,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '經典翻邊設計的森林遊俠長筒靴',
+    price: 200
+  },
+  {
+    id: 'shoes_ghillies',
+    name: '綁帶舞鞋',
+    category: 'shoes',
+    imagePath: 'shoes/ghillies_male.png',
+    layerOrder: 2,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '透氣彈性佳的細繩十字綁帶舞鞋',
+    price: 150
+  },
+  {
+    id: 'hat_pirate',
+    name: '霸氣海盜提督帽',
+    category: 'hat',
+    imagePath: 'hats/pirate_admiral.png',
+    layerOrder: 6,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '金邊鑲邊、威風凜凜的七海霸主提督帽',
+    price: 450
+  },
+  {
+    id: 'hat_headband',
+    name: '熱血運動頭帶',
+    category: 'hat',
+    imagePath: 'hats/headband_thick.png',
+    layerOrder: 6,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '吸汗透氣、展現無限鬥志的寬版運動頭帶',
+    price: 80
+  },
+  {
+    id: 'hat_skull_bandana',
+    name: '狂暴骷髏頭巾',
+    category: 'hat',
+    imagePath: 'hats/bandana_skull.png',
+    layerOrder: 6,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '印有冷酷白骷髏標誌的黑色街頭頭巾',
+    price: 260
+  },
+  {
+    id: 'hair_afro',
+    name: '復古爆炸頭',
+    category: 'hair',
+    imagePath: 'hair/afro.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '蓬鬆飽滿、搖滾迪斯可風格的經典爆炸頭',
+    price: 150
+  },
+  {
+    id: 'hair_buzzcut',
+    name: '俐落平頭',
+    category: 'hair',
+    imagePath: 'hair/buzzcut.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '硬派乾淨俐落的極短士兵平頭',
+    price: 60
+  },
+  {
+    id: 'hair_bob_part',
+    name: '側分鮑伯短髮',
+    category: 'hair',
+    imagePath: 'hair/bob_side_part.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '知性俐落、線條分明的側分鮑伯頭',
+    price: 180
+  },
+  {
+    id: 'hair_bun',
+    name: '俏皮包包頭',
+    category: 'hair',
+    imagePath: 'hair/bangs_bun.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '齊瀏海配可愛小包包髻的日系髮型',
+    price: 200
+  },
+  {
+    id: 'hair_ponytail',
+    name: '活力高馬尾',
+    category: 'hair',
+    imagePath: 'hair/high_ponytail.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '清爽躍動、元氣滿滿的高束長馬尾',
+    price: 220
+  },
+  {
+    id: 'hair_braid',
+    name: '仙氣長麻花辮',
+    category: 'hair',
+    imagePath: 'hair/braid.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '精緻典雅、浪漫垂肩的長編織麻花辮',
+    price: 250
+  },
+  {
+    id: 'acc_gloves',
+    name: '鐵衛護手拳套',
+    category: 'accessories',
+    imagePath: 'accessories/gloves_male.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'Stephen Challener, bluecarrot16',
+    license: 'CC-BY-SA 3.0',
+    description: '加固指關節與掌心的專業搏擊皮手套',
+    price: 130
+  },
+  {
+    id: 'acc_pauldrons',
+    name: '獅鷲重裝雙肩甲',
+    category: 'accessories',
+    imagePath: 'accessories/pauldrons_male.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'Stephen Challener, bluecarrot16',
+    license: 'CC-BY-SA 3.0',
+    description: '威武雄壯的重裝騎士金屬肩鎧',
+    price: 300
+  },
+  {
+    id: 'acc_epaulets',
+    name: '皇家金穗肩章',
+    category: 'accessories',
+    imagePath: 'accessories/epaulets_male.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '閃耀金色流蘇的近衛軍提督儀仗肩飾',
+    price: 280
+  },
+  {
+    id: 'acc_bracers',
+    name: '獵人精鋼護腕',
+    category: 'accessories',
+    imagePath: 'accessories/bracers_male.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'Stephen Challener, bluecarrot16',
+    license: 'CC-BY-SA 3.0',
+    description: '保護手腕與小臂的刻紋鋼鐵護手護腕',
+    price: 160
+  },
+  {
+    id: 'acc_belt_double',
+    name: '雙環冒險家腰帶',
+    category: 'accessories',
+    imagePath: 'accessories/belt_double_male.png',
+    layerOrder: 5,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '配有雙層扣環與多功能快扣的野外冒險腰帶',
+    price: 180
+  },
+  {
+    id: 'acc_cape',
+    name: '英雄赤紅披風',
+    category: 'accessories',
+    imagePath: 'accessories/cape_solid.png',
+    layerOrder: 1,
+    genderSupport: 'both',
+    author: 'bluecarrot16, LPC Artists',
+    license: 'CC-BY-SA 3.0',
+    description: '迎風飄揚、王者之氣四溢的赤紅英雄長披風',
+    price: 500
   }
 ];
 

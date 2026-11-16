@@ -24,6 +24,7 @@ import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
 import { ExamCardModal } from '../profile/ExamCardModal';
 import { LpcAvatarView } from '../profile/LpcAvatarView';
+import { getTitleById } from '../../data/titleCatalog';
 import { DEFAULT_LPC_CHARACTER } from '../../data/lpcCatalog';
 import { sound } from '../../services/soundService';
 import type { PlayerSlot, RoomCreationOptions } from '../../types';
@@ -82,8 +83,6 @@ export const GameShell: React.FC<GameShellProps> = ({
         } else if (draft.gameId === 'dots' && draft.stateDots) {
           if (options.dotsGridSize !== undefined) draft.stateDots.gridSize = options.dotsGridSize as 3 | 4 | 5;
           if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
-        } else if (draft.gameId === 'blackjack' && draft.stateBlackjack) {
-          if (options.blackjackRounds !== undefined) draft.stateBlackjack.totalRounds = options.blackjackRounds;
           if (options.entryFee !== undefined) draft.stateBlackjack.entryFee = options.entryFee;
           if (options.maxPlayers !== undefined) draft.maxPlayers = options.maxPlayers;
         }
@@ -505,6 +504,23 @@ export const GameShell: React.FC<GameShellProps> = ({
                             </div>
                           </div>
                         </div>
+
+                        {/* Player Equipped Title Badge */}
+                        {(() => {
+                          const title = getTitleById(
+                            (slotPlayer as any)?.equippedTitle ||
+                            (slotPlayer?.uid === currentUser.uid ? currentUser.equippedTitle : undefined)
+                          );
+                          return (
+                            <div className="mt-1">
+                              <span
+                                className={`text-[8px] font-black px-1.5 py-0.5 rounded-full border shadow-2xs ${title.badgeStyle} ${title.textColor}`}
+                              >
+                                {title.name}
+                              </span>
+                            </div>
+                          );
+                        })()}
                       </div>
                     ) : (
                       /* Empty Slot Standing Placeholder */

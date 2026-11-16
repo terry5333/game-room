@@ -313,7 +313,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
         }
       }
 
-      if (draft.gameId === 'blackjack') {
+      if ((draft.gameId as string) === 'blackjack') {
         const activePlayers = draft.players && draft.players.length > 0
           ? draft.players
           : ([draft.player1, draft.player2].filter(Boolean) as PlayerSlot[]);
@@ -446,7 +446,7 @@ export const RoomProvider: React.FC<{ children: React.ReactNode }> = ({ children
           grid: Array(6).fill(null).map(() => Array(7).fill(null)),
           currentTurnUid: draft.hostUid
         };
-      } else if (draft.gameId === 'blackjack') {
+      } else if ((draft.gameId as string) === 'blackjack') {
         const fee = draft.stateBlackjack?.entryFee || 100;
         const rounds = draft.stateBlackjack?.totalRounds || 5;
         const activePlayers = draft.players && draft.players.length > 0

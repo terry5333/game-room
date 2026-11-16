@@ -29,8 +29,7 @@ export const DEFAULT_SETTINGS: GameSettings = {
     'bingo': 1,
     'dots': 1,
     'ooxx': 1,
-    'connect4': 1,
-    'blackjack': 1
+    'connect4': 1
   }
 };
 
@@ -1107,8 +1106,7 @@ class MatchService {
       'bingo': '賓果',
       'dots': '點線棋',
       'ooxx': '經典 OOXX',
-      'connect4': '四子棋',
-      'blackjack': '21點 莊家對決'
+      'connect4': '四子棋'
     };
 
     const PRESENCE_TTL_MS = 30 * 1000; // 30 seconds: if no heartbeat received, friend is offline

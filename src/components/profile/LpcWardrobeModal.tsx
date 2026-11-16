@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import {
   X,
@@ -13,7 +13,9 @@ import {
   RefreshCw,
   Palette,
   Shirt,
-  Scissors
+  Scissors,
+  Lock,
+  Coins
 } from 'lucide-react';
 import { LpcCharacterConfig } from '../../types';
 import {
@@ -27,6 +29,7 @@ import { LpcDirection } from '../../services/lpcRenderer';
 import { LpcAvatarView } from './LpcAvatarView';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
+import { itemPricing } from '../../services/itemPricingService';
 
 interface LpcWardrobeModalProps {
   isOpen: boolean;
@@ -58,7 +61,7 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
   isOpen,
   onClose
 }) => {
-  const { lpcCharacter, updateLpcCharacter } = useAuth();
+  const { currentUser, lpcCharacter, updateLpcCharacter, purchaseLpcItem } = useAuth();
 
   // 初始造型快照（用於支援「取消試穿 / 恢復原樣」）
   const [initialConfig, setInitialConfig] = useState<LpcCharacterConfig>(
@@ -75,18 +78,39 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
   const [isWalking, setIsWalking] = useState<boolean>(false);
   const [zoomScale, setZoomScale] = useState<number>(3); // 2 = 128px, 3 = 192px, 4 = 256px
   const [saveSuccess, setSaveSuccess] = useState<boolean>(false);
+  const [purchaseMsg, setPurchaseMsg] = useState<{ text: string; error?: boolean } | null>(null);
+  const [, setCustomPrices] = useState(itemPricing.getAllCustomPrices());
+
+  // 即時監聽管理員服裝價格變動
+  useEffect(() => {
+    return itemPricing.subscribe(setCustomPrices);
+  }, []);
 
   // 當 Modal 開啟時同步目前配置
-  React.useEffect(() => {
+  useEffect(() => {
     if (isOpen) {
       const base = lpcCharacter || DEFAULT_LPC_CHARACTER;
       setInitialConfig(base);
       setCurrentConfig(base);
       setSaveSuccess(false);
+      setPurchaseMsg(null);
     }
   }, [isOpen, lpcCharacter]);
 
   if (!isOpen) return null;
+
+  // 檢查物品是否已解鎖擁有
+  const isItemUnlocked = (item: LpcItemDef): boolean => {
+    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+    if (price === 0) return true;
+    const starterIds = [
+      'body_male', 'body_female',
+      'hair_bangsshort', 'hair_plain',
+      'top_tshirt', 'bottom_pants', 'shoes_shoes'
+    ];
+    if (starterIds.includes(item.id)) return true;
+    return Boolean(currentUser?.unlockedItems?.includes(item.id));
+  };
 
   // 四個方向輪轉
   const rotateLeft = () => {
@@ -126,28 +150,74 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
     setCurrentConfig(DEFAULT_LPC_CHARACTER);
   };
 
-  // 切換單件穿戴
-  const handleEquipItem = (category: WardrobeCategory, itemId: string) => {
-    sound.playClick();
-    setCurrentConfig((prev) => {
-      if (category === 'top') return { ...prev, top: itemId };
-      if (category === 'bottom') return { ...prev, bottom: itemId };
-      if (category === 'shoes') return { ...prev, shoes: itemId };
-      if (category === 'hat') return { ...prev, hat: itemId };
-      if (category === 'hair') return { ...prev, hair: itemId };
-      return prev;
-    });
+  // 點選服裝項目：已擁有則直接穿戴/卸下；未擁有則扣金幣解鎖後穿戴
+  const handleItemClick = async (
+    category: WardrobeCategory,
+    item: LpcItemDef,
+    isMulti: boolean = false
+  ) => {
+    const unlocked = isItemUnlocked(item);
+    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
+    if (!unlocked) {
+      if ((currentUser?.coins ?? 0) < price) {
+        sound.playError();
+        setPurchaseMsg({
+          text: `❌ 金幣不足！解鎖「${item.name}」需要 ${price} 幣（持有 ${currentUser?.coins ?? 0} 幣）`,
+          error: true
+        });
+        setTimeout(() => setPurchaseMsg(null), 3000);
+        return;
+      }
+
+      // 扣幣購買
+      const success = await purchaseLpcItem(item.id, price, item.name);
+      if (success) {
+        sound.playPurchase();
+        setPurchaseMsg({
+          text: `🎉 成功解鎖「${item.name}」！已扣除 ${price} 金幣。已為您裝備！`,
+          error: false
+        });
+        setTimeout(() => setPurchaseMsg(null), 3000);
+      } else {
+        sound.playError();
+        return;
+      }
+    } else {
+      sound.playEquip();
+    }
+
+    // 穿戴
+    if (isMulti) {
+      setCurrentConfig((prev) => {
+        const current = prev.accessories || [];
+        const updated = current.includes(item.id)
+          ? current.filter((id) => id !== item.id)
+          : [...current, item.id];
+        return { ...prev, accessories: updated };
+      });
+    } else {
+      setCurrentConfig((prev) => {
+        if (category === 'top') return { ...prev, top: item.id };
+        if (category === 'bottom') return { ...prev, bottom: item.id };
+        if (category === 'shoes') return { ...prev, shoes: item.id };
+        if (category === 'hat') return { ...prev, hat: item.id };
+        if (category === 'hair') return { ...prev, hair: item.id };
+        return prev;
+      });
+    }
   };
 
-  // 配件支援多穿戴/卸下
-  const handleToggleAccessory = (accId: string) => {
+  // 卸下單個部位
+  const handleEquipNone = (category: WardrobeCategory) => {
     sound.playClick();
     setCurrentConfig((prev) => {
-      const current = prev.accessories || [];
-      const updated = current.includes(accId)
-        ? current.filter((id) => id !== accId)
-        : [...current, accId];
-      return { ...prev, accessories: updated };
+      if (category === 'top') return { ...prev, top: 'none' };
+      if (category === 'bottom') return { ...prev, bottom: 'none' };
+      if (category === 'shoes') return { ...prev, shoes: 'none' };
+      if (category === 'hat') return { ...prev, hat: 'none' };
+      if (category === 'hair') return { ...prev, hair: 'none' };
+      return prev;
     });
   };
 
@@ -187,16 +257,42 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
             </div>
           </div>
 
-          <button
-            onClick={() => {
-              sound.playClick();
-              onClose();
-            }}
-            className="w-9 h-9 rounded-full bg-[#FAF8F5] border-2 border-[#2E2925] flex items-center justify-center text-[#5C5346] hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm"
-          >
-            <X className="w-5 h-5" />
-          </button>
+          <div className="flex items-center gap-2.5">
+            {/* 金幣餘額顯示 */}
+            <div className="flex items-center gap-1.5 px-3 py-1.5 bg-[#FAF8F5] border-2 border-[#2E2925] rounded-full shadow-sm text-xs font-black text-[#D97706]">
+              <Coins className="w-3.5 h-3.5 text-amber-500 fill-amber-500" />
+              <span>{currentUser?.coins?.toLocaleString() ?? 0}</span>
+            </div>
+
+            <button
+              onClick={() => {
+                sound.playClick();
+                onClose();
+              }}
+              className="w-9 h-9 rounded-full bg-[#FAF8F5] border-2 border-[#2E2925] flex items-center justify-center text-[#5C5346] hover:bg-red-50 hover:text-red-600 transition-colors shadow-sm"
+            >
+              <X className="w-5 h-5" />
+            </button>
+          </div>
         </div>
+
+        {/* 提示訊息列 */}
+        <AnimatePresence>
+          {purchaseMsg && (
+            <motion.div
+              initial={{ opacity: 0, y: -10 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -10 }}
+              className={`px-4 py-2 text-xs font-black text-center flex items-center justify-center gap-2 border-b-2 ${
+                purchaseMsg.error
+                  ? 'bg-red-500 text-white border-red-700'
+                  : 'bg-emerald-500 text-white border-emerald-700'
+              }`}
+            >
+              <span>{purchaseMsg.text}</span>
+            </motion.div>
+          )}
+        </AnimatePresence>
 
         {/* 頂部分類標籤列 (Category Tabs) */}
         <div className="flex items-center gap-1.5 px-4 py-2.5 bg-[#FAF8F5] border-b border-[#E5DEC9] overflow-x-auto no-scrollbar">
@@ -228,7 +324,6 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
           <div className="w-full md:w-80 lg:w-96 p-4 bg-[#F5EFE6] border-b md:border-b-0 md:border-r-2 border-[#E5DEC9] flex flex-col items-center justify-between gap-3">
             {/* 角色大畫布展示舞台 */}
             <div className="relative w-full aspect-square max-w-[260px] rounded-2xl bg-gradient-to-b from-[#EBE2D3] to-[#DFD4C2] border-2 border-[#2E2925] shadow-inner flex flex-col items-center justify-center overflow-hidden">
-              {/* 背景格紋微裝飾 */}
               <div
                 className="absolute inset-0 opacity-15 pointer-events-none"
                 style={{
@@ -238,60 +333,106 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                 }}
               />
 
-              {/* LPC 像素畫布渲染 */}
-              <div className="relative z-10 drop-shadow-lg">
+              {/* 渲染獨立 2D LPC 角色畫布 */}
+              <div className="relative z-10 flex items-center justify-center">
                 <LpcAvatarView
                   config={currentConfig}
-                  size={64 * zoomScale}
-                  scale={zoomScale}
                   direction={direction}
+                  scale={zoomScale}
                   animate={isWalking}
                 />
               </div>
 
-              {/* 舞台光影地板裝飾 */}
-              <div className="absolute bottom-4 w-28 h-6 bg-black/15 rounded-full blur-[2px] pointer-events-none" />
-
-              {/* 當前朝向標籤 */}
-              <div className="absolute top-2 left-2 px-2 py-0.5 rounded-md bg-white/80 border border-[#2E2925]/20 text-[10px] font-bold text-[#5C5346]">
-                朝向：
-                {direction === 'down'
-                  ? '正面 ⬇️'
-                  : direction === 'left'
-                  ? '左側 ⬅️'
-                  : direction === 'right'
-                  ? '右側 ➡️'
-                  : '背面 ⬆️'}
+              {/* 方向指示徽章 */}
+              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/40 backdrop-blur-xs text-[10px] font-mono text-white/90 uppercase">
+                {direction} | {zoomScale}x
               </div>
 
-              {/* 放大倍率標籤 */}
-              <div className="absolute top-2 right-2 px-2 py-0.5 rounded-md bg-white/80 border border-[#2E2925]/20 text-[10px] font-bold text-[#5C5346]">
-                {zoomScale}x
-              </div>
+              {/* 動畫播放指示 */}
+              {isWalking && (
+                <div className="absolute top-2 right-2 px-2 py-0.5 rounded-lg bg-[#D97706] text-[10px] font-bold text-white shadow-xs animate-pulse">
+                  WALKING
+                </div>
+              )}
             </div>
 
-            {/* 控制台：旋轉視角、動作播放、放大倍率 */}
-            <div className="w-full flex flex-col gap-2">
-              {/* 四向旋轉與行走開關 */}
-              <div className="flex items-center justify-between gap-2">
-                <div className="flex items-center gap-1">
+            {/* 旋轉、走動與放大縮小操作控制台 */}
+            <div className="w-full space-y-2">
+              <div className="flex items-center justify-center gap-2">
+                <button
+                  onClick={rotateLeft}
+                  title="向左轉向"
+                  className="p-2 rounded-xl bg-white border-2 border-[#2E2925] text-[#2E2925] hover:bg-amber-50 active:scale-95 transition-all shadow-xs"
+                >
+                  <RotateCcw className="w-4 h-4" />
+                </button>
+
+                <div className="flex items-center gap-1 bg-white border-2 border-[#2E2925] rounded-xl p-1 shadow-xs">
                   <button
-                    onClick={rotateLeft}
-                    className="p-2 rounded-xl bg-white border-2 border-[#2E2925] text-[#2E2925] hover:bg-[#FAF8F5] transition-all shadow-sm active:scale-95"
-                    title="向左轉"
+                    onClick={() => {
+                      sound.playClick();
+                      setDirection('up');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+                      direction === 'up'
+                        ? 'bg-[#2E2925] text-white'
+                        : 'text-[#786F66] hover:text-[#2E2925]'
+                    }`}
                   >
-                    <RotateCcw className="w-4 h-4" />
+                    背
                   </button>
                   <button
-                    onClick={rotateRight}
-                    className="p-2 rounded-xl bg-white border-2 border-[#2E2925] text-[#2E2925] hover:bg-[#FAF8F5] transition-all shadow-sm active:scale-95"
-                    title="向右轉"
+                    onClick={() => {
+                      sound.playClick();
+                      setDirection('down');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+                      direction === 'down'
+                        ? 'bg-[#2E2925] text-white'
+                        : 'text-[#786F66] hover:text-[#2E2925]'
+                    }`}
                   >
-                    <RotateCw className="w-4 h-4" />
+                    正
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setDirection('left');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+                      direction === 'left'
+                        ? 'bg-[#2E2925] text-white'
+                        : 'text-[#786F66] hover:text-[#2E2925]'
+                    }`}
+                  >
+                    左
+                  </button>
+                  <button
+                    onClick={() => {
+                      sound.playClick();
+                      setDirection('right');
+                    }}
+                    className={`px-2 py-1 rounded-lg text-xs font-bold transition-colors ${
+                      direction === 'right'
+                        ? 'bg-[#2E2925] text-white'
+                        : 'text-[#786F66] hover:text-[#2E2925]'
+                    }`}
+                  >
+                    右
                   </button>
                 </div>
 
-                {/* 行走動畫開關 */}
+                <button
+                  onClick={rotateRight}
+                  title="向右轉向"
+                  className="p-2 rounded-xl bg-white border-2 border-[#2E2925] text-[#2E2925] hover:bg-amber-50 active:scale-95 transition-all shadow-xs"
+                >
+                  <RotateCw className="w-4 h-4" />
+                </button>
+              </div>
+
+              {/* 行走動畫切換與縮放倍率 */}
+              <div className="flex items-center justify-between gap-2 pt-1">
                 <button
                   onClick={() => {
                     sound.playClick();
@@ -299,45 +440,33 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                   }}
                   className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-3 rounded-xl border-2 text-xs font-bold transition-all ${
                     isWalking
-                      ? 'bg-[#10B981] text-white border-[#065F46] shadow-sm'
-                      : 'bg-white text-[#2E2925] border-[#2E2925] hover:bg-[#FAF8F5]'
+                      ? 'bg-[#D97706] text-white border-[#B45309] shadow-inner'
+                      : 'bg-white text-[#5C5346] border-[#E5DEC9] hover:border-[#2E2925]'
                   }`}
                 >
-                  <Footprints className="w-4 h-4" />
-                  <span>{isWalking ? '動作中 (行走)' : '靜止 (站立)'}</span>
+                  <Footprints className="w-3.5 h-3.5" />
+                  <span>{isWalking ? '停止走動' : '原地步行'}</span>
                 </button>
 
-                {/* 放大倍率切換 */}
-                <button
-                  onClick={() => {
-                    sound.playClick();
-                    setZoomScale((prev) => (prev === 2 ? 3 : prev === 3 ? 4 : 2));
-                  }}
-                  className="flex items-center gap-1 py-1.5 px-2.5 rounded-xl bg-white border-2 border-[#2E2925] text-xs font-bold text-[#2E2925] hover:bg-[#FAF8F5]"
-                  title="切換放大倍率"
-                >
-                  <ZoomIn className="w-4 h-4" />
-                  <span>{zoomScale}x</span>
-                </button>
-              </div>
-
-              {/* 當前穿搭摘要膠囊 */}
-              <div className="flex flex-wrap items-center gap-1 p-2 bg-white/70 rounded-xl border border-[#E5DEC9] text-[11px] text-[#786F66]">
-                <span className="font-bold text-[#2E2925]">穿戴中：</span>
-                <span className="bg-[#FAF8F5] px-1.5 py-0.5 rounded border border-[#E5DEC9]">
-                  {currentConfig.gender === 'male' ? '男性' : '女性'}
-                </span>
-                <span className="bg-[#FAF8F5] px-1.5 py-0.5 rounded border border-[#E5DEC9]">
-                  {LPC_SKIN_PALETTES.find((p) => p.id === currentConfig.skinTone)?.name || '白皙'}
-                </span>
-                <span className="bg-[#FAF8F5] px-1.5 py-0.5 rounded border border-[#E5DEC9]">
-                  {LPC_HAIR_PALETTES.find((p) => p.id === currentConfig.hairColor)?.name || '棕髮'}
-                </span>
-                {currentConfig.accessories && currentConfig.accessories.length > 0 && (
-                  <span className="bg-[#FAF8F5] px-1.5 py-0.5 rounded border border-[#E5DEC9]">
-                    飾品 x{currentConfig.accessories.length}
-                  </span>
-                )}
+                <div className="flex items-center gap-1 bg-white border-2 border-[#E5DEC9] rounded-xl px-2 py-1 text-xs">
+                  <ZoomIn className="w-3.5 h-3.5 text-[#786F66]" />
+                  {[2, 3, 4].map((s) => (
+                    <button
+                      key={s}
+                      onClick={() => {
+                        sound.playClick();
+                        setZoomScale(s);
+                      }}
+                      className={`px-1.5 py-0.5 rounded text-[11px] font-bold ${
+                        zoomScale === s
+                          ? 'bg-[#2E2925] text-white'
+                          : 'text-[#786F66] hover:text-[#2E2925]'
+                      }`}
+                    >
+                      {s}x
+                    </button>
+                  ))}
+                </div>
               </div>
             </div>
           </div>
@@ -467,7 +596,7 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   {/* 無髮型選項 */}
                   <button
-                    onClick={() => handleEquipItem('hair', 'none')}
+                    onClick={() => handleEquipNone('hair')}
                     className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                       currentConfig.hair === 'none'
                         ? 'bg-amber-50 border-[#D97706] shadow-sm'
@@ -482,17 +611,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                   {itemsForCategory.map((item) => {
                     const isSelected = currentConfig.hair === item.id;
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleEquipItem('hair', item.id)}
+                        onClick={() => handleItemClick('hair', item)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -500,15 +632,30 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center">
+
+                        {/* 狀態徽章 */}
+                        {isSelected ? (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center shadow-xs">
                             <Check className="w-3 h-3" />
+                          </div>
+                        ) : !unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {!unlocked && (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
                           </div>
                         )}
                       </button>
@@ -582,7 +729,7 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
-                    onClick={() => handleEquipItem('top', 'none')}
+                    onClick={() => handleEquipNone('top')}
                     className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                       currentConfig.top === 'none'
                         ? 'bg-amber-50 border-[#D97706] shadow-sm'
@@ -597,17 +744,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                   {itemsForCategory.map((item) => {
                     const isSelected = currentConfig.top === item.id;
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleEquipItem('top', item.id)}
+                        onClick={() => handleItemClick('top', item)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -615,15 +765,29 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center">
+
+                        {isSelected ? (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center shadow-xs">
                             <Check className="w-3 h-3" />
+                          </div>
+                        ) : !unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {!unlocked && (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
                           </div>
                         )}
                       </button>
@@ -643,7 +807,7 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
-                    onClick={() => handleEquipItem('bottom', 'none')}
+                    onClick={() => handleEquipNone('bottom')}
                     className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                       currentConfig.bottom === 'none'
                         ? 'bg-amber-50 border-[#D97706] shadow-sm'
@@ -658,17 +822,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                   {itemsForCategory.map((item) => {
                     const isSelected = currentConfig.bottom === item.id;
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleEquipItem('bottom', item.id)}
+                        onClick={() => handleItemClick('bottom', item)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -676,15 +843,29 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center">
+
+                        {isSelected ? (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center shadow-xs">
                             <Check className="w-3 h-3" />
+                          </div>
+                        ) : !unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {!unlocked && (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
                           </div>
                         )}
                       </button>
@@ -699,12 +880,12 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
               <div className="space-y-4">
                 <h3 className="text-sm font-black text-[#2E2925] flex items-center gap-2">
                   <span>👞</span>
-                  挑選鞋子靴具
+                  挑選角色鞋款
                 </h3>
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
-                    onClick={() => handleEquipItem('shoes', 'none')}
+                    onClick={() => handleEquipNone('shoes')}
                     className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                       currentConfig.shoes === 'none'
                         ? 'bg-amber-50 border-[#D97706] shadow-sm'
@@ -713,23 +894,26 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                   >
                     <span className="text-2xl">🦶</span>
                     <span className="text-xs font-bold text-[#2E2925]">
-                      赤腳行走
+                      赤腳 / 不穿鞋
                     </span>
                   </button>
 
                   {itemsForCategory.map((item) => {
                     const isSelected = currentConfig.shoes === item.id;
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleEquipItem('shoes', item.id)}
+                        onClick={() => handleItemClick('shoes', item)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -737,15 +921,29 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center">
+
+                        {isSelected ? (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center shadow-xs">
                             <Check className="w-3 h-3" />
+                          </div>
+                        ) : !unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {!unlocked && (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
                           </div>
                         )}
                       </button>
@@ -765,7 +963,7 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                   <button
-                    onClick={() => handleEquipItem('hat', 'none')}
+                    onClick={() => handleEquipNone('hat')}
                     className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center ${
                       currentConfig.hat === 'none'
                         ? 'bg-amber-50 border-[#D97706] shadow-sm'
@@ -780,17 +978,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
 
                   {itemsForCategory.map((item) => {
                     const isSelected = currentConfig.hat === item.id;
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleEquipItem('hat', item.id)}
+                        onClick={() => handleItemClick('hat', item)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isSelected
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -798,15 +999,29 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        {isSelected && (
-                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center">
+
+                        {isSelected ? (
+                          <div className="absolute top-2 right-2 w-5 h-5 rounded-full bg-[#D97706] text-white flex items-center justify-center shadow-xs">
                             <Check className="w-3 h-3" />
+                          </div>
+                        ) : !unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {!unlocked && (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
                           </div>
                         )}
                       </button>
@@ -816,16 +1031,16 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
               </div>
             )}
 
-            {/* === 分類 8：配件 (Accessories - 支援多穿戴) === */}
+            {/* === 分類 8：配件 (Accessories - 支援多件同時穿戴) === */}
             {activeCategory === 'accessories' && (
               <div className="space-y-4">
                 <div className="flex items-center justify-between">
                   <h3 className="text-sm font-black text-[#2E2925] flex items-center gap-2">
                     <span>👓</span>
-                    挑選眼鏡與腰帶飾品
+                    挑選隨身配件 (可同時穿戴多件)
                   </h3>
-                  <span className="text-xs font-bold text-[#B45309] bg-amber-100 px-2 py-0.5 rounded-md">
-                    支援多件同時穿戴
+                  <span className="text-xs text-[#786F66]">
+                    已穿戴 {(currentConfig.accessories || []).length} 件
                   </span>
                 </div>
 
@@ -834,17 +1049,20 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                     const isEquipped = (currentConfig.accessories || []).includes(
                       item.id
                     );
+                    const unlocked = isItemUnlocked(item);
+                    const price = itemPricing.getPrice(item.id, item.price ?? 100);
+
                     return (
                       <button
                         key={item.id}
-                        onClick={() => handleToggleAccessory(item.id)}
+                        onClick={() => handleItemClick('accessories', item, true)}
                         className={`p-3 rounded-2xl border-2 flex flex-col items-center justify-center gap-1.5 transition-all text-center relative group ${
                           isEquipped
                             ? 'bg-amber-50 border-[#D97706] shadow-sm scale-101'
                             : 'bg-white border-[#E5DEC9] hover:border-[#2E2925]'
                         }`}
                       >
-                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden">
+                        <div className="w-14 h-14 bg-[#F5EFE6] rounded-xl flex items-center justify-center p-1 border border-[#E5DEC9] shadow-inner group-hover:scale-105 transition-transform overflow-hidden relative">
                           <img
                             src={`/assets/lpc/thumbnails/${item.id}.png`}
                             alt={item.name}
@@ -852,21 +1070,38 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                             style={{ imageRendering: 'pixelated' }}
                           />
                         </div>
+
                         <span className="text-xs font-bold text-[#2E2925]">
                           {item.name}
                         </span>
                         <span className="text-[10px] text-[#786F66] line-clamp-1">
                           {item.description}
                         </span>
-                        <div
-                          className={`mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
-                            isEquipped
-                              ? 'bg-[#D97706] text-white border-[#D97706]'
-                              : 'bg-gray-100 text-gray-500 border-gray-200'
-                          }`}
-                        >
-                          {isEquipped ? '已配戴 (點擊卸下)' : '未配戴'}
-                        </div>
+
+                        {!unlocked ? (
+                          <div className="absolute top-2 right-2 px-1.5 py-0.5 rounded-full bg-black/75 text-amber-300 text-[10px] font-bold flex items-center gap-0.5 shadow-xs">
+                            <Lock className="w-2.5 h-2.5" />
+                            <span>{price}</span>
+                          </div>
+                        ) : null}
+
+                        {/* 穿戴狀態指示按鈕 */}
+                        {unlocked ? (
+                          <div
+                            className={`mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${
+                              isEquipped
+                                ? 'bg-[#D97706] text-white border-[#D97706]'
+                                : 'bg-gray-100 text-gray-500 border-gray-200'
+                            }`}
+                          >
+                            {isEquipped ? '已配戴 (點擊卸下)' : '未配戴 (點擊裝備)'}
+                          </div>
+                        ) : (
+                          <div className="mt-1 text-[10px] font-black px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-700 border border-amber-500/30 flex items-center gap-1">
+                            <span>🪙</span>
+                            <span>購買解鎖</span>
+                          </div>
+                        )}
                       </button>
                     );
                   })}

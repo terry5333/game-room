@@ -38,7 +38,6 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
     { id: 'dots' as const, label: '點線棋', icon: SquareDot },
     { id: 'ooxx' as const, label: '經典 OOXX', icon: CircleDot },
     { id: 'connect4' as const, label: '四子棋', icon: Disc },
-    { id: 'blackjack' as const, label: '21點對決', icon: Sparkles },
     { id: 'general' as const, label: '金幣與系統', icon: Coins }
   ];
 
@@ -319,44 +318,6 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
                         <div className="font-bold text-[#628395] mb-1">單人與雙人模式</div>
                         <p className="text-[#2E2925]/80">
                           支援 2 人即時連線對戰；若在房間中單人練習，系統將自動啟動「昭和棋士 AI」進行即時對弈！
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              )}
-
-              {/* Blackjack */}
-              {activeTab === 'blackjack' && (
-                <div className="space-y-4">
-                  <div className="glass-panel-subtle rounded-2xl p-4 border border-white/60">
-                    <div className="flex items-center gap-2 font-bold text-base text-[#0D4A2D] mb-2">
-                      <Sparkles className="w-4 h-4 text-emerald-600" />
-                      <span>21點 莊家對決（Multiplayer Blackjack）</span>
-                    </div>
-                    <p className="text-xs text-[#2E2925]/80 leading-relaxed mb-3">
-                      房間制多人撲克決鬥！全員入座共同對抗「系統莊家」。每位玩家扣除初始入場費轉換為牌桌籌碼，持續博弈直到有人破產沒錢或賽局回合結束！
-                    </p>
-                    <div className="space-y-2 text-xs">
-                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#0D4A2D] mb-1">房主自訂參數（人數、回合與入場費）</div>
-                        <p className="text-[#2E2925]/80">
-                          房主在開房時可自由設定：<br />
-                          • <strong>對決人數</strong>：2 人、3 人、5 人上限。<br />
-                          • <strong>賽局回合</strong>：3 回合、5 回合、10 回合大戰。<br />
-                          • <strong>初始入場費</strong>：100、300、500、1000 金幣（入房開局時扣除轉化為同額籌碼）。
-                        </p>
-                      </div>
-                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-rose-600 mb-1">破產提前結算機制（直到有人沒錢）</div>
-                        <p className="text-[#2E2925]/80">
-                          每回合玩家向系統莊家下注。若任何玩家在交鋒過程中籌碼輸光歸零（&le; 0），系統立即敲響警報觸發終局結算，最終由保有最高籌碼的玩家奪得全場總冠軍！
-                        </p>
-                      </div>
-                      <div className="bg-white/70 p-2.5 rounded-xl border border-[#96897B]/15">
-                        <div className="font-bold text-[#D4AF37] mb-1">撲克實戰牌規</div>
-                        <p className="text-[#2E2925]/80">
-                          莊家 17 點停牌（Dealer stands on 17）。玩家回合可選擇要牌（Hit）、停牌（Stand）或雙倍下注（Double Down）。起手天牌 Blackjack 享 3:2（2.5倍）高倍返還！
                         </p>
                       </div>
                     </div>

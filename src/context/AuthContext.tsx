@@ -35,6 +35,8 @@ interface AuthContextType {
   purchaseWardrobeItem: (newWardrobe: UserWardrobe, unlockedItemId: string, coinCost: number, itemName: string) => Promise<boolean>;
   lpcCharacter: LpcCharacterConfig;
   updateLpcCharacter: (newConfig: LpcCharacterConfig) => Promise<void>;
+  purchaseLpcItem: (itemId: string, cost: number, itemName: string) => Promise<boolean>;
+  equipTitle: (titleId: string) => Promise<void>;
   petProfile: UserPetProfile;
   updatePetProfile: (newProfile: UserPetProfile) => Promise<void>;
   feedPet: () => Promise<boolean>;
@@ -239,11 +241,18 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       wardrobe: existingProfile?.wardrobe || localBackup?.wardrobe || DEFAULT_WARDROBE,
       unlockedItems: Array.from(new Set([
         'none', 'default', 'candidate',
+        'body_male', 'body_female', 'hair_bangsshort', 'hair_plain', 'top_tshirt', 'bottom_pants', 'shoes_shoes',
         ...(localBackup?.unlockedItems || []),
         ...(existingProfile?.unlockedItems || [])
       ])),
       petProfile: mergedPetProfile,
-      lpcCharacter: existingProfile?.lpcCharacter || localBackup?.lpcCharacter || DEFAULT_LPC_CHARACTER
+      lpcCharacter: existingProfile?.lpcCharacter || localBackup?.lpcCharacter || DEFAULT_LPC_CHARACTER,
+      equippedTitle: existingProfile?.equippedTitle || localBackup?.equippedTitle || 'novice_challenger',
+      unlockedTitles: Array.from(new Set([
+        'novice_challenger',
+        ...(localBackup?.unlockedTitles || []),
+        ...(existingProfile?.unlockedTitles || [])
+      ]))
     };
 
     setCurrentUser(profile);
@@ -495,6 +504,92 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       } catch (e) {
         console.warn('RTDB write lpcCharacter error:', e);
       }
+    }
+  };
+
+  const purchaseLpcItem = async (
+    itemId: string,
+    cost: number,
+    itemName: string
+  ): Promise<boolean> => {
+    if (!currentUser) return false;
+    if (cost > 0 && currentUser.coins < cost) return false;
+
+    const currentUnlocked = currentUser.unlockedItems || [];
+    if (currentUnlocked.includes(itemId)) return true;
+
+    const updatedUnlocked = [...currentUnlocked, itemId];
+    const newCoins = Math.max(0, currentUser.coins - cost);
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      coins: newCoins,
+      unlockedItems: updatedUnlocked
+    };
+
+    saveUser(updatedUser);
+
+    if (cost > 0) {
+      const tx: CoinTransaction = {
+        id: 'tx_' + Math.random().toString(36).substring(2, 9),
+        uid: currentUser.uid,
+        amount: -cost,
+        type: 'shop_purchase',
+        description: `解鎖服裝：${itemName}`,
+        timestamp: Date.now()
+      };
+      setTransactions((prev) => [tx, ...prev]);
+    }
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedUser.petProfile,
+      lpcCharacter: updatedUser.lpcCharacter,
+      equippedTitle: updatedUser.equippedTitle
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/coins`), newCoins).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/unlockedItems`), updatedUnlocked).catch(console.warn);
+    }
+
+    return true;
+  };
+
+  const equipTitle = async (titleId: string): Promise<void> => {
+    if (!currentUser) return;
+    const currentUnlocked = currentUser.unlockedTitles || ['novice_challenger'];
+    const updatedUnlocked = currentUnlocked.includes(titleId) ? currentUnlocked : [...currentUnlocked, titleId];
+
+    const updatedUser: UserProfile = {
+      ...currentUser,
+      equippedTitle: titleId,
+      unlockedTitles: updatedUnlocked
+    };
+    saveUser(updatedUser);
+
+    matchService.updatePresence({
+      uid: updatedUser.uid,
+      displayName: updatedUser.displayName,
+      photoURL: updatedUser.photoURL,
+      userTag: updatedUser.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updatedUser.wardrobe,
+      petProfile: updatedUser.petProfile,
+      lpcCharacter: updatedUser.lpcCharacter,
+      equippedTitle: titleId
+    });
+
+    if (rtdb) {
+      set(ref(rtdb, `users/${updatedUser.uid}/equippedTitle`), titleId).catch(console.warn);
+      set(ref(rtdb, `users/${updatedUser.uid}/unlockedTitles`), updatedUnlocked).catch(console.warn);
     }
   };
 
@@ -1197,6 +1292,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         purchaseWardrobeItem,
         lpcCharacter,
         updateLpcCharacter,
+        purchaseLpcItem,
+        equipTitle,
         petProfile,
         updatePetProfile,
         feedPet,

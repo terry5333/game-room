@@ -93,9 +93,11 @@ class LpcRendererService {
       return baseImg;
     }
 
-    // 取得基礎色盤與目標色盤
+    // 取得基礎色盤與目標色盤 (髮型基底色為 LPC 原生紅髮色盤)
     const basePalette =
-      paletteType === 'skin' ? LPC_SKIN_PALETTES[0] : LPC_HAIR_PALETTES[0];
+      paletteType === 'skin'
+        ? LPC_SKIN_PALETTES[0]
+        : LPC_HAIR_PALETTES.find((p) => p.id === 'red') || LPC_HAIR_PALETTES[0];
     const targetPalette =
       paletteType === 'skin'
         ? LPC_SKIN_PALETTES.find((p) => p.id === targetPaletteId) || basePalette
@@ -118,7 +120,7 @@ class LpcRendererService {
     ctx.drawImage(baseImg, 0, 0);
     const imgData = ctx.getImageData(0, 0, offCanvas.width, offCanvas.height);
     const data = imgData.data;
-    const tolerance = 6; // 容許色偏容錯度
+    const tolerance = 12; // 容許色偏容錯度 (確保邊緣半透明與微色偏皆能精準替換)
 
     for (let i = 0; i < data.length; i += 4) {
       const a = data[i + 3];

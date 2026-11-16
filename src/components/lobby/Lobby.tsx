@@ -26,13 +26,15 @@ import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
 import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
 import { LpcAvatarView } from '../profile/LpcAvatarView';
+import { getTitleById } from '../../data/titleCatalog';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
   onOpenFriends: () => void;
-  onOpenCasino?: (tab?: 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack') => void;
+  onOpenCasino?: (tab?: 'slot' | 'scratch' | 'dice' | 'roulette') => void;
   onOpenExamCard?: () => void;
   onOpenLpcWardrobe?: () => void;
+  onOpenTitleSelector?: () => void;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
@@ -40,7 +42,8 @@ export const Lobby: React.FC<LobbyProps> = ({
   onOpenFriends,
   onOpenCasino,
   onOpenExamCard,
-  onOpenLpcWardrobe
+  onOpenLpcWardrobe,
+  onOpenTitleSelector
 }) => {
   const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
   const { currentUser } = useAuth();
@@ -124,13 +127,6 @@ export const Lobby: React.FC<LobbyProps> = ({
       desc: '7x6 垂直重力四子連線！預判對手落子，率先連成四顆一線者獲勝。（限定 2 人）',
       icon: Disc,
       color: '#C85A32'
-    },
-    {
-      id: 'blackjack' as const,
-      title: '21點 皇家牌桌',
-      desc: '使用遊戲金幣下注對決！要牌、停牌、加倍，天牌 Blackjack 享 3:2 高倍返還，注額 100% 累積至大獎池！',
-      icon: Sparkles,
-      color: '#0D4A2D'
     }
   ];
 
@@ -284,9 +280,22 @@ export const Lobby: React.FC<LobbyProps> = ({
             <div className="flex items-start justify-between gap-2">
               <div>
                 <div className="flex items-center gap-1.5 flex-wrap">
-                  <span className="text-[10px] font-black px-2 py-0.5 rounded-full bg-[#2E2925] text-white">
-                    2D 全身像素角色
-                  </span>
+                  {(() => {
+                    const title = getTitleById(currentUser.equippedTitle);
+                    return (
+                      <button
+                        onClick={() => {
+                          sound.playClick();
+                          if (onOpenTitleSelector) onOpenTitleSelector();
+                        }}
+                        className={`text-[10px] font-black px-2.5 py-0.5 rounded-full border shadow-2xs cursor-pointer hover:scale-105 transition-transform flex items-center gap-1 ${title.badgeStyle} ${title.textColor}`}
+                        title="點擊更換榮譽稱號"
+                      >
+                        <span>🎖️</span>
+                        <span>{title.name}</span>
+                      </button>
+                    );
+                  })()}
                   <span className="text-xs sm:text-sm font-black text-[#2E2925]">
                     {currentUser.displayName}
                   </span>
@@ -304,16 +313,29 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </div>
               </div>
 
-              <button
-                onClick={() => {
-                  sound.playClick();
-                  if (onOpenLpcWardrobe) onOpenLpcWardrobe();
-                }}
-                className="shrink-0 px-3.5 py-1.5 rounded-xl bg-[#2E2925] hover:bg-[#433C36] text-white text-xs font-black shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
-              >
-                <span>🪞 換裝室</span>
-                <ArrowRight className="w-3.5 h-3.5" />
-              </button>
+              <div className="flex items-center gap-1.5 shrink-0">
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    if (onOpenTitleSelector) onOpenTitleSelector();
+                  }}
+                  className="px-3 py-1.5 rounded-xl bg-amber-600 hover:bg-amber-700 text-white text-xs font-black shadow-xs flex items-center gap-1 transition-all cursor-pointer"
+                  title="稱號榮譽殿堂"
+                >
+                  <span>🎖️ 稱號</span>
+                </button>
+
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    if (onOpenLpcWardrobe) onOpenLpcWardrobe();
+                  }}
+                  className="px-3.5 py-1.5 rounded-xl bg-[#2E2925] hover:bg-[#433C36] text-white text-xs font-black shadow-xs flex items-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <span>🪞 換裝室</span>
+                  <ArrowRight className="w-3.5 h-3.5" />
+                </button>
+              </div>
             </div>
           </div>
         </div>
@@ -341,10 +363,15 @@ export const Lobby: React.FC<LobbyProps> = ({
               </div>
             </div>
             <div className="min-w-0">
-              <div className="flex items-center gap-1.5">
-                <span className="text-[10px] font-black px-1.5 py-0.2 rounded-md bg-[#8D5B4C]/20 text-[#5D3A1A]">
-                  帝國受驗生
-                </span>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                {(() => {
+                  const title = getTitleById(currentUser.equippedTitle);
+                  return (
+                    <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border shadow-2xs ${title.badgeStyle} ${title.textColor}`}>
+                      {title.name}
+                    </span>
+                  );
+                })()}
                 <span className="text-xs font-black text-[#3B2211] truncate">
                   {currentUser.displayName}
                 </span>
@@ -419,11 +446,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                   <button
                     onClick={() => {
                       sound.playClick();
-                      if ((game.id as string) === 'blackjack') {
-                        onOpenRulesForGame('1a2b');
-                      } else {
-                        onOpenRulesForGame(game.id as GameId);
-                      }
+                      onOpenRulesForGame(game.id as GameId);
                     }}
                     title="玩法說明"
                     className="p-1.5 rounded-lg text-[#96897B] hover:text-[#628395] hover:bg-white/60 transition-colors cursor-pointer"
