@@ -333,19 +333,26 @@ export const LpcWardrobeModal: React.FC<LpcWardrobeModalProps> = ({
                 }}
               />
 
-              {/* 渲染獨立 2D LPC 角色畫布 */}
+              {/* 渲染獨立 2D LPC 角色畫布（半身視角預覽） */}
               <div className="relative z-10 flex items-center justify-center">
                 <LpcAvatarView
                   config={currentConfig}
                   direction={direction}
                   scale={zoomScale}
                   animate={isWalking}
+                  halfBody={true}
+                  size={240}
                 />
               </div>
 
-              {/* 方向指示徽章 */}
-              <div className="absolute bottom-2 left-2 px-2 py-0.5 rounded-lg bg-black/40 backdrop-blur-xs text-[10px] font-mono text-white/90 uppercase">
-                {direction} | {zoomScale}x
+              {/* 半身視角與方向指示徽章 */}
+              <div className="absolute bottom-2 left-2 flex items-center gap-1.5">
+                <span className="px-2 py-0.5 rounded-lg bg-[#2E2925]/85 backdrop-blur-xs text-[10px] font-bold text-amber-300 border border-amber-500/40 shadow-xs">
+                  半身視角
+                </span>
+                <span className="px-2 py-0.5 rounded-lg bg-black/40 backdrop-blur-xs text-[10px] font-mono text-white/90 uppercase">
+                  {direction} | {zoomScale}x
+                </span>
               </div>
 
               {/* 動畫播放指示 */}

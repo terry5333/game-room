@@ -47,16 +47,23 @@ import { calculateLines } from '../games/bingo/GameBingo';
 interface AdminDashboardProps {
   isOpen: boolean;
   onClose: () => void;
+  initialTab?: 'rooms' | 'users' | 'casino_boss' | 'shop_pricing' | 'overview';
 }
 
-export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose }) => {
+export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose, initialTab }) => {
   const { allUsers, adminUpdateUserCoins, currentUser } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [roomSearchQuery, setRoomSearchQuery] = useState('');
   const [roomStatusFilter, setRoomStatusFilter] = useState<'all' | 'in_progress' | 'waiting' | 'settled' | 'closed'>('all');
   const [isRefreshingRooms, setIsRefreshingRooms] = useState(false);
-  const [activeTab, setActiveTab] = useState<'rooms' | 'users' | 'casino_boss' | 'shop_pricing' | 'overview'>('rooms');
+  const [activeTab, setActiveTab] = useState<'rooms' | 'users' | 'casino_boss' | 'shop_pricing' | 'overview'>(initialTab || 'rooms');
   const [casinoSettingsState, setCasinoSettingsState] = useState<CasinoSettings>(casinoSettings.getSettings());
+
+  useEffect(() => {
+    if (isOpen && initialTab) {
+      setActiveTab(initialTab);
+    }
+  }, [isOpen, initialTab]);
   const [casinoHistory, setCasinoHistory] = useState<CasinoHistoryRecord[]>(casinoSettings.getHistory());
   const [casinoHistoryFilter, setCasinoHistoryFilter] = useState<'all' | 'slot' | 'scratch' | 'roulette'>('all');
   const [casinoSaveSuccess, setCasinoSaveSuccess] = useState(false);
@@ -162,8 +169,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
     const matchesSearch =
       u.displayName.toLowerCase().includes(searchQuery.toLowerCase()) ||
       u.email.toLowerCase().includes(searchQuery.toLowerCase()) ||
-      u.userTag.includes(searchQuery) ||
-      u.friendCode.toLowerCase().includes(searchQuery.toLowerCase());
+      u.userTag.includes(searchQuery.replace('#', ''));
 
     if (!matchesSearch) return false;
 
@@ -577,7 +583,7 @@ export const AdminDashboard: React.FC<AdminDashboardProps> = ({ isOpen, onClose 
                               #{u.userTag}
                             </span>
                             <span className="text-[10px] font-mono bg-neutral-100 text-[#96897B] px-1.5 py-0.5 rounded">
-                              邀請碼: {u.friendCode}
+                              玩家代碼: #{u.userTag}
                             </span>
                             {u.role === 'admin' && (
                               <span className="text-[9px] bg-[#CF995F] text-white font-black px-1.5 py-0.5 rounded-md">

@@ -118,16 +118,16 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
     // Search in all registered users
     const target = allUsers.find((u) => {
       if (u.uid === currentUser.uid) return false;
-      const matchTag = u.userTag === query || `#${u.userTag}` === query;
+      const cleanQ = query.replace('#', '');
+      const matchTag = u.userTag === cleanQ || `#${u.userTag}` === query;
       const matchName = u.displayName.toLowerCase() === query;
-      const matchCode = u.friendCode?.toLowerCase() === query;
       const matchCombo = `${u.displayName}#${u.userTag}`.toLowerCase() === query;
-      return matchTag || matchName || matchCode || matchCombo;
+      return matchTag || matchName || matchCombo;
     });
 
     if (!target) {
       setFeedbackMsg({
-        text: '未找到符合的玩家，請確認對方的 4 位數字 ID (#XXXX) 或暱稱是否正確！',
+        text: '未找到符合的玩家，請確認對方的玩家代碼 (#XXXX) 或暱稱是否正確！',
         type: 'error'
       });
       return;
@@ -283,10 +283,10 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
           {/* My Tag Card */}
           <div className="bg-white/60 rounded-2xl p-3 border border-white/70 mb-3 flex items-center justify-between text-xs shrink-0">
             <div>
-              <div className="text-[10px] text-[#96897B] font-bold">我的專屬好友 ID</div>
+              <div className="text-[10px] text-[#96897B] font-bold">我的玩家代碼</div>
               <div className="font-bold text-[#2E2925] flex items-center gap-1 mt-0.5">
                 <span className="truncate max-w-[140px] sm:max-w-none">{currentUser.displayName}</span>
-                <span className="font-mono text-[#628395]">#{currentUser.userTag}</span>
+                <span className="font-mono text-[#628395] font-black">#{currentUser.userTag}</span>
               </div>
             </div>
 
@@ -390,7 +390,7 @@ export const FriendsModal: React.FC<FriendsModalProps> = ({ isOpen, onClose }) =
               {friendPresences.length === 0 ? (
                 <div className="text-center py-12 text-xs text-[#96897B] font-medium leading-relaxed">
                   目前尚無已加好友。<br />
-                  請在上方輸入對方的 4 位數字 ID (#XXXX) 送出好友邀請，對方同意後即成為好友！
+                  請在上方輸入對方的玩家代碼 (#XXXX) 送出好友邀請，對方同意後即成為好友！
                 </div>
               ) : (
                 friendPresences.map((f) => {

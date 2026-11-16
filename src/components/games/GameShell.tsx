@@ -511,6 +511,7 @@ export const GameShell: React.FC<GameShellProps> = ({
                             (slotPlayer as any)?.equippedTitle ||
                             (slotPlayer?.uid === currentUser.uid ? currentUser.equippedTitle : undefined)
                           );
+                          if (!title) return null;
                           return (
                             <div className="mt-1">
                               <span

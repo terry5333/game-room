@@ -34,6 +34,7 @@ export const AppContent: React.FC = () => {
   const [ruleDrawerOpen, setRuleDrawerOpen] = useState(false);
   const [selectedRuleGame, setSelectedRuleGame] = useState<GameId>('1a2b');
   const [adminOpen, setAdminOpen] = useState(false);
+  const [adminInitialTab, setAdminInitialTab] = useState<'rooms' | 'users' | 'casino_boss' | 'shop_pricing' | 'overview'>('rooms');
   const [friendsOpen, setFriendsOpen] = useState(false);
   const [editProfileOpen, setEditProfileOpen] = useState(false);
   const [casinoOpen, setCasinoOpen] = useState(false);
@@ -66,7 +67,8 @@ export const AppContent: React.FC = () => {
       {/* Sleek Minimalist Header */}
       <Header
         onOpenRules={() => handleOpenRules(currentRoom?.gameId || '1a2b')}
-        onOpenAdmin={() => setAdminOpen(true)}
+        onOpenAdmin={() => { setAdminInitialTab('rooms'); setAdminOpen(true); }}
+        onOpenCasinoBoss={() => { setAdminInitialTab('casino_boss'); setAdminOpen(true); }}
         onOpenFriends={() => setFriendsOpen(true)}
         onOpenEditProfile={() => setEditProfileOpen(true)}
         onOpenCasino={() => setCasinoOpen(true)}

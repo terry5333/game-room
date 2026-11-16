@@ -282,6 +282,21 @@ export const Lobby: React.FC<LobbyProps> = ({
                 <div className="flex items-center gap-1.5 flex-wrap">
                   {(() => {
                     const title = getTitleById(currentUser.equippedTitle);
+                    if (!title) {
+                      return onOpenTitleSelector ? (
+                        <button
+                          onClick={() => {
+                            sound.playClick();
+                            onOpenTitleSelector();
+                          }}
+                          className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-dashed border-[#8D5B4C]/40 text-[#8D5B4C] hover:bg-[#8D5B4C]/10 transition-colors flex items-center gap-1 cursor-pointer"
+                          title="解鎖並佩戴個人稱號"
+                        >
+                          <span>🎖️</span>
+                          <span>佩戴稱號</span>
+                        </button>
+                      ) : null;
+                    }
                     return (
                       <button
                         onClick={() => {
@@ -366,6 +381,7 @@ export const Lobby: React.FC<LobbyProps> = ({
               <div className="flex items-center gap-1.5 flex-wrap">
                 {(() => {
                   const title = getTitleById(currentUser.equippedTitle);
+                  if (!title) return null;
                   return (
                     <span className={`text-[10px] font-black px-2 py-0.5 rounded-full border shadow-2xs ${title.badgeStyle} ${title.textColor}`}>
                       {title.name}

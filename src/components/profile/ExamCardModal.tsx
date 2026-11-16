@@ -36,11 +36,12 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   const stampKey = wardrobe.stamp || 'candidate';
   const stampInfo = STAMP_DETAILS[stampKey] || STAMP_DETAILS['candidate'];
 
-  const stats = (user as any).stats || { wins: 0, losses: 0, winRate: 0 };
-  const totalGames = (stats.wins || 0) + (stats.losses || 0);
+  const wins = Number((user as any).wins ?? (user as any).stats?.wins ?? 0);
+  const losses = Number((user as any).losses ?? (user as any).stats?.losses ?? 0);
+  const totalGames = Number((user as any).gamesPlayed ?? (user as any).stats?.totalGames ?? (wins + losses));
   const winRate =
     totalGames > 0
-      ? (((stats.wins || 0) / totalGames) * 100).toFixed(1)
+      ? ((wins / totalGames) * 100).toFixed(1)
       : '0.0';
 
   const coins = (user as any).coins ?? 0;
@@ -161,6 +162,22 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                   {/* Equipped Title Badge */}
                   {(() => {
                     const title = getTitleById((user as any).equippedTitle);
+                    if (!title) {
+                      return isSelf && onOpenTitleSelector ? (
+                        <div className="mt-1">
+                          <button
+                            onClick={() => {
+                              sound.playClick();
+                              onOpenTitleSelector();
+                            }}
+                            className="text-[10px] font-bold px-2 py-0.5 rounded-full border border-dashed border-[#8D5B4C]/40 text-[#8D5B4C] hover:bg-[#8D5B4C]/10 transition-colors inline-flex items-center gap-1 cursor-pointer"
+                          >
+                            <span>🎖️</span>
+                            <span>佩戴稱號</span>
+                          </button>
+                        </div>
+                      ) : null;
+                    }
                     return (
                       <div className="mt-1">
                         <span
@@ -211,8 +228,8 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                     戰績（勝/負）
                   </span>
                   <span className="font-mono font-black text-[#3B2211]">
-                    <span className="text-[#2E7D32]">{stats.wins || 0} 勝</span> /{' '}
-                    <span className="text-[#C62828]">{stats.losses || 0} 負</span>
+                    <span className="text-[#2E7D32]">{wins} 勝</span> /{' '}
+                    <span className="text-[#C62828]">{losses} 負</span>
                   </span>
                 </div>
 

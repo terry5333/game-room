@@ -20,6 +20,7 @@ import { sound } from '../../services/soundService';
 interface HeaderProps {
   onOpenRules: () => void;
   onOpenAdmin: () => void;
+  onOpenCasinoBoss?: () => void;
   onOpenFriends?: () => void;
   onOpenEditProfile: () => void;
   onOpenCasino?: () => void;
@@ -31,6 +32,7 @@ interface HeaderProps {
 export const Header: React.FC<HeaderProps> = ({
   onOpenRules,
   onOpenAdmin,
+  onOpenCasinoBoss,
   onOpenEditProfile,
   onOpenCasino,
   onOpenExamCard,
@@ -89,6 +91,21 @@ export const Header: React.FC<HeaderProps> = ({
             <Coins className="w-3.5 h-3.5 text-[#DBAD6A]" />
             <span>{currentUser.coins.toLocaleString()}</span>
           </div>
+
+          {/* Casino Boss Desk Shortcut for Admin */}
+          {currentUser.role === 'admin' && onOpenCasinoBoss && (
+            <button
+              onClick={() => {
+                sound.playClick();
+                onOpenCasinoBoss();
+              }}
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:brightness-110 text-neutral-950 font-black text-xs shadow-xs transition-all cursor-pointer shrink-0 border border-yellow-200"
+              title="開啟賭場老闆管理後台（調整賠率、開關機率、查驗賭博紀錄）"
+            >
+              <span className="text-sm">👑</span>
+              <span className="hidden sm:inline">賭場後台</span>
+            </button>
+          )}
 
           {/* Casino / Gaming Hall Shortcut */}
           {onOpenCasino && (
@@ -252,16 +269,30 @@ export const Header: React.FC<HeaderProps> = ({
                 </button>
 
                 {currentUser.role === 'admin' && (
-                  <button
-                    onClick={() => {
-                      setMenuOpen(false);
-                      onOpenAdmin();
-                    }}
-                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#CF995F] hover:bg-white/70 rounded-xl transition-colors cursor-pointer"
-                  >
-                    <Shield className="w-3.5 h-3.5" />
-                    <span>管理員後台 (Admin)</span>
-                  </button>
+                  <>
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onOpenAdmin();
+                      }}
+                      className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#CF995F] hover:bg-white/70 rounded-xl transition-colors cursor-pointer"
+                    >
+                      <Shield className="w-3.5 h-3.5" />
+                      <span>管理員房間大廳 (Admin)</span>
+                    </button>
+                    {onOpenCasinoBoss && (
+                      <button
+                        onClick={() => {
+                          setMenuOpen(false);
+                          onOpenCasinoBoss();
+                        }}
+                        className="w-full flex items-center gap-2 px-3 py-2 text-xs font-black text-amber-800 bg-amber-500/10 hover:bg-amber-500/20 rounded-xl transition-colors cursor-pointer"
+                      >
+                        <span className="text-sm">👑</span>
+                        <span>賭場老闆後台 (機率/查帳)</span>
+                      </button>
+                    )}
+                  </>
                 )}
 
                 <div className="h-px bg-[#96897B]/15 my-1" />

@@ -12,6 +12,7 @@ export interface RenderOptions {
   direction?: LpcDirection;
   frameIndex?: number; // 0 = idle stand, 1~8 = walk frames
   scale?: number;      // e.g. 1, 2, 3, 4
+  halfBody?: boolean;  // 半身肖像（僅顯示腰部以上：頭像、髮型、帽子、飾品與上衣胸膛）
 }
 
 // Direction row index in standard LPC walk cycle sheet (576 x 256)
@@ -269,8 +270,14 @@ class LpcRendererService {
     const sx = (frameIndex % 9) * frameWidth;
     const sy = row * frameHeight;
 
-    const destW = frameWidth * scale;
-    const destH = frameHeight * scale;
+    const isHalfBody = Boolean(options.halfBody);
+    // 半身截取：LPC 64x64 中上半身 (頭、頭髮、帽子、飾品、上衣軀幹) 位於 y: 0 到 y: 44
+    const srcW = frameWidth;
+    const srcH = isHalfBody ? 44 : frameHeight;
+    const srcY = sy;
+
+    const destW = srcW * scale;
+    const destH = srcH * scale;
     const dx = Math.floor((canvas.width - destW) / 2);
     const dy = Math.floor((canvas.height - destH) / 2);
 
@@ -301,9 +308,9 @@ class LpcRendererService {
         ctx.drawImage(
           imageSource,
           sx,
-          sy,
-          frameWidth,
-          frameHeight,
+          srcY,
+          srcW,
+          srcH,
           dx,
           dy,
           destW,

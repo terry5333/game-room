@@ -10,6 +10,7 @@ export interface CasinoModalProps {
   isOpen: boolean;
   onClose: () => void;
   initialTab?: CasinoTab;
+  onOpenAdminBoss?: () => void;
 }
 
 export type CasinoTab = 'slot' | 'scratch' | 'dice' | 'roulette';
@@ -133,7 +134,7 @@ const SCRATCH_TIERS: ScratchTier[] = [
   }
 ];
 
-export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initialTab }) => {
+export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initialTab, onOpenAdminBoss }) => {
   const { currentUser, updateCoins } = useAuth();
   const [activeTab, setActiveTab] = useState<CasinoTab>(initialTab || 'slot');
 
@@ -1003,7 +1004,20 @@ export const CasinoModal: React.FC<CasinoModalProps> = ({ isOpen, onClose, initi
             </div>
 
             {/* Current Balance Chip & Close Button */}
-            <div className="flex items-center gap-3">
+            <div className="flex items-center gap-2 sm:gap-3">
+              {currentUser?.role === 'admin' && (
+                <button
+                  onClick={() => {
+                    sound.playClick();
+                    onOpenAdminBoss?.();
+                  }}
+                  className="px-2.5 sm:px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 via-yellow-400 to-amber-600 hover:from-amber-400 hover:to-yellow-300 text-neutral-950 font-black text-xs shadow-md border border-yellow-200 flex items-center gap-1.5 cursor-pointer active:scale-95 transition-all"
+                  title="開啟賭場老闆管理後台（調整賠率、開關機率、查驗賭博紀錄）"
+                >
+                  <span className="text-sm">👑</span>
+                  <span className="whitespace-nowrap">賭場老闆後台</span>
+                </button>
+              )}
               <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-black/60 border border-[#D4AF37]/60 text-[#FDF6C7] font-mono font-black text-sm shadow-inner">
                 <Coins className="w-4 h-4 text-[#D4AF37]" />
                 <span>{currentCoins.toLocaleString()}</span>

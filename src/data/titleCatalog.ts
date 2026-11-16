@@ -17,9 +17,8 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     category: 'adventure',
     badgeStyle: 'bg-gradient-to-r from-stone-600 to-stone-700 border-stone-500/40',
     textColor: 'text-stone-100',
-    description: '剛踏入帝國受驗競技場的新生代挑戰者。',
-    requirement: '創角即刻擁有',
-    unlockedByDefault: true
+    description: '踏入帝國受驗競技場，完成生涯首次對決。',
+    requirement: '完成至少 1 場任意競技對決'
   },
   {
     id: 'title_showa',
@@ -27,9 +26,8 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     category: 'adventure',
     badgeStyle: 'bg-gradient-to-r from-amber-700 to-amber-800 border-amber-500/40',
     textColor: 'text-amber-100',
-    description: '秉持昭和求知精神，於名片題下赫赫志向。',
-    requirement: '創角即刻擁有',
-    unlockedByDefault: true
+    description: '秉持昭和求知精神，於個人准考證名片題下赫赫志向。',
+    requirement: '於個人名片設定自訂座右銘或志向'
   },
   {
     id: 'title_first_blood',
@@ -49,7 +47,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-indigo-700 to-purple-800 border-indigo-400/50',
     textColor: 'text-indigo-100',
     description: '深諳數字解碼與艦隊佈陣，智取群雄。',
-    requirement: '累計勝場達到 10 場'
+    requirement: '累計勝場達到 5 場'
   },
   {
     id: 'title_undefeated',
@@ -58,7 +56,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-rose-700 to-red-800 border-rose-400/50',
     textColor: 'text-rose-100',
     description: '立於擂台頂端的巔峰棋聖，令對手聞風喪膽。',
-    requirement: '累計勝場達到 25 場'
+    requirement: '累計勝場達到 15 場'
   },
   {
     id: 'title_overlord',
@@ -67,7 +65,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-red-900 via-orange-800 to-yellow-600 border-amber-300 shadow-amber-500/20 shadow-md',
     textColor: 'text-amber-100',
     description: '橫掃所有遊戲項目的至高無上擂台王者。',
-    requirement: '累計勝場達到 50 場'
+    requirement: '累計勝場達到 30 場'
   },
 
   // 🎰 遊技場大師
@@ -87,7 +85,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-purple-900 to-slate-900 border-purple-500/40',
     textColor: 'text-purple-200',
     description: '享受與命運之神扣動扳機的刺激快感。',
-    requirement: '於帝國遊技場遊玩超過 15 次'
+    requirement: '於帝國遊技場累積遊玩超過 15 次'
   },
   {
     id: 'title_chosen',
@@ -107,7 +105,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-yellow-500 via-amber-400 to-yellow-600 border-yellow-200 text-neutral-900',
     textColor: 'text-neutral-900',
     description: '腰纏萬貫，金幣叮噹作響的帝國富商。',
-    requirement: '個人持幣數達到 10,000 金幣'
+    requirement: '個人持幣數達到 1,000 金幣'
   },
   {
     id: 'title_tycoon',
@@ -116,7 +114,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-amber-600 via-yellow-300 to-amber-700 border-yellow-100 shadow-yellow-500/30 shadow-lg text-neutral-950',
     textColor: 'text-neutral-950',
     description: '帝國金融的幕後巨擘，揮金如土。',
-    requirement: '個人持幣數達到 30,000 金幣'
+    requirement: '個人持幣數達到 5,000 金幣'
   },
 
   // 👗 潮流時尚
@@ -127,7 +125,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-pink-600 to-rose-600 border-pink-400/40',
     textColor: 'text-pink-100',
     description: '衣櫃裡擁有琳瑯滿目的服飾與飾品，引領穿搭風潮。',
-    requirement: '解鎖並擁有 5 件以上自訂外觀'
+    requirement: '解鎖並擁有 3 件以上自訂外觀'
   },
   {
     id: 'title_fashion_master',
@@ -136,7 +134,7 @@ export const TITLE_CATALOG: PlayerTitle[] = [
     badgeStyle: 'bg-gradient-to-r from-fuchsia-600 via-pink-500 to-purple-600 border-pink-300 shadow-pink-500/20 shadow-md',
     textColor: 'text-white',
     description: '全套裝備、髮型、帽子、配件無所不包的頂級設計師。',
-    requirement: '解鎖並擁有 12 件以上自訂外觀'
+    requirement: '解鎖並擁有 8 件以上自訂外觀'
   },
 
   // 👑 特殊與管理員
@@ -160,23 +158,23 @@ export const TITLE_CATALOG: PlayerTitle[] = [
   }
 ];
 
-export const DEFAULT_TITLE = TITLE_CATALOG[0];
-
-export function getTitleById(id?: string): PlayerTitle {
-  if (!id) return TITLE_CATALOG[0];
-  return TITLE_CATALOG.find((t) => t.id === id) || TITLE_CATALOG[0];
+export function getTitleById(id?: string): PlayerTitle | null {
+  if (!id) return null;
+  return TITLE_CATALOG.find((t) => t.id === id) || null;
 }
 
 export function isTitleUnlocked(title: PlayerTitle, user: any): boolean {
-  if (title.unlockedByDefault) return true;
   if (user?.role === 'admin' && title.category === 'special') return true;
   if (user?.unlockedTitles?.includes(title.id)) return true;
 
-  // Dynamic automatic checks
+  // 動態條件嚴格檢核：絕無預設免費贈送，必須達成指定遊戲成就始可獲取
+  if (title.id === 'title_novice' && (user?.gamesPlayed ?? 0) >= 1) return true;
+  if (title.id === 'title_showa' && Boolean(user?.motto && user.motto.trim().length > 0)) return true;
   if (title.id === 'title_first_blood' && (user?.wins ?? 0) >= 1) return true;
   if (title.id === 'title_strategist' && (user?.wins ?? 0) >= 5) return true;
   if (title.id === 'title_undefeated' && (user?.wins ?? 0) >= 15) return true;
   if (title.id === 'title_overlord' && (user?.wins ?? 0) >= 30) return true;
+  if (title.id === 'title_gambler' && Boolean(user?.unlockedTitles?.includes('title_gambler'))) return true;
   if (title.id === 'title_millionaire' && (user?.coins ?? 0) >= 1000) return true;
   if (title.id === 'title_tycoon' && (user?.coins ?? 0) >= 5000) return true;
   if (title.id === 'title_trend' && (user?.unlockedItems?.length ?? 0) >= 3) return true;

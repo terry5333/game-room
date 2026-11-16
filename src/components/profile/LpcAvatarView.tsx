@@ -9,6 +9,7 @@ interface LpcAvatarViewProps {
   direction?: LpcDirection;
   animate?: boolean;
   scale?: number;
+  halfBody?: boolean; // 半身肖像視角
   className?: string;
   onClick?: () => void;
 }
@@ -19,6 +20,7 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
   direction = 'down',
   animate = false,
   scale,
+  halfBody = false,
   className = '',
   onClick
 }) => {
@@ -49,7 +51,8 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
           lpcRenderer.renderCharacter(canvas, charConfig, {
             direction,
             frameIndex: currentFrame,
-            scale: renderScale
+            scale: renderScale,
+            halfBody
           });
         }
         animFrameRef.current = requestAnimationFrame(renderLoop);
@@ -58,7 +61,8 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
         lpcRenderer.renderCharacter(canvas, charConfig, {
           direction,
           frameIndex: 0,
-          scale: renderScale
+          scale: renderScale,
+          halfBody
         });
       }
     };
@@ -69,7 +73,8 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
       lpcRenderer.renderCharacter(canvas, charConfig, {
         direction,
         frameIndex: 0,
-        scale: renderScale
+        scale: renderScale,
+        halfBody
       });
     }
 
@@ -79,7 +84,7 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
         cancelAnimationFrame(animFrameRef.current);
       }
     };
-  }, [charConfig, direction, animate, renderScale, size]);
+  }, [charConfig, direction, animate, renderScale, size, halfBody]);
 
   return (
     <canvas

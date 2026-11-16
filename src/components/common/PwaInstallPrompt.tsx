@@ -139,7 +139,7 @@ export const PwaInstallPrompt: React.FC = () => {
           {/* Header */}
           <div className="flex items-start justify-between gap-3 mb-3">
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-2xl bg-[#2B1E16] border-2 border-[#D4AF37] flex items-center justify-center shadow-md shrink-0 overflow-hidden">
+              <div className="w-12 h-12 rounded-2xl bg-[#628395] border-2 border-white/60 flex items-center justify-center shadow-md shrink-0 overflow-hidden">
                 <img
                   src="/icons/icon-192.png"
                   alt="遊戲室"

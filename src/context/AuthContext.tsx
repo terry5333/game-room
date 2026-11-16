@@ -247,9 +247,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
       ])),
       petProfile: mergedPetProfile,
       lpcCharacter: existingProfile?.lpcCharacter || localBackup?.lpcCharacter || DEFAULT_LPC_CHARACTER,
-      equippedTitle: existingProfile?.equippedTitle || localBackup?.equippedTitle || 'novice_challenger',
+      equippedTitle: existingProfile?.equippedTitle ?? localBackup?.equippedTitle ?? '',
       unlockedTitles: Array.from(new Set([
-        'novice_challenger',
         ...(localBackup?.unlockedTitles || []),
         ...(existingProfile?.unlockedTitles || [])
       ]))
@@ -564,8 +563,11 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
 
   const equipTitle = async (titleId: string): Promise<void> => {
     if (!currentUser) return;
-    const currentUnlocked = currentUser.unlockedTitles || ['novice_challenger'];
-    const updatedUnlocked = currentUnlocked.includes(titleId) ? currentUnlocked : [...currentUnlocked, titleId];
+    const currentUnlocked = currentUser.unlockedTitles || [];
+    const updatedUnlocked =
+      titleId && !currentUnlocked.includes(titleId)
+        ? [...currentUnlocked, titleId]
+        : currentUnlocked;
 
     const updatedUser: UserProfile = {
       ...currentUser,

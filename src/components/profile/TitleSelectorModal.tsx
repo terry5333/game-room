@@ -17,7 +17,7 @@ export const TitleSelectorModal: React.FC<TitleSelectorModalProps> = ({ isOpen, 
 
   if (!isOpen) return null;
 
-  const currentEquippedId = currentUser?.equippedTitle || 'title_novice';
+  const currentEquippedId = currentUser?.equippedTitle || '';
 
   const categories = [
     { id: 'all', label: '全部稱號' },
@@ -44,6 +44,13 @@ export const TitleSelectorModal: React.FC<TitleSelectorModalProps> = ({ isOpen, 
     sound.playTitleUnlock();
     await equipTitle(title.id);
     setSuccessToast(`✨ 已佩戴稱號「${title.name}」！`);
+    setTimeout(() => setSuccessToast(null), 2500);
+  };
+
+  const handleUnequip = async () => {
+    sound.playClick();
+    await equipTitle('');
+    setSuccessToast('已卸下稱號');
     setTimeout(() => setSuccessToast(null), 2500);
   };
 
@@ -101,6 +108,21 @@ export const TitleSelectorModal: React.FC<TitleSelectorModalProps> = ({ isOpen, 
         {/* 當前佩戴中稱號大卡片 */}
         {(() => {
           const equipped = getTitleById(currentEquippedId);
+          if (!equipped) {
+            return (
+              <div className="p-4 bg-stone-100/70 border-b border-[#E5DEC9] flex items-center justify-between gap-3">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-2xl bg-white border-2 border-stone-300 flex items-center justify-center text-xl shadow-xs text-stone-400">
+                    🎖️
+                  </div>
+                  <div>
+                    <div className="text-[10px] font-bold text-[#786F66]">目前配戴稱號</div>
+                    <div className="text-xs font-bold text-stone-500 mt-0.5">尚未佩戴稱號（需達成條件解鎖後方可佩戴）</div>
+                  </div>
+                </div>
+              </div>
+            );
+          }
           return (
             <div className="p-4 bg-gradient-to-r from-amber-50 to-orange-50 border-b border-[#E5DEC9] flex items-center justify-between gap-3">
               <div className="flex items-center gap-3">
@@ -118,8 +140,16 @@ export const TitleSelectorModal: React.FC<TitleSelectorModalProps> = ({ isOpen, 
                   </div>
                 </div>
               </div>
-              <div className="text-[11px] text-[#786F66] max-w-xs text-right hidden sm:block">
-                {equipped.description}
+              <div className="flex items-center gap-3">
+                <div className="text-[11px] text-[#786F66] max-w-xs text-right hidden sm:block">
+                  {equipped.description}
+                </div>
+                <button
+                  onClick={handleUnequip}
+                  className="px-2.5 py-1 rounded-xl bg-white hover:bg-stone-100 border border-stone-300 text-[11px] font-bold text-stone-600 transition-colors shadow-2xs cursor-pointer"
+                >
+                  卸下稱號
+                </button>
               </div>
             </div>
           );

@@ -36,7 +36,7 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
   const { currentUser, allUsers } = useAuth();
   const { createRoom, joinRoomById } = useRoom();
 
-  const [friendCodeInput, setFriendCodeInput] = useState('');
+  const [playerCodeInput, setPlayerCodeInput] = useState('');
   const [copied, setCopied] = useState(false);
   const [presences, setPresences] = useState<UserPresence[]>([]);
   const [selectedFriend, setSelectedFriend] = useState<UserPresence | null>(null);
@@ -65,7 +65,7 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
   if (!currentUser) return null;
 
   const copyMyCode = () => {
-    navigator.clipboard.writeText(currentUser.friendCode);
+    navigator.clipboard.writeText(`#${currentUser.userTag}`);
     setCopied(true);
     sound.playClick();
     setTimeout(() => setCopied(false), 2000);
@@ -74,12 +74,12 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
   const handleAddFriend = (e: React.FormEvent) => {
     e.preventDefault();
     sound.playClick();
-    const code = friendCodeInput.trim().toUpperCase();
-    if (!code) return;
+    const clean = playerCodeInput.trim().replace('#', '');
+    if (!clean) return;
 
-    const targetUser = allUsers.find((u) => u.friendCode === code);
+    const targetUser = allUsers.find((u) => u.userTag === clean || u.displayName.toLowerCase() === playerCodeInput.trim().toLowerCase());
     if (!targetUser) {
-      alert('未找到對應 6 位邀請碼的玩家！');
+      alert('未找到對應玩家代碼 (#XXXX) 的玩家！');
       return;
     }
     if (targetUser.uid === currentUser.uid) {
@@ -95,7 +95,7 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
       lastActive: Date.now()
     });
 
-    setFriendCodeInput('');
+    setPlayerCodeInput('');
   };
 
   const handleSendInvite = async () => {
@@ -236,11 +236,10 @@ export const FriendsSidebar: React.FC<FriendsSidebarProps> = ({
         <form onSubmit={handleAddFriend} className="flex gap-1.5">
           <input
             type="text"
-            maxLength={6}
-            value={friendCodeInput}
-            onChange={(e) => setFriendCodeInput(e.target.value.toUpperCase())}
-            placeholder="好友 6 碼代碼"
-            className="flex-1 px-2.5 py-1.5 rounded-xl bg-white/70 border border-[#96897B]/20 text-xs font-mono uppercase focus:outline-none focus:border-[#628395] text-[#2E2925]"
+            value={playerCodeInput}
+            onChange={(e) => setPlayerCodeInput(e.target.value)}
+            placeholder="玩家代碼 (#XXXX)"
+            className="flex-1 px-2.5 py-1.5 rounded-xl bg-white/70 border border-[#96897B]/20 text-xs font-mono focus:outline-none focus:border-[#628395] text-[#2E2925]"
           />
           <button
             type="submit"
