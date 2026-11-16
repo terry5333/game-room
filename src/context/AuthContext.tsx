@@ -1,7 +1,8 @@
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import type { UserProfile, CoinTransaction, UserWardrobe, UserPetProfile } from '../types';
+import type { UserProfile, CoinTransaction, UserWardrobe, UserPetProfile, LpcCharacterConfig } from '../types';
 import { DEFAULT_PET_PROFILE } from '../data/petAndChairCatalog';
 import { DEFAULT_WARDROBE } from '../data/wardrobeCatalog';
+import { DEFAULT_LPC_CHARACTER } from '../data/lpcCatalog';
 import {
   auth,
   rtdb,
@@ -32,6 +33,8 @@ interface AuthContextType {
   updateUserProfile: (data: { displayName: string; photoURL: string; userTag: string }) => Promise<void>;
   updateWardrobe: (newWardrobe: UserWardrobe, newUnlockedItem?: string) => Promise<void>;
   purchaseWardrobeItem: (newWardrobe: UserWardrobe, unlockedItemId: string, coinCost: number, itemName: string) => Promise<boolean>;
+  lpcCharacter: LpcCharacterConfig;
+  updateLpcCharacter: (newConfig: LpcCharacterConfig) => Promise<void>;
   petProfile: UserPetProfile;
   updatePetProfile: (newProfile: UserPetProfile) => Promise<void>;
   feedPet: () => Promise<boolean>;
@@ -239,7 +242,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         ...(localBackup?.unlockedItems || []),
         ...(existingProfile?.unlockedItems || [])
       ])),
-      petProfile: mergedPetProfile
+      petProfile: mergedPetProfile,
+      lpcCharacter: existingProfile?.lpcCharacter || localBackup?.lpcCharacter || DEFAULT_LPC_CHARACTER
     };
 
     setCurrentUser(profile);
@@ -460,6 +464,38 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
     }
 
     return true;
+  };
+
+  const lpcCharacter: LpcCharacterConfig = currentUser?.lpcCharacter || DEFAULT_LPC_CHARACTER;
+
+  const updateLpcCharacter = async (newConfig: LpcCharacterConfig) => {
+    if (!currentUser) return;
+    const updated: UserProfile = {
+      ...currentUser,
+      lpcCharacter: newConfig
+    };
+    saveUser(updated);
+
+    matchService.updatePresence({
+      uid: updated.uid,
+      displayName: updated.displayName,
+      photoURL: updated.photoURL,
+      userTag: updated.userTag,
+      status: 'lobby',
+      lastActive: Date.now(),
+      wardrobe: updated.wardrobe,
+      petProfile: updated.petProfile,
+      lpcCharacter: newConfig
+    });
+
+    if (rtdb) {
+      try {
+        const cleanPayload = JSON.parse(JSON.stringify(newConfig));
+        set(ref(rtdb, `users/${updated.uid}/lpcCharacter`), cleanPayload).catch(console.warn);
+      } catch (e) {
+        console.warn('RTDB write lpcCharacter error:', e);
+      }
+    }
   };
 
   const petProfile: UserPetProfile = currentUser?.petProfile || DEFAULT_PET_PROFILE;
@@ -1159,6 +1195,8 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
         updateUserProfile,
         updateWardrobe,
         purchaseWardrobeItem,
+        lpcCharacter,
+        updateLpcCharacter,
         petProfile,
         updatePetProfile,
         feedPet,

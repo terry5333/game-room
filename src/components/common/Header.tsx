@@ -24,6 +24,7 @@ interface HeaderProps {
   onOpenEditProfile: () => void;
   onOpenCasino?: () => void;
   onOpenExamCard?: () => void;
+  onOpenLpcWardrobe?: () => void;
   inGame?: boolean;
 }
 
@@ -33,6 +34,7 @@ export const Header: React.FC<HeaderProps> = ({
   onOpenEditProfile,
   onOpenCasino,
   onOpenExamCard,
+  onOpenLpcWardrobe,
   inGame = false
 }) => {
   const { currentUser, logout } = useAuth();
@@ -100,6 +102,21 @@ export const Header: React.FC<HeaderProps> = ({
             >
               <span className="text-sm">🎰</span>
               <span className="hidden sm:inline">遊技場</span>
+            </button>
+          )}
+
+          {/* 2D Full-body LPC Wardrobe Shortcut */}
+          {onOpenLpcWardrobe && (
+            <button
+              onClick={() => {
+                sound.playClick();
+                onOpenLpcWardrobe();
+              }}
+              className="flex items-center gap-1 px-2 sm:px-2.5 py-1.5 rounded-xl bg-gradient-to-r from-[#2E2925] to-[#433C36] hover:brightness-110 text-white font-bold text-xs shadow-xs transition-all cursor-pointer shrink-0 border border-white/20"
+              title="開啟 2D 全身像素自訂換裝室"
+            >
+              <span className="text-sm">🪞</span>
+              <span className="hidden sm:inline">換裝室</span>
             </button>
           )}
 
@@ -179,6 +196,20 @@ export const Header: React.FC<HeaderProps> = ({
                   >
                     <Award className="w-3.5 h-3.5 text-[#8D5B4C]" />
                     <span>帝國受驗准考證（名片）</span>
+                  </button>
+                )}
+
+                {/* 2D Full-body LPC Wardrobe Option */}
+                {onOpenLpcWardrobe && (
+                  <button
+                    onClick={() => {
+                      setMenuOpen(false);
+                      onOpenLpcWardrobe();
+                    }}
+                    className="w-full flex items-center gap-2 px-3 py-2 text-xs font-semibold text-[#2E2925] hover:bg-black/5 rounded-xl transition-colors cursor-pointer"
+                  >
+                    <span>🪞</span>
+                    <span>2D 全身像素自訂換裝室</span>
                   </button>
                 )}
 

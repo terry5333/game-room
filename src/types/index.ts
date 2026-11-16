@@ -56,6 +56,20 @@ export interface UserPetProfile {
   unlockedAccessories?: string[];
 }
 
+export interface LpcCharacterConfig {
+  characterId: string;
+  gender: 'male' | 'female';
+  body: string;          // 'body_male' | 'body_female'
+  skinTone: string;      // 'light' | 'amber' | 'olive' | 'bronze' | 'brown' | 'black' | 'zombie'
+  hair: string;          // 'hair_bangsshort' | 'hair_bangslong' | 'hair_bedhead' | 'hair_bob' | 'hair_curtains' | 'hair_loose' | 'hair_plain' | 'hair_spiked' | 'none'
+  hairColor: string;     // 'blonde' | 'black' | 'dark_brown' | 'light_brown' | 'red' | 'pink' | 'purple' | 'blue' | 'green' | 'white' | 'gray'
+  top: string;           // 'top_tshirt' | 'top_formal' | 'top_longsleeve' | 'top_plate' | 'top_jacket_black' | 'top_jacket_red' | 'top_jacket_blue' | 'none'
+  bottom: string;        // 'bottom_pants' | 'bottom_cuffed' | 'bottom_formal' | 'none'
+  shoes: string;         // 'shoes_shoes' | 'shoes_boots' | 'shoes_sandals' | 'none'
+  hat: string;           // 'none' | 'hat_bandana' | 'hat_leather_cap' | 'hat_hood'
+  accessories: string[]; // e.g. ['acc_glasses', 'acc_belt_leather']
+}
+
 export interface UserProfile {
   uid: string;
   displayName: string;
@@ -74,6 +88,7 @@ export interface UserProfile {
   wardrobe?: UserWardrobe;
   unlockedItems?: string[];
   petProfile?: UserPetProfile;
+  lpcCharacter?: LpcCharacterConfig;
 }
 
 export type PresenceStatus = 'online' | 'lobby' | 'in_game' | 'offline';
@@ -93,6 +108,7 @@ export interface UserPresence {
   currentRoomPlayerCount?: number;
   wardrobe?: UserWardrobe;
   petProfile?: UserPetProfile;
+  lpcCharacter?: LpcCharacterConfig;
 }
 
 export interface CoinTransaction {

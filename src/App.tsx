@@ -13,6 +13,7 @@ import { ProfileSetupModal } from './components/profile/ProfileSetupModal';
 import { EditProfileModal } from './components/profile/EditProfileModal';
 import { CasinoModal, CasinoTab } from './components/casino/CasinoModal';
 import { ExamCardModal } from './components/profile/ExamCardModal';
+import { LpcWardrobeModal } from './components/profile/LpcWardrobeModal';
 import { ErrorBoundary } from './components/common/ErrorBoundary';
 import { GameShell } from './components/games/GameShell';
 import { Game1A2B } from './components/games/game1a2b/Game1A2B';
@@ -38,6 +39,7 @@ export const AppContent: React.FC = () => {
   const [casinoOpen, setCasinoOpen] = useState(false);
   const [casinoTab, setCasinoTab] = useState<CasinoTab>('slot');
   const [examCardUser, setExamCardUser] = useState<any>(null);
+  const [lpcWardrobeOpen, setLpcWardrobeOpen] = useState(false);
 
   if (loading) {
     return <LoadingScreen message="對戰平台載入中..." subMessage="正在與雲端伺服器建立加密連線並同步使用者資訊..." />;
@@ -68,6 +70,7 @@ export const AppContent: React.FC = () => {
         onOpenEditProfile={() => setEditProfileOpen(true)}
         onOpenCasino={() => setCasinoOpen(true)}
         onOpenExamCard={() => setExamCardUser(currentUser)}
+        onOpenLpcWardrobe={() => setLpcWardrobeOpen(true)}
         inGame={Boolean(currentRoom)}
       />
 
@@ -112,6 +115,7 @@ export const AppContent: React.FC = () => {
                   setCasinoOpen(true);
                 }}
                 onOpenExamCard={() => setExamCardUser(currentUser)}
+                onOpenLpcWardrobe={() => setLpcWardrobeOpen(true)}
               />
             </div>
           )}
@@ -173,6 +177,12 @@ export const AppContent: React.FC = () => {
           setExamCardUser(null);
           setEditProfileOpen(true);
         }}
+      />
+
+      {/* 2D Full-body LPC Pixel Character Wardrobe Modal */}
+      <LpcWardrobeModal
+        isOpen={lpcWardrobeOpen}
+        onClose={() => setLpcWardrobeOpen(false)}
       />
 
       {/* Interactive Onboarding Spotlight Tour (shows only after profile setup completed) */}

@@ -38,13 +38,15 @@ interface LobbyProps {
   onOpenFriends: () => void;
   onOpenCasino?: (tab?: 'slot' | 'scratch' | 'dice' | 'roulette' | 'blackjack') => void;
   onOpenExamCard?: () => void;
+  onOpenLpcWardrobe?: () => void;
 }
 
 export const Lobby: React.FC<LobbyProps> = ({
   onOpenRulesForGame,
   onOpenFriends,
   onOpenCasino,
-  onOpenExamCard
+  onOpenExamCard,
+  onOpenLpcWardrobe
 }) => {
   const { createRoom, activeOngoingRoom, rejoinActiveRoom } = useRoom();
   const {
@@ -200,9 +202,9 @@ export const Lobby: React.FC<LobbyProps> = ({
         )}
       </AnimatePresence>
 
-      {/* Sleek Top Action Bar: Friends, Room Code Keypad, Casino & Pet/Chair Workshop */}
+      {/* Sleek Top Action Bar: Friends, Room Code Keypad, Casino, Pet Workshop & LPC Wardrobe */}
       <div className="glass-panel rounded-2xl p-2.5 sm:p-3 shadow-xs border border-white/70">
-        <div className="grid grid-cols-2 sm:grid-cols-4 gap-2 sm:gap-2.5">
+        <div className="grid grid-cols-2 sm:grid-cols-5 gap-2 sm:gap-2.5">
           {/* Button 1: 好友名單 */}
           <motion.button
             whileHover={{ scale: 1.02 }}
@@ -270,6 +272,22 @@ export const Lobby: React.FC<LobbyProps> = ({
               <span className="text-sm">🛋️</span>
             </div>
             <span className="truncate">寵物工坊</span>
+          </motion.button>
+
+          {/* Button 5: 2D 全身像素換裝室 */}
+          <motion.button
+            whileHover={{ scale: 1.02 }}
+            whileTap={{ scale: 0.97 }}
+            onClick={() => {
+              sound.playClick();
+              if (onOpenLpcWardrobe) onOpenLpcWardrobe();
+            }}
+            className="col-span-2 sm:col-span-1 flex items-center justify-center gap-1.5 sm:gap-2 py-2.5 px-2 rounded-xl bg-gradient-to-r from-[#2E2925] to-[#433C36] hover:brightness-110 text-white font-black text-xs shadow-xs hover:shadow-md transition-all cursor-pointer border border-white/20"
+          >
+            <div className="w-6 h-6 rounded-lg bg-white/20 text-white flex items-center justify-center shrink-0">
+              <span className="text-sm">🪞</span>
+            </div>
+            <span className="truncate">角色換裝</span>
           </motion.button>
         </div>
       </div>
