@@ -8,6 +8,7 @@ import { sound } from '../../services/soundService';
 import { getTitleById } from '../../data/titleCatalog';
 import { useAuth } from '../../context/AuthContext';
 import { rtdb, ref, onValue } from '../../services/firebase';
+import { getCleanUserTag } from '../../utils/userTag';
 
 interface ExamCardModalProps {
   isOpen: boolean;
@@ -72,7 +73,10 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
       : '0.0';
 
   const coins = Number(merged.coins ?? 0);
-  const userTag = merged.userTag || (isSelf ? currentUser?.userTag : '') || (user?.uid ? user.uid.substring(0, 4) : '0215');
+  const userTag =
+    (isSelf && currentUser?.userTag ? String(currentUser.userTag).trim() : '') ||
+    (merged.displayName === currentUser?.displayName && currentUser?.userTag ? String(currentUser.userTag).trim() : '') ||
+    getCleanUserTag(merged, currentUser?.userTag || '0215');
   const bio = merged.bio || merged.motto || '';
   const photoUrl =
     merged.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${merged.uid || 'guest'}`;

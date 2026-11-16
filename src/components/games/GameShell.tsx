@@ -23,10 +23,10 @@ import { ErrorBoundary } from '../common/ErrorBoundary';
 import { InviteFriendsModal } from '../lobby/InviteFriendsModal';
 import { RoomConfigModal } from '../lobby/RoomConfigModal';
 import { ExamCardModal } from '../profile/ExamCardModal';
-import { LpcAvatarView } from '../profile/LpcAvatarView';
 import { getTitleById } from '../../data/titleCatalog';
 import { DEFAULT_LPC_CHARACTER } from '../../data/lpcCatalog';
 import { sound } from '../../services/soundService';
+import { getCleanUserTag } from '../../utils/userTag';
 import type { PlayerSlot, RoomCreationOptions } from '../../types';
 
 interface GameShellProps {
@@ -448,9 +448,9 @@ export const GameShell: React.FC<GameShellProps> = ({
                   {Array.from({ length: maxSlots }).map((_, slotIdx) => {
                     const slotPlayer = displayPlayers[slotIdx];
                     const isHostSlot = slotIdx === 0;
-                    const charConfig =
-                      slotPlayer?.lpcCharacter ||
-                      (slotPlayer?.uid === currentUser.uid ? currentUser.lpcCharacter : DEFAULT_LPC_CHARACTER);
+                    const playerTag = getCleanUserTag(slotPlayer);
+                    const avatarUrl =
+                      slotPlayer?.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer?.uid || 'guest'}`;
 
                     return slotPlayer ? (
                       <div
@@ -463,45 +463,52 @@ export const GameShell: React.FC<GameShellProps> = ({
                         title="點擊檢視帝國准考證（名片）"
                       >
                         {/* Status / Role Tag */}
-                        <div className="mb-1">
+                        <div className="mb-1.5">
                           {isHostSlot ? (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#5D3A1A] text-[#FFE8D6] shadow-xs flex items-center gap-1">
+                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-gradient-to-r from-amber-600 to-yellow-600 text-white shadow-xs flex items-center gap-1">
                               <span>👑</span> 房主
                             </span>
                           ) : (
-                            <span className="text-[9px] font-black px-2 py-0.5 rounded-full bg-[#2E7D32] text-white shadow-xs flex items-center gap-1">
+                            <span className="text-[10px] font-black px-2.5 py-0.5 rounded-full bg-emerald-600 text-white shadow-xs flex items-center gap-1">
                               <span>●</span> P{slotIdx + 1} 就緒
                             </span>
                           )}
                         </div>
 
-                        {/* LPC Standing Character with Animated Walk Cycle */}
-                        <div className="relative flex flex-col items-center">
-                          <LpcAvatarView
-                            config={charConfig}
-                            size={112}
-                            scale={2}
-                            direction="down"
-                            animate={true}
-                          />
-                          {/* Floor Shadow Under Feet */}
-                          <div className="w-14 h-2.5 bg-[#5D3A1A]/25 rounded-full blur-[2px] -mt-2" />
+                        {/* Large Player Photo Avatar Area (大頭像，非像素角色) */}
+                        <div className="relative mb-2">
+                          <div
+                            className={`w-20 h-20 sm:w-24 sm:h-24 rounded-2xl p-1 bg-white shadow-md border-3 ${
+                              isHostSlot
+                                ? 'border-[#D4AF37] ring-4 ring-[#D4AF37]/30'
+                                : 'border-[#628395] ring-2 ring-[#628395]/20'
+                            } flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105`}
+                          >
+                            <img
+                              src={avatarUrl}
+                              alt={slotPlayer.displayName || '受驗生'}
+                              className="w-full h-full object-cover rounded-xl"
+                              onError={(e) => {
+                                (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid || 'guest'}`;
+                              }}
+                            />
+                          </div>
+
+                          {/* Decorative Host Crown */}
+                          {isHostSlot && (
+                            <div className="absolute -top-2 -right-1 text-base select-none filter drop-shadow">
+                              👑
+                            </div>
+                          )}
                         </div>
 
-                        {/* Player Photo + Name Capsule */}
-                        <div className="mt-2 flex items-center gap-1.5 px-2.5 py-1 rounded-xl bg-white/90 border border-[#D5C0A1] shadow-xs max-w-[120px]">
-                          <img
-                            src={slotPlayer.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${slotPlayer.uid}`}
-                            alt={slotPlayer.displayName}
-                            className="w-5 h-5 rounded-full object-cover border border-[#8D5B4C]/30 shrink-0"
-                          />
-                          <div className="min-w-0 flex-1 text-left">
-                            <div className="text-[11px] font-black text-[#3B2211] truncate leading-tight">
-                              {slotPlayer.displayName}
-                            </div>
-                            <div className="text-[8px] text-[#8D5B4C] font-mono font-bold leading-none">
-                              No.{(slotPlayer as any)?.userTag || slotPlayer?.uid?.substring(0, 4) || (slotIdx + 1) * 1000}
-                            </div>
+                        {/* Player Name Capsule & 4-Digit Code */}
+                        <div className="text-center max-w-[130px] w-full px-1">
+                          <div className="text-xs sm:text-sm font-black text-[#3B2211] truncate leading-tight">
+                            {slotPlayer.displayName || '受驗生'}
+                          </div>
+                          <div className="text-[10px] text-[#8D5B4C] font-mono font-bold mt-0.5">
+                            No.#{playerTag}
                           </div>
                         </div>
 
@@ -527,13 +534,13 @@ export const GameShell: React.FC<GameShellProps> = ({
                       /* Empty Slot Standing Placeholder */
                       <div
                         key={`empty-slot-${slotIdx}`}
-                        className="flex flex-col items-center justify-end shrink-0"
+                        className="flex flex-col items-center justify-center shrink-0"
                       >
-                        <div className="w-20 h-32 rounded-2xl border-2 border-dashed border-[#8D5B4C]/40 bg-white/40 flex flex-col items-center justify-center p-2 text-center">
+                        <div className="w-20 h-20 sm:w-24 sm:h-24 rounded-2xl border-2 border-dashed border-[#8D5B4C]/40 bg-white/40 flex flex-col items-center justify-center p-2 text-center mb-2">
                           <div className="w-8 h-8 rounded-full bg-[#8D5B4C]/10 text-[#8D5B4C] flex items-center justify-center mb-1 animate-pulse">
                             <UserPlus className="w-4 h-4" />
                           </div>
-                          <span className="text-[11px] font-black text-[#5D3A1A]">
+                          <span className="text-[10px] font-black text-[#5D3A1A]">
                             席位 {slotIdx + 1}
                           </span>
                           <span className="text-[9px] text-[#8D5B4C] font-bold mt-0.5">

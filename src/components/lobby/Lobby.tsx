@@ -16,7 +16,8 @@ import {
   Sparkles,
   Keyboard,
   Award,
-  Heart
+  Heart,
+  ExternalLink
 } from 'lucide-react';
 import { useRoom } from '../../context/RoomContext';
 import { useAuth } from '../../context/AuthContext';
@@ -28,6 +29,7 @@ import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
 import { LpcAvatarView } from '../profile/LpcAvatarView';
 import { TopWealthLeaderboard } from './TopWealthLeaderboard';
 import { getTitleById } from '../../data/titleCatalog';
+import { getCleanUserTag } from '../../utils/userTag';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
@@ -316,7 +318,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                     {currentUser.displayName}
                   </span>
                   <span className="text-[10px] font-mono font-bold text-[#8D5B4C]">
-                    #{currentUser.userTag || currentUser.uid.substring(0, 4)}
+                    #{getCleanUserTag(currentUser)}
                   </span>
                 </div>
 
@@ -406,7 +408,7 @@ export const Lobby: React.FC<LobbyProps> = ({
                   {currentUser.displayName}
                 </span>
                 <span className="font-mono text-[10px] text-[#8D5B4C] font-bold">
-                  #{currentUser.userTag}
+                  #{getCleanUserTag(currentUser)}
                 </span>
               </div>
               <p className="text-[10px] text-[#8D5B4C] font-bold mt-0.5">
@@ -500,16 +502,43 @@ export const Lobby: React.FC<LobbyProps> = ({
                 </p>
               </div>
 
-              <motion.button
-                whileHover={{ scale: 1.02 }}
-                whileTap={{ scale: 0.95 }}
-                disabled={isBusy}
-                onClick={() => handleCreateGame(game.id as GameId)}
-                className="w-full py-2.5 px-4 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
-              >
-                <Plus className="w-3.5 h-3.5" />
-                <span>{isBusy ? '建立中...' : '開房對戰'}</span>
-              </motion.button>
+              {game.id === '1a2b' ? (
+                <div className="flex items-center gap-2">
+                  <a
+                    href="https://1a2b.terry0215.com/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    onClick={() => sound.playClick()}
+                    className="flex-1 py-2.5 px-2.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-black text-xs shadow-xs flex items-center justify-center gap-1 transition-all cursor-pointer text-center"
+                    title="前往 1A2B 單人專用版 (1a2b.terry0215.com)"
+                  >
+                    <span>單人玩法</span>
+                    <ExternalLink className="w-3.5 h-3.5" />
+                  </a>
+
+                  <motion.button
+                    whileHover={{ scale: 1.02 }}
+                    whileTap={{ scale: 0.95 }}
+                    disabled={isBusy}
+                    onClick={() => handleCreateGame(game.id as GameId)}
+                    className="flex-1 py-2.5 px-2.5 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1 transition-all cursor-pointer"
+                  >
+                    <Plus className="w-3.5 h-3.5" />
+                    <span>{isBusy ? '建立中...' : '開房對戰'}</span>
+                  </motion.button>
+                </div>
+              ) : (
+                <motion.button
+                  whileHover={{ scale: 1.02 }}
+                  whileTap={{ scale: 0.95 }}
+                  disabled={isBusy}
+                  onClick={() => handleCreateGame(game.id as GameId)}
+                  className="w-full py-2.5 px-4 rounded-xl bg-white/80 hover:bg-[#628395] text-[#2E2925] hover:text-white border border-[#96897B]/20 font-bold text-xs shadow-2xs flex items-center justify-center gap-1.5 transition-all cursor-pointer"
+                >
+                  <Plus className="w-3.5 h-3.5" />
+                  <span>{isBusy ? '建立中...' : '開房對戰'}</span>
+                </motion.button>
+              )}
             </motion.div>
           );
         })}

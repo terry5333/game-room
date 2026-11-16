@@ -2,9 +2,9 @@ import React, { useMemo } from 'react';
 import { motion } from 'framer-motion';
 import { Trophy, Coins, Sparkles, Award, BookOpen, Flame } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
-import { LpcAvatarView } from '../profile/LpcAvatarView';
 import { getTitleById } from '../../data/titleCatalog';
 import { sound } from '../../services/soundService';
+import { getCleanUserTag } from '../../utils/userTag';
 
 interface TopWealthLeaderboardProps {
   onInspectUser?: (user: any) => void;
@@ -100,9 +100,11 @@ export const TopWealthLeaderboard: React.FC<TopWealthLeaderboardProps> = ({ onIn
           const total = Number(player.gamesPlayed ?? pAny.stats?.totalGames ?? (wins + losses));
           const winRate = total > 0 ? ((wins / total) * 100).toFixed(1) : '0.0';
           const coins = Number(player.coins ?? 0);
-          const userTag = player.userTag || (player.uid ? player.uid.substring(0, 4) : '0215');
+          const userTag = getCleanUserTag(player);
           const bio = player.bio || pAny.motto || '';
           const title = getTitleById(typeof player.equippedTitle === 'string' ? player.equippedTitle : undefined);
+          const avatarUrl =
+            player.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${player.uid || 'guest'}`;
 
           return (
             <motion.div
@@ -114,7 +116,7 @@ export const TopWealthLeaderboard: React.FC<TopWealthLeaderboardProps> = ({ onIn
                 if (onInspectUser) onInspectUser(player);
               }}
               className={`relative rounded-3xl p-4 sm:p-5 border-2 ${cfg.borderColor} bg-gradient-to-b ${cfg.bgGradient} ${cfg.glow} flex flex-col justify-between cursor-pointer transition-all select-none overflow-hidden aspect-square`}
-              title={`點擊翻閱 ${player.displayName} 的帝國受驗准考證`}
+              title={`點擊翻閱 ${player.displayName || '受驗生'} 的帝國受驗准考證`}
             >
               {/* Top Card Header */}
               <div className="flex items-center justify-between gap-1.5 shrink-0">
@@ -129,27 +131,33 @@ export const TopWealthLeaderboard: React.FC<TopWealthLeaderboardProps> = ({ onIn
                 </div>
               </div>
 
-              {/* Center Profile & LPC Avatar Area */}
+              {/* Center Profile & Large Avatar Area (玩家大頭像，非像素角色) */}
               <div className="flex flex-col items-center justify-center my-auto py-1">
-                {/* 2D LPC Pixel Character in Round Mount */}
-                <div className="relative mb-1 flex flex-col items-center">
-                  <div className="w-[76px] h-[76px] flex items-center justify-center rounded-2xl bg-[#FAF3E0] border border-[#D5C0A1] shadow-inner overflow-hidden p-1">
-                    <LpcAvatarView
-                      config={player.lpcCharacter}
-                      size={72}
-                      scale={1.5}
-                      direction="down"
+                {/* Large Player Photo Avatar with Decorative Rank Frame */}
+                <div className="relative mb-2">
+                  <div
+                    className={`w-20 h-20 sm:w-22 sm:h-22 rounded-2xl p-1 bg-white shadow-md border-3 ${cfg.borderColor} flex items-center justify-center overflow-hidden transition-transform group-hover:scale-105`}
+                  >
+                    <img
+                      src={avatarUrl}
+                      alt={player.displayName || '受驗生'}
+                      className="w-full h-full object-cover rounded-xl"
+                      onError={(e) => {
+                        (e.target as HTMLImageElement).src = `https://api.dicebear.com/7.x/bottts/svg?seed=${player.uid || 'guest'}`;
+                      }}
                     />
                   </div>
-                  {/* Floor Shadow Under Feet */}
-                  <div className="w-12 h-2 bg-[#5D3A1A]/20 rounded-full blur-[1px] -mt-1" />
+                  {/* Pinned Medal Badge on Corner */}
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-white border border-[#D5C0A1] shadow-xs flex items-center justify-center text-sm select-none">
+                    {cfg.medal}
+                  </div>
                 </div>
 
                 {/* Player Name & Code */}
                 <div className="text-center min-w-0 w-full px-1">
                   <div className="flex items-center justify-center gap-1 truncate">
                     <span className="text-xs sm:text-sm font-black text-[#3B2211] font-serif truncate">
-                      {player.displayName}
+                      {player.displayName || '受驗生'}
                     </span>
                     <span className="text-[10px] font-mono font-bold text-[#8D5B4C] shrink-0">
                       #{userTag}

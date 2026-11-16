@@ -13,7 +13,8 @@ import {
   Anchor,
   SquareDot,
   Coins,
-  Trophy
+  Trophy,
+  ExternalLink
 } from 'lucide-react';
 import type { GameId, RoomCreationOptions } from '../../types';
 import { sound } from '../../services/soundService';
@@ -124,6 +125,32 @@ export const RoomConfigModal: React.FC<RoomConfigModalProps> = ({
           {/* 1A2B Configuration */}
           {gameId === '1a2b' && (
             <>
+              {/* 1A2B 單人玩法導外推薦橫幅 */}
+              <div className="p-3 sm:p-3.5 rounded-2xl bg-gradient-to-r from-amber-50 to-yellow-50 border border-amber-200/90 flex items-center justify-between gap-3 shadow-2xs">
+                <div className="flex items-center gap-2.5 min-w-0">
+                  <span className="text-xl shrink-0">🎯</span>
+                  <div className="min-w-0">
+                    <div className="text-xs font-black text-[#5D3A1A] flex items-center gap-1.5">
+                      <span>想體驗 1A2B 單人破關玩法？</span>
+                      <span className="px-1.5 py-0.2 rounded-md bg-amber-500 text-white text-[9px] font-bold">免等待</span>
+                    </div>
+                    <div className="text-[10px] text-[#8D5B4C] font-bold truncate">
+                      獨立單人解題挑戰，直接前往 1a2b.terry0215.com
+                    </div>
+                  </div>
+                </div>
+                <a
+                  href="https://1a2b.terry0215.com/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  onClick={() => sound.playClick()}
+                  className="shrink-0 px-3 py-1.5 rounded-xl bg-gradient-to-r from-amber-500 to-yellow-600 hover:from-amber-600 hover:to-yellow-700 text-white font-black text-xs flex items-center gap-1 shadow-xs transition-colors cursor-pointer"
+                >
+                  <span>單人玩法</span>
+                  <ExternalLink className="w-3 h-3" />
+                </a>
+              </div>
+
               {/* 遊玩人數模式 */}
               <div className="space-y-1.5">
                 <label className="text-xs font-black text-[#2E2925] flex items-center justify-between">

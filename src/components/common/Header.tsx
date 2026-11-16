@@ -16,6 +16,7 @@ import {
 } from 'lucide-react';
 import { useAuth } from '../../context/AuthContext';
 import { sound } from '../../services/soundService';
+import { getCleanUserTag } from '../../utils/userTag';
 
 interface HeaderProps {
   onOpenRules: () => void;
@@ -52,8 +53,10 @@ export const Header: React.FC<HeaderProps> = ({
 
   if (!currentUser) return null;
 
+  const userTag = getCleanUserTag(currentUser);
+
   const copyId = () => {
-    navigator.clipboard.writeText(`${currentUser.displayName}#${currentUser.userTag}`);
+    navigator.clipboard.writeText(`${currentUser.displayName}#${userTag}`);
     setCopied(true);
     sound.playClick();
     setTimeout(() => setCopied(false), 2000);
@@ -128,7 +131,7 @@ export const Header: React.FC<HeaderProps> = ({
                 {currentUser.displayName}
               </span>
               <span className="font-mono text-[10px] text-[#628395] font-bold hidden md:inline">
-                #{currentUser.userTag}
+                #{userTag}
               </span>
               <ChevronDown className="w-3 h-3 text-[#96897B]" />
             </button>
@@ -141,7 +144,7 @@ export const Header: React.FC<HeaderProps> = ({
                     {currentUser.displayName}
                   </div>
                   <div className="flex items-center justify-between mt-1 text-[11px] text-[#96897B]">
-                    <span>ID: #{currentUser.userTag}</span>
+                    <span>ID: #{userTag}</span>
                     <button
                       onClick={copyId}
                       className="text-[#628395] hover:underline flex items-center gap-0.5"

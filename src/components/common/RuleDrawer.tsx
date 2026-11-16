@@ -14,7 +14,8 @@ import {
   ChevronRight,
   ShieldCheck,
   Zap,
-  Info
+  Info,
+  ExternalLink
 } from 'lucide-react';
 import type { GameId } from '../../types';
 
@@ -147,6 +148,26 @@ export const RuleDrawer: React.FC<RuleDrawerProps> = ({
                     <p className="text-xs text-[#2E2925]/80 leading-relaxed">
                       每個回合提供 30 秒思考倒數。請使用螢幕虛擬數字鍵盤或實體鍵盤輸入，右方即時紀錄面板會同步顯示雙方每一回合的猜測軌跡與 A/B 判定。
                     </p>
+                  </div>
+
+                  {/* 1A2B 單人專用版導外推薦 */}
+                  <div className="p-3 rounded-2xl bg-amber-500/10 border border-amber-500/25 flex items-center justify-between gap-2.5">
+                    <div className="flex items-center gap-2">
+                      <span className="text-lg">🎯</span>
+                      <div>
+                        <div className="text-xs font-black text-[#5D3A1A]">1A2B 單人專用版</div>
+                        <div className="text-[10px] text-[#8D5B4C] font-bold">隨時隨地免等待，單人破關解題玩法</div>
+                      </div>
+                    </div>
+                    <a
+                      href="https://1a2b.terry0215.com/"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="px-2.5 py-1 rounded-xl bg-amber-500 hover:bg-amber-600 text-white font-black text-xs flex items-center gap-1 shadow-2xs transition-colors"
+                    >
+                      <span>單人玩法</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
                   </div>
                 </div>
               )}
