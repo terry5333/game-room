@@ -3,12 +3,6 @@ import { motion, AnimatePresence } from 'framer-motion';
 import { X, Award, Coins, Flame, Sparkles, Edit3, ShieldCheck, BookOpen } from 'lucide-react';
 import type { UserProfile, UserPresence, PlayerSlot, FriendRecord } from '../../types';
 import { STAMP_DETAILS, DEFAULT_WARDROBE } from '../../data/wardrobeCatalog';
-import {
-  CHAIR_CATALOG,
-  PET_CATALOG,
-  DEFAULT_PET_PROFILE
-} from '../../data/petAndChairCatalog';
-import { PixelStage } from './PixelStage';
 import { LpcAvatarView } from './LpcAvatarView';
 import { sound } from '../../services/soundService';
 import { getTitleById } from '../../data/titleCatalog';
@@ -68,14 +62,6 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
   const bio = merged.bio || merged.motto || '';
   const photoUrl =
     merged.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${merged.uid || 'guest'}`;
-
-  const [portraitMode, setPortraitMode] = React.useState<'lpc' | 'stage'>('lpc');
-
-  const petProf = (user as any).petProfile || DEFAULT_PET_PROFILE;
-  const activePet = petProf.pet || DEFAULT_PET_PROFILE.pet;
-  const activeChar = petProf.character || DEFAULT_PET_PROFILE.character;
-  const activeChair = CHAIR_CATALOG.find((c) => c.id === activeChar.chairId) || CHAIR_CATALOG[0];
-  const petSpecies = PET_CATALOG.find((p) => p.id === activePet.id) || PET_CATALOG[0];
 
   return (
     <AnimatePresence>
