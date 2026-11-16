@@ -114,7 +114,7 @@ export const AppContent: React.FC = () => {
                   setCasinoTab(tab || 'slot');
                   setCasinoOpen(true);
                 }}
-                onOpenExamCard={() => setExamCardUser(currentUser)}
+                onOpenExamCard={(target) => setExamCardUser(target || currentUser)}
                 onOpenLpcWardrobe={() => setLpcWardrobeOpen(true)}
                 onOpenTitleSelector={() => setTitleSelectorOpen(true)}
               />

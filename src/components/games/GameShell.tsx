@@ -638,12 +638,14 @@ export const GameShell: React.FC<GameShellProps> = ({
       )}
 
       {/* Showa Exam Card Modal (Business Card) */}
-      <ExamCardModal
-        isOpen={Boolean(inspectUser)}
-        onClose={() => setInspectUser(null)}
-        user={inspectUser}
-        isSelf={inspectUser?.uid === currentUser?.uid}
-      />
+      {Boolean(inspectUser) && (
+        <ExamCardModal
+          isOpen={Boolean(inspectUser)}
+          onClose={() => setInspectUser(null)}
+          user={inspectUser}
+          isSelf={inspectUser?.uid === currentUser?.uid}
+        />
+      )}
     </motion.div>
   );
 };

@@ -1,6 +1,7 @@
 import { LpcCharacterConfig } from '../types';
 import {
   LPC_ITEMS,
+  LPC_LAYER_PRIORITY,
   LPC_SKIN_PALETTES,
   LPC_HAIR_PALETTES,
   LpcItemDef
@@ -185,7 +186,7 @@ class LpcRendererService {
         name: '頭部基底',
         category: 'body',
         imagePath: headPath,
-        layerOrder: 15,
+        layerOrder: LPC_LAYER_PRIORITY.head,
         genderSupport: 'both',
         author: 'LPC Community',
         license: 'CC-BY-SA 3.0'
@@ -240,7 +241,7 @@ class LpcRendererService {
     }
 
     // 依 layerOrder 由小到大排序 (底層至頂層)
-    layers.sort((a, b) => a.item.layerOrder - b.item.layerOrder);
+    layers.sort((a, b) => (a.item?.layerOrder ?? 0) - (b.item?.layerOrder ?? 0));
     return layers;
   }
 

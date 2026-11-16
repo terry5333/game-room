@@ -26,13 +26,14 @@ import { sound } from '../../services/soundService';
 import { RoomConfigModal } from './RoomConfigModal';
 import { RoomCodeKeypadModal } from './RoomCodeKeypadModal';
 import { LpcAvatarView } from '../profile/LpcAvatarView';
+import { TopWealthLeaderboard } from './TopWealthLeaderboard';
 import { getTitleById } from '../../data/titleCatalog';
 
 interface LobbyProps {
   onOpenRulesForGame: (gameId: GameId) => void;
   onOpenFriends: () => void;
   onOpenCasino?: (tab?: 'slot' | 'scratch' | 'dice' | 'roulette') => void;
-  onOpenExamCard?: () => void;
+  onOpenExamCard?: (user?: any) => void;
   onOpenLpcWardrobe?: () => void;
   onOpenTitleSelector?: () => void;
 }
@@ -421,6 +422,13 @@ export const Lobby: React.FC<LobbyProps> = ({
           </div>
         </div>
       )}
+
+      {/* Top Wealth Leaderboard (正方形排行榜：金幣前3名一人一張卡片) */}
+      <TopWealthLeaderboard
+        onInspectUser={(target) => {
+          if (onOpenExamCard) onOpenExamCard(target);
+        }}
+      />
 
       {/* 5 Game Cards */}
       <motion.div

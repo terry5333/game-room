@@ -26,7 +26,7 @@ export const LpcAvatarView: React.FC<LpcAvatarViewProps> = ({
 }) => {
   const canvasRef = useRef<HTMLCanvasElement | null>(null);
   const animFrameRef = useRef<number | null>(null);
-  const charConfig = config || DEFAULT_LPC_CHARACTER;
+  const charConfig = { ...DEFAULT_LPC_CHARACTER, ...(config || {}) };
 
   // 自動依據尺寸計算最適清晰倍率 (例如 64px = 1x, 128px = 2x, 192px = 3x)
   const renderScale = scale || Math.max(1, Math.round(size / 64));

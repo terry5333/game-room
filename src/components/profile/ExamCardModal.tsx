@@ -31,23 +31,37 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
 
   useEffect(() => {
     if (!isOpen || !user?.uid || !rtdb) return;
-    const unsub = onValue(ref(rtdb, `users/${user.uid}`), (snap) => {
-      if (snap.exists()) {
-        setLiveUserData(snap.val());
-      }
-    });
-    return () => unsub();
+    try {
+      const unsub = onValue(
+        ref(rtdb, `users/${user.uid}`),
+        (snap) => {
+          if (snap.exists()) {
+            setLiveUserData(snap.val());
+          }
+        },
+        (err) => {
+          console.warn('[ExamCard] RTDB onValue error:', err);
+        }
+      );
+      return () => unsub();
+    } catch (e) {
+      console.warn('[ExamCard] Failed to attach listener:', e);
+    }
   }, [isOpen, user?.uid]);
 
   if (!isOpen || !user) return null;
 
-  const targetFromAll = allUsers.find((u) => u.uid === user.uid);
-  const targetSelf = user.uid === currentUser?.uid ? currentUser : null;
-  const merged: any = { ...user, ...targetFromAll, ...targetSelf, ...liveUserData };
+  const targetFromAll = (allUsers || []).find((u) => u && user?.uid && u.uid === user.uid);
+  const targetSelf = user?.uid && currentUser?.uid && user.uid === currentUser.uid ? currentUser : null;
+  const merged: any = { ...(user || {}), ...(targetFromAll || {}), ...(targetSelf || {}), ...(liveUserData || {}) };
 
-  const wardrobe = merged.wardrobe || DEFAULT_WARDROBE;
+  const wardrobe = merged.wardrobe || DEFAULT_WARDROBE || {};
   const stampKey = wardrobe.stamp || 'candidate';
-  const stampInfo = STAMP_DETAILS[stampKey] || STAMP_DETAILS['candidate'];
+  const stampInfo = STAMP_DETAILS[stampKey] || STAMP_DETAILS['candidate'] || {
+    kanji: '受驗',
+    label: '受驗生',
+    desc: '通過帝國學府初步審查之受驗生憑證'
+  };
 
   const wins = Number(merged.wins ?? merged.stats?.wins ?? 0);
   const losses = Number(merged.losses ?? merged.stats?.losses ?? 0);
@@ -58,7 +72,7 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
       : '0.0';
 
   const coins = Number(merged.coins ?? 0);
-  const userTag = merged.userTag || (isSelf ? currentUser?.userTag : '') || '0215';
+  const userTag = merged.userTag || (isSelf ? currentUser?.userTag : '') || (user?.uid ? user.uid.substring(0, 4) : '0215');
   const bio = merged.bio || merged.motto || '';
   const photoUrl =
     merged.photoURL || `https://api.dicebear.com/7.x/bottts/svg?seed=${merged.uid || 'guest'}`;
@@ -167,7 +181,9 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                   </div>
                   {/* Equipped Title Badge */}
                   {(() => {
-                    const title = getTitleById(merged.equippedTitle);
+                    const title = getTitleById(
+                      typeof merged.equippedTitle === 'string' ? merged.equippedTitle : undefined
+                    );
                     if (!title) {
                       return isSelf && onOpenTitleSelector ? (
                         <div className="mt-1">
@@ -187,7 +203,7 @@ export const ExamCardModal: React.FC<ExamCardModalProps> = ({
                     return (
                       <div className="mt-1">
                         <span
-                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black border shadow-2xs ${title.badgeStyle} ${title.textColor}`}
+                          className={`inline-block px-2 py-0.5 rounded-full text-[10px] font-black border shadow-2xs ${title.badgeStyle || ''} ${title.textColor || ''}`}
                         >
                           {title.name}
                         </span>
